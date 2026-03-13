@@ -1,7 +1,7 @@
 {
   "name": "io.github.heznpc/iconnect",
   "description": "MCP server for the entire Apple ecosystem — Notes, Reminders, Calendar, Contacts, Mail, Messages, Music, Finder, Safari, System, Photos, Shortcuts, TV, and Apple Intelligence.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "repository": {
     "url": "https://github.com/heznpc/iConnect"
   },
@@ -9,7 +9,7 @@
     {
       "registryType": "npm",
       "identifier": "iconnect-mcp",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "transport": "stdio"
     }
   ]
