@@ -6,7 +6,7 @@ MCP server for the entire Apple ecosystem — Notes, Reminders, Calendar, Contac
 
 ## Features
 
-- **123 tools** (14 modules) — Apple app CRUD + system control + Apple Intelligence + TV
+- **127 tools** (14 modules) — Apple app CRUD + system control + Apple Intelligence + TV
 - **23 prompts** — per-app workflows + cross-module + developer workflows (dev-session, debug-loop, build-log)
 - **11 MCP resources** — Notes, Calendar, Reminders live data URIs
 - **JXA + Swift bridge** — JXA for basic automation, EventKit/PhotoKit for advanced features
@@ -312,7 +312,7 @@ Useful for running a Mac Mini as an "always-on AI hub."
 | `send_file` | Send file via iMessage/SMS | write |
 | `list_participants` | List chat participants | read |
 
-### Shortcuts (4 tools)
+### Shortcuts (8 tools)
 
 | Tool | Description | Type |
 |------|-------------|------|
@@ -320,6 +320,10 @@ Useful for running a Mac Mini as an "always-on AI hub."
 | `run_shortcut` | Run shortcut by name | write |
 | `search_shortcuts` | Search shortcuts by name | read |
 | `get_shortcut_detail` | Shortcut details/actions | read |
+| `create_shortcut` | Create a new shortcut via UI automation | write |
+| `delete_shortcut` | Delete shortcut by name (macOS 13+) | destructive |
+| `export_shortcut` | Export shortcut to .shortcut file | write |
+| `import_shortcut` | Import shortcut from .shortcut file | write |
 
 ### Apple Intelligence (3 tools)
 

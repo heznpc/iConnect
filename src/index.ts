@@ -29,6 +29,7 @@ import { parseConfig, isModuleEnabled, NPM_PACKAGE_NAME } from "./shared/config.
 import { MODULE_REGISTRY } from "./shared/modules.js";
 import { HitlClient } from "./shared/hitl.js";
 import { installHitlGuard } from "./shared/hitl-guard.js";
+import { setShareGuardHitlClient } from "./shared/share-guard.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const pkg = JSON.parse(readFileSync(join(__dirname, "..", "package.json"), "utf-8")) as { version: string };
@@ -39,6 +40,7 @@ const config = parseConfig();
 let hitlClient: HitlClient | null = null;
 if (config.hitl.level !== "off") {
   hitlClient = new HitlClient(config.hitl);
+  setShareGuardHitlClient(hitlClient);
   console.error(`iConnect HITL enabled: level=${config.hitl.level}, timeout=${config.hitl.timeout}s, socket=${config.hitl.socketPath}`);
 } else {
   console.error("iConnect HITL disabled");
@@ -49,6 +51,7 @@ function onExit() {
   if (hitlClient) {
     hitlClient.dispose();
     hitlClient = null;
+    setShareGuardHitlClient(null);
   }
 }
 process.on("exit", onExit);

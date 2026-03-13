@@ -35,7 +35,7 @@ private let allModules: [ModuleInfo] = [
     ModuleInfo(id: "photos", name: "Photos", icon: "photo",
                description: "Browse, search, albums", toolCount: 9),
     ModuleInfo(id: "shortcuts", name: "Shortcuts", icon: "command",
-               description: "Run, list shortcuts", toolCount: 4),
+               description: "Run, list, import, export shortcuts", toolCount: 8),
     ModuleInfo(id: "intelligence", name: "Intelligence", icon: "brain",
                description: "AI summarize, rewrite (macOS 26+)", toolCount: 3),
     ModuleInfo(id: "tv", name: "TV", icon: "tv",
@@ -143,6 +143,14 @@ struct MenuContent: View {
                 get: { configManager.allowSendMail },
                 set: { configManager.allowSendMail = $0 }
             ))
+
+            Divider()
+
+            Text("Share Approval")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            shareApprovalToggles
 
             Divider()
 
@@ -336,6 +344,39 @@ struct MenuContent: View {
 
     private func copyClaudeCodeConfig() {
         IConnectConstants.copyToClipboard("claude mcp add iconnect -- npx -y \(IConnectConstants.npmPackageName)")
+    }
+
+    // MARK: - Share Approval Toggles
+
+    /// Modules that support share-approval gating (have shared item handling).
+    private static let shareApprovalCapableModules: [(id: String, name: String)] = [
+        ("notes", "Notes"),
+        ("reminders", "Reminders"),
+        ("calendar", "Calendar"),
+    ]
+
+    @ViewBuilder
+    private var shareApprovalToggles: some View {
+        ForEach(Self.shareApprovalCapableModules, id: \.id) { module in
+            Toggle(module.name, isOn: Binding(
+                get: { configManager.shareApprovalModules.contains(module.id) },
+                set: { enabled in
+                    var modules = configManager.shareApprovalModules
+                    if enabled {
+                        if !modules.contains(module.id) {
+                            modules.append(module.id)
+                        }
+                    } else {
+                        modules.removeAll { $0 == module.id }
+                    }
+                    configManager.shareApprovalModules = modules
+                }
+            ))
+        }
+
+        Text("Require HITL approval before accessing shared items")
+            .font(.caption)
+            .foregroundStyle(.secondary)
     }
 
     // MARK: - HITL Status

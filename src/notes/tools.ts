@@ -3,6 +3,7 @@ import { z } from "zod";
 import { runJxa } from "../shared/jxa.js";
 import type { IConnectConfig } from "../shared/config.js";
 import { ok, err } from "../shared/result.js";
+import { filterSharedAccess, guardSharedAccess } from "../shared/share-guard.js";
 import {
   listNotesScript,
   searchNotesScript,
@@ -82,22 +83,13 @@ interface CompareResult extends Shareable {
   charCount: number;
 }
 
-function filterShared<T extends Shareable>(items: T[], includeShared: boolean): T[] {
-  if (includeShared) return items;
-  return items.filter((item) => !item.shared);
-}
-
-async function guardShared(id: string, includeShared: boolean): Promise<string | null> {
-  if (includeShared) return null;
+async function guardShared(id: string, config: IConnectConfig, toolName: string): Promise<string | null> {
+  if (config.includeShared) return null;
   const result = await runJxa<{ shared: boolean }>(guardSharedScript(id));
-  if (result.shared) {
-    return "This note is shared. Modifying shared notes is disabled by default. Set ICONNECT_INCLUDE_SHARED=true to allow.";
-  }
-  return null;
+  return guardSharedAccess(result.shared, config, "notes", toolName, { id });
 }
 
 export function registerNoteTools(server: McpServer, config: IConnectConfig): void {
-  const { includeShared } = config;
 
   // --- Layer 1: CRUD ---
 
@@ -119,7 +111,7 @@ export function registerNoteTools(server: McpServer, config: IConnectConfig): vo
     async ({ folder }) => {
       try {
         const result = await runJxa<NoteListItem[]>(listNotesScript(folder));
-        return ok(filterShared(result, includeShared));
+        return ok(filterSharedAccess(result, config, "notes"));
       } catch (e) {
         return err(`Failed to list notes: ${e instanceof Error ? e.message : String(e)}`);
       }
@@ -145,7 +137,7 @@ export function registerNoteTools(server: McpServer, config: IConnectConfig): vo
     async ({ query, limit }) => {
       try {
         const result = await runJxa<{ total: number; returned: number; notes: SearchResult[] }>(searchNotesScript(query, limit));
-        result.notes = filterShared(result.notes, includeShared);
+        result.notes = filterSharedAccess(result.notes, config, "notes");
         result.returned = result.notes.length;
         return ok(result);
       } catch (e) {
@@ -172,7 +164,8 @@ export function registerNoteTools(server: McpServer, config: IConnectConfig): vo
     async ({ id }) => {
       try {
         const result = await runJxa<NoteDetail>(readNoteScript(id));
-        if (!includeShared && result.shared) return err("This note is shared. Set ICONNECT_INCLUDE_SHARED=true to access shared notes.");
+        const blocked = await guardSharedAccess(result.shared, config, "notes", "read_note", { id });
+        if (blocked) return err(blocked);
         return ok(result);
       } catch (e) {
         return err(`Failed to read note: ${e instanceof Error ? e.message : String(e)}`);
@@ -199,7 +192,7 @@ export function registerNoteTools(server: McpServer, config: IConnectConfig): vo
     },
     async ({ body, folder }) => {
       try {
-        const script = includeShared
+        const script = config.includeShared
           ? createNoteSharedScript(body, folder)
           : createNoteScript(body, folder);
         const result = await runJxa<MutationResult>(script);
@@ -229,7 +222,7 @@ export function registerNoteTools(server: McpServer, config: IConnectConfig): vo
     },
     async ({ id, body }) => {
       try {
-        const blocked = await guardShared(id, includeShared);
+        const blocked = await guardShared(id, config, "update_note");
         if (blocked) return err(blocked);
         const result = await runJxa<MutationResult>(updateNoteScript(id, body));
         return ok(result);
@@ -257,7 +250,7 @@ export function registerNoteTools(server: McpServer, config: IConnectConfig): vo
     },
     async ({ id }) => {
       try {
-        const blocked = await guardShared(id, includeShared);
+        const blocked = await guardShared(id, config, "delete_note");
         if (blocked) return err(blocked);
         const result = await runJxa<DeleteResult>(deleteNoteScript(id));
         return ok(result);
@@ -283,7 +276,7 @@ export function registerNoteTools(server: McpServer, config: IConnectConfig): vo
     async () => {
       try {
         const result = await runJxa<FolderItem[]>(listFoldersScript());
-        return ok(filterShared(result, includeShared));
+        return ok(filterSharedAccess(result, config, "notes"));
       } catch (e) {
         return err(`Failed to list folders: ${e instanceof Error ? e.message : String(e)}`);
       }
@@ -335,7 +328,7 @@ export function registerNoteTools(server: McpServer, config: IConnectConfig): vo
     },
     async ({ id, folder }) => {
       try {
-        const blocked = await guardShared(id, includeShared);
+        const blocked = await guardShared(id, config, "move_note");
         if (blocked) return err(blocked);
         const result = await runJxa<MutationResult>(moveNoteScript(id, folder));
         return ok(result);
@@ -369,7 +362,7 @@ export function registerNoteTools(server: McpServer, config: IConnectConfig): vo
     async ({ folder, limit, offset, previewLength }) => {
       try {
         const result = await runJxa<ScanResult>(scanNotesScript(limit, previewLength, offset, folder));
-        result.notes = filterShared(result.notes, includeShared);
+        result.notes = filterSharedAccess(result.notes, config, "notes");
         result.returned = result.notes.length;
         return ok(result);
       } catch (e) {
@@ -401,9 +394,11 @@ export function registerNoteTools(server: McpServer, config: IConnectConfig): vo
     async ({ ids }) => {
       try {
         const result = await runJxa<CompareResult[]>(compareNotesScript(ids));
-        if (!includeShared) {
-          const shared = result.filter((n) => n.shared);
-          if (shared.length > 0) return err(`Shared notes found: ${shared.map((n) => n.name).join(", ")}. Set ICONNECT_INCLUDE_SHARED=true to access.`);
+        const shared = result.filter((n) => n.shared);
+        if (shared.length > 0) {
+          // Check first shared note to determine if access is allowed
+          const blocked = await guardSharedAccess(true, config, "notes", "compare_notes", { ids });
+          if (blocked) return err(blocked);
         }
         return ok(result);
       } catch (e) {
@@ -431,9 +426,12 @@ export function registerNoteTools(server: McpServer, config: IConnectConfig): vo
     },
     async ({ ids, folder }) => {
       try {
-        if (!includeShared) {
+        if (!config.includeShared) {
           const { sharedIds } = await runJxa<{ sharedIds: string[] }>(guardSharedBulkScript(ids));
-          if (sharedIds.length > 0) return err(`Blocked: ${sharedIds.length} shared note(s) found. Set ICONNECT_INCLUDE_SHARED=true to allow.`);
+          if (sharedIds.length > 0) {
+            const blocked = await guardSharedAccess(true, config, "notes", "bulk_move_notes", { ids, folder });
+            if (blocked) return err(blocked);
+          }
         }
         const result = await runJxa<unknown>(bulkMoveNotesScript(ids, folder));
         return ok(result);

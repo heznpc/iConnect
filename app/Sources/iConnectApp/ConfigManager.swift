@@ -17,6 +17,7 @@ final class ConfigManager {
         var allowSendMessages: Bool
         var allowSendMail: Bool
         var disabledModules: [String]
+        var shareApproval: [String]?
         var hitl: HitlConfig?
 
         static let `default` = Config(
@@ -24,6 +25,7 @@ final class ConfigManager {
             allowSendMessages: true,
             allowSendMail: true,
             disabledModules: [],
+            shareApproval: nil,
             hitl: nil
         )
     }
@@ -89,6 +91,14 @@ final class ConfigManager {
     var disabledModules: [String] {
         get { config.disabledModules }
         set { config.disabledModules = newValue; save() }
+    }
+
+    var shareApprovalModules: [String] {
+        get { config.shareApproval ?? [] }
+        set {
+            config.shareApproval = newValue.isEmpty ? nil : newValue
+            save()
+        }
     }
 
     var hitlLevel: String {

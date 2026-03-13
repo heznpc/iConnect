@@ -6,7 +6,7 @@ Apple 생태계 전체를 위한 MCP 서버 — Notes, Reminders, Calendar, Cont
 
 ## 특징
 
-- **123개 도구** (14개 모듈) — Apple 앱 CRUD + 시스템 제어 + Apple Intelligence + TV
+- **127개 도구** (14개 모듈) — Apple 앱 CRUD + 시스템 제어 + Apple Intelligence + TV
 - **23개 프롬프트** — 앱별 워크플로우 + 크로스 모듈 + 개발자 워크플로우 (dev-session, debug-loop, build-log)
 - **11개 MCP 리소스** — Notes, Calendar, Reminders 실시간 데이터 URI
 - **JXA + Swift 브릿지** — JXA로 기본 자동화, EventKit/PhotoKit으로 고급 기능
@@ -273,7 +273,7 @@ Mac Mini를 "상시 가동 AI 허브"로 활용할 때 유용합니다.
 | `send_file` | iMessage/SMS 파일 첨부 전송 | 쓰기 |
 | `list_participants` | 대화 참여자 목록 | 읽기 |
 
-### Shortcuts (4개)
+### Shortcuts (8개)
 
 | 도구 | 설명 | 타입 |
 |------|------|------|
@@ -281,6 +281,10 @@ Mac Mini를 "상시 가동 AI 허브"로 활용할 때 유용합니다.
 | `run_shortcut` | 이름으로 단축어 실행 | 쓰기 |
 | `search_shortcuts` | 이름으로 단축어 검색 | 읽기 |
 | `get_shortcut_detail` | 단축어 상세 정보/액션 | 읽기 |
+| `create_shortcut` | UI 자동화로 새 단축어 생성 | 쓰기 |
+| `delete_shortcut` | 이름으로 단축어 삭제 (macOS 13+) | 파괴적 |
+| `export_shortcut` | .shortcut 파일로 단축어 내보내기 | 쓰기 |
+| `import_shortcut` | .shortcut 파일에서 단축어 가져오기 | 쓰기 |
 
 ### Apple Intelligence (3개)
 

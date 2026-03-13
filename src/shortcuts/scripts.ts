@@ -49,3 +49,48 @@ export function getShortcutDetailScript(name: string): string {
     JSON.stringify({shortcut: '${esc(name)}', detail: actions});
   `;
 }
+
+export function deleteShortcutScript(name: string): string {
+  return `
+    const app = Application.currentApplication();
+    app.includeStandardAdditions = true;
+    app.doShellScript('shortcuts delete "${escJxaShell(name)}"');
+    JSON.stringify({deleted: '${esc(name)}', success: true});
+  `;
+}
+
+export function exportShortcutScript(name: string, outputPath: string): string {
+  return `
+    const app = Application.currentApplication();
+    app.includeStandardAdditions = true;
+    app.doShellScript('shortcuts export "${escJxaShell(name)}" -o "${escJxaShell(outputPath)}"');
+    JSON.stringify({shortcut: '${esc(name)}', exportedTo: '${esc(outputPath)}', success: true});
+  `;
+}
+
+export function importShortcutScript(filePath: string): string {
+  return `
+    const app = Application.currentApplication();
+    app.includeStandardAdditions = true;
+    app.doShellScript('shortcuts import "${escJxaShell(filePath)}"');
+    JSON.stringify({imported: '${esc(filePath)}', success: true});
+  `;
+}
+
+export function createShortcutScript(name: string): string {
+  return `
+    const app = Application.currentApplication();
+    app.includeStandardAdditions = true;
+    const se = Application('System Events');
+    const shortcuts = Application('Shortcuts');
+    shortcuts.activate();
+    delay(1);
+    se.keystroke('n', {using: 'command down'});
+    delay(1);
+    se.keystroke('${esc(name)}');
+    delay(0.5);
+    se.keyCode(36);
+    delay(0.5);
+    JSON.stringify({created: '${esc(name)}', success: true, note: 'Shortcut created via Shortcuts app UI automation. Open Shortcuts app to add actions.'});
+  `;
+}

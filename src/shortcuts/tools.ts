@@ -8,6 +8,10 @@ import {
   runShortcutScript,
   searchShortcutsScript,
   getShortcutDetailScript,
+  deleteShortcutScript,
+  exportShortcutScript,
+  importShortcutScript,
+  createShortcutScript,
 } from "./scripts.js";
 
 export function registerShortcutsTools(server: McpServer, _config: IConnectConfig): void {
@@ -56,5 +60,54 @@ export function registerShortcutsTools(server: McpServer, _config: IConnectConfi
   }, async ({ name }) => {
     try { return ok(await runJxa(getShortcutDetailScript(name))); }
     catch (e) { return err(`Failed to get shortcut detail: ${e instanceof Error ? e.message : String(e)}`); }
+  });
+
+  server.registerTool("create_shortcut", {
+    title: "Create Shortcut",
+    description: "Create a new Siri Shortcut by name. Uses UI automation to open the Shortcuts app and create a new empty shortcut. The shortcut must be further configured in the Shortcuts app.",
+    inputSchema: {
+      name: z.string().describe("Name for the new shortcut"),
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
+  }, async ({ name }) => {
+    try { return ok(await runJxa(createShortcutScript(name))); }
+    catch (e) { return err(`Failed to create shortcut: ${e instanceof Error ? e.message : String(e)}`); }
+  });
+
+  server.registerTool("delete_shortcut", {
+    title: "Delete Shortcut",
+    description: "Delete a Siri Shortcut by name. Uses the macOS shortcuts CLI (macOS 13+). This action is permanent and cannot be undone.",
+    inputSchema: {
+      name: z.string().describe("Shortcut name to delete (exact match)"),
+    },
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
+  }, async ({ name }) => {
+    try { return ok(await runJxa(deleteShortcutScript(name))); }
+    catch (e) { return err(`Failed to delete shortcut: ${e instanceof Error ? e.message : String(e)}`); }
+  });
+
+  server.registerTool("export_shortcut", {
+    title: "Export Shortcut",
+    description: "Export a Siri Shortcut to a .shortcut file. Uses the macOS shortcuts CLI to save the shortcut to the specified output path.",
+    inputSchema: {
+      name: z.string().describe("Shortcut name to export (exact match)"),
+      outputPath: z.string().describe("File path to export the .shortcut file to (e.g. ~/Desktop/MyShortcut.shortcut)"),
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+  }, async ({ name, outputPath }) => {
+    try { return ok(await runJxa(exportShortcutScript(name, outputPath))); }
+    catch (e) { return err(`Failed to export shortcut: ${e instanceof Error ? e.message : String(e)}`); }
+  });
+
+  server.registerTool("import_shortcut", {
+    title: "Import Shortcut",
+    description: "Import a .shortcut file into Siri Shortcuts. Uses the macOS shortcuts CLI to import the shortcut from the specified file path.",
+    inputSchema: {
+      filePath: z.string().describe("Path to the .shortcut file to import"),
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+  }, async ({ filePath }) => {
+    try { return ok(await runJxa(importShortcutScript(filePath))); }
+    catch (e) { return err(`Failed to import shortcut: ${e instanceof Error ? e.message : String(e)}`); }
   });
 }
