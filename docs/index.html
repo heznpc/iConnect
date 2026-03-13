@@ -1,0 +1,1163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>iConnect — Connect AI to Your Entire Apple Ecosystem</title>
+<meta name="description" content="Open-source MCP server with 123 tools across 14 modules. Connect Claude, Codex, and any MCP client to Apple Notes, Calendar, Reminders, Messages, Mail, Music, and more.">
+<meta name="theme-color" content="#0071e3">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍎</text></svg>">
+<style>
+/* ============================================================
+   RESET & BASE
+   ============================================================ */
+*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  --white: #fff;
+  --black: #000;
+  --near-black: #1d1d1f;
+  --gray-100: #f5f5f7;
+  --gray-200: #e8e8ed;
+  --gray-400: #86868b;
+  --gray-600: #6e6e73;
+  --blue: #0071e3;
+  --blue-hover: #0077ed;
+  --purple: #6e56cf;
+  --gradient: linear-gradient(135deg, #0071e3, #6e56cf);
+  --font: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+  --mono: 'SF Mono', SFMono-Regular, ui-monospace, Menlo, monospace;
+  --section-pad: clamp(80px, 12vw, 160px);
+  --content-width: 1080px;
+  --wide-width: 1200px;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  font-family: var(--font);
+  color: var(--near-black);
+  background: var(--white);
+  line-height: 1.5;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  color: var(--blue);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+a:hover {
+  color: var(--blue-hover);
+}
+
+img, svg {
+  display: block;
+  max-width: 100%;
+}
+
+/* ============================================================
+   UTILITY
+   ============================================================ */
+.container {
+  width: 100%;
+  max-width: var(--content-width);
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.container--wide {
+  max-width: var(--wide-width);
+}
+
+/* ============================================================
+   SCROLL REVEAL
+   ============================================================ */
+.reveal {
+  opacity: 0;
+  transform: translateY(32px);
+  transition: opacity 0.7s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+              transform 0.7s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* staggered children */
+.reveal-stagger .reveal-child {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+              transform 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.reveal-stagger.visible .reveal-child {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.reveal-stagger.visible .reveal-child:nth-child(1)  { transition-delay: 0.00s; }
+.reveal-stagger.visible .reveal-child:nth-child(2)  { transition-delay: 0.06s; }
+.reveal-stagger.visible .reveal-child:nth-child(3)  { transition-delay: 0.12s; }
+.reveal-stagger.visible .reveal-child:nth-child(4)  { transition-delay: 0.18s; }
+.reveal-stagger.visible .reveal-child:nth-child(5)  { transition-delay: 0.24s; }
+.reveal-stagger.visible .reveal-child:nth-child(6)  { transition-delay: 0.30s; }
+.reveal-stagger.visible .reveal-child:nth-child(7)  { transition-delay: 0.36s; }
+.reveal-stagger.visible .reveal-child:nth-child(8)  { transition-delay: 0.42s; }
+.reveal-stagger.visible .reveal-child:nth-child(9)  { transition-delay: 0.48s; }
+.reveal-stagger.visible .reveal-child:nth-child(10) { transition-delay: 0.54s; }
+.reveal-stagger.visible .reveal-child:nth-child(11) { transition-delay: 0.60s; }
+.reveal-stagger.visible .reveal-child:nth-child(12) { transition-delay: 0.66s; }
+.reveal-stagger.visible .reveal-child:nth-child(13) { transition-delay: 0.72s; }
+.reveal-stagger.visible .reveal-child:nth-child(14) { transition-delay: 0.78s; }
+
+/* ============================================================
+   NAV
+   ============================================================ */
+.nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  transition: background 0.3s;
+}
+
+.nav__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 52px;
+  max-width: var(--wide-width);
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.nav__brand {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--near-black);
+  letter-spacing: -0.02em;
+}
+
+.nav__links {
+  display: flex;
+  gap: 28px;
+  list-style: none;
+}
+
+.nav__links a {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--gray-600);
+  transition: color 0.2s;
+}
+
+.nav__links a:hover {
+  color: var(--near-black);
+}
+
+@media (max-width: 600px) {
+  .nav__links { display: none; }
+}
+
+/* ============================================================
+   HERO
+   ============================================================ */
+.hero {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 120px 24px 80px;
+  background: var(--white);
+  position: relative;
+  overflow: hidden;
+}
+
+/* subtle radial glow behind hero */
+.hero::before {
+  content: '';
+  position: absolute;
+  width: 800px;
+  height: 800px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(0, 113, 227, 0.06) 0%, transparent 70%);
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -55%);
+  pointer-events: none;
+}
+
+.hero__title {
+  font-size: clamp(4rem, 12vw, 7.5rem);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1.05;
+  background: var(--gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 20px;
+  position: relative;
+}
+
+.hero__tagline {
+  font-size: clamp(1.25rem, 3vw, 2rem);
+  font-weight: 600;
+  color: var(--near-black);
+  letter-spacing: -0.02em;
+  margin-bottom: 12px;
+}
+
+.hero__sub {
+  font-size: clamp(0.95rem, 2vw, 1.15rem);
+  color: var(--gray-600);
+  font-weight: 400;
+  margin-bottom: 40px;
+}
+
+.hero__buttons {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 28px;
+  border-radius: 980px;
+  font-size: 1rem;
+  font-weight: 500;
+  font-family: var(--font);
+  cursor: pointer;
+  border: none;
+  transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+}
+
+.btn:active {
+  transform: scale(0.97);
+}
+
+.btn--primary {
+  background: var(--blue);
+  color: var(--white);
+}
+
+.btn--primary:hover {
+  background: var(--blue-hover);
+  color: var(--white);
+}
+
+.btn--secondary {
+  background: transparent;
+  color: var(--blue);
+  border: 1px solid rgba(0, 113, 227, 0.3);
+}
+
+.btn--secondary:hover {
+  background: rgba(0, 113, 227, 0.06);
+  color: var(--blue);
+}
+
+/* ============================================================
+   STATS BAR
+   ============================================================ */
+.stats {
+  background: var(--near-black);
+  color: var(--white);
+  padding: 56px 24px;
+}
+
+.stats__grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+  max-width: var(--content-width);
+  margin: 0 auto;
+  text-align: center;
+}
+
+.stats__item-number {
+  font-size: clamp(2rem, 5vw, 3rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.2;
+}
+
+.stats__item-label {
+  font-size: 0.9rem;
+  color: var(--gray-400);
+  margin-top: 4px;
+  font-weight: 400;
+}
+
+@media (max-width: 500px) {
+  .stats__grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 32px 16px;
+  }
+}
+
+/* ============================================================
+   SECTION TITLES
+   ============================================================ */
+.section-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--blue);
+  margin-bottom: 12px;
+}
+
+.section-label--light {
+  color: rgba(0, 113, 227, 0.8);
+}
+
+.section-title {
+  font-size: clamp(2rem, 5vw, 3.25rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  margin-bottom: 16px;
+}
+
+.section-subtitle {
+  font-size: clamp(1rem, 2vw, 1.2rem);
+  color: var(--gray-600);
+  max-width: 620px;
+  line-height: 1.6;
+}
+
+.section-subtitle--light {
+  color: var(--gray-400);
+}
+
+/* ============================================================
+   MODULES GRID
+   ============================================================ */
+.modules {
+  background: var(--gray-100);
+  padding: var(--section-pad) 24px;
+}
+
+.modules__header {
+  text-align: center;
+  margin-bottom: 56px;
+}
+
+.modules__header .section-subtitle {
+  margin: 0 auto;
+}
+
+.modules__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+  max-width: var(--wide-width);
+  margin: 0 auto;
+}
+
+.module-card {
+  background: var(--white);
+  border-radius: 20px;
+  padding: 28px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: transform 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+              box-shadow 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+  cursor: default;
+}
+
+.module-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.08);
+}
+
+.module-card__icon {
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.module-card__name {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--near-black);
+  letter-spacing: -0.01em;
+}
+
+.module-card__count {
+  font-size: 0.82rem;
+  color: var(--gray-400);
+  font-weight: 500;
+}
+
+/* ============================================================
+   HOW IT WORKS
+   ============================================================ */
+.how {
+  background: var(--white);
+  padding: var(--section-pad) 24px;
+}
+
+.how__header {
+  text-align: center;
+  margin-bottom: 64px;
+}
+
+.how__header .section-subtitle {
+  margin: 0 auto;
+}
+
+.how__steps {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 40px;
+  max-width: var(--content-width);
+  margin: 0 auto;
+  position: relative;
+}
+
+/* connecting line */
+.how__steps::before {
+  content: '';
+  position: absolute;
+  top: 36px;
+  left: calc(16.66% + 20px);
+  right: calc(16.66% + 20px);
+  height: 2px;
+  background: var(--gray-200);
+}
+
+@media (max-width: 700px) {
+  .how__steps {
+    grid-template-columns: 1fr;
+    gap: 48px;
+  }
+
+  .how__steps::before {
+    display: none;
+  }
+}
+
+.step {
+  text-align: center;
+  position: relative;
+}
+
+.step__number {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: var(--gray-100);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--blue);
+  margin-bottom: 20px;
+  position: relative;
+  z-index: 1;
+}
+
+.step__title {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--near-black);
+}
+
+.step__detail {
+  font-size: 0.95rem;
+  color: var(--gray-600);
+  line-height: 1.6;
+}
+
+.step__code {
+  display: inline-block;
+  margin-top: 12px;
+  padding: 8px 16px;
+  background: var(--near-black);
+  color: #a5d6ff;
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  border-radius: 8px;
+  word-break: break-all;
+}
+
+/* ============================================================
+   CODE EXAMPLE
+   ============================================================ */
+.config {
+  background: var(--near-black);
+  color: var(--white);
+  padding: var(--section-pad) 24px;
+}
+
+.config__inner {
+  max-width: var(--content-width);
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 64px;
+  align-items: center;
+}
+
+@media (max-width: 768px) {
+  .config__inner {
+    grid-template-columns: 1fr;
+    gap: 40px;
+  }
+}
+
+.config__text .section-subtitle {
+  color: var(--gray-400);
+}
+
+.config__block {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 28px;
+  overflow-x: auto;
+}
+
+.config__block-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.config__dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.config__dot--red { background: #ff5f57; }
+.config__dot--yellow { background: #febc2e; }
+.config__dot--green { background: #28c840; }
+
+.config__block-title {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--gray-400);
+  margin-left: 8px;
+}
+
+.config__code {
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  line-height: 1.7;
+  color: #e6edf3;
+  white-space: pre;
+}
+
+.config__code .key { color: #a5d6ff; }
+.config__code .string { color: #a5d6ff; }
+.config__code .punct { color: var(--gray-400); }
+.config__code .bracket { color: #e6edf3; }
+
+/* ============================================================
+   WORKFLOWS
+   ============================================================ */
+.workflows {
+  background: var(--gray-100);
+  padding: var(--section-pad) 24px;
+}
+
+.workflows__header {
+  text-align: center;
+  margin-bottom: 56px;
+}
+
+.workflows__header .section-subtitle {
+  margin: 0 auto;
+}
+
+.workflows__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  max-width: var(--wide-width);
+  margin: 0 auto;
+}
+
+.workflow-card {
+  background: var(--white);
+  border-radius: 16px;
+  padding: 24px;
+  transition: transform 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+              box-shadow 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+  cursor: default;
+}
+
+.workflow-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.07);
+}
+
+.workflow-card__modules {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.workflow-card__tag {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 980px;
+  background: rgba(0, 113, 227, 0.08);
+  color: var(--blue);
+}
+
+.workflow-card__name {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--near-black);
+  margin-bottom: 6px;
+  letter-spacing: -0.01em;
+}
+
+.workflow-card__name code {
+  font-family: var(--mono);
+  font-size: 0.85em;
+  background: var(--gray-100);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.workflow-card__desc {
+  font-size: 0.88rem;
+  color: var(--gray-600);
+  line-height: 1.55;
+}
+
+/* ============================================================
+   INSTALLATION
+   ============================================================ */
+.install {
+  background: var(--black);
+  color: var(--white);
+  padding: var(--section-pad) 24px;
+  text-align: center;
+}
+
+.install__header {
+  margin-bottom: 48px;
+}
+
+.install__header .section-title {
+  color: var(--white);
+}
+
+.install__header .section-subtitle {
+  color: var(--gray-400);
+  margin: 0 auto;
+}
+
+.install__commands {
+  max-width: 560px;
+  margin: 0 auto;
+  text-align: left;
+}
+
+.install__block {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 28px 32px;
+  font-family: var(--mono);
+  font-size: 0.9rem;
+  line-height: 2;
+  color: #e6edf3;
+  margin-bottom: 20px;
+  position: relative;
+  overflow: hidden;
+}
+
+.install__block::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--gradient);
+}
+
+.install__comment {
+  color: var(--gray-600);
+}
+
+.install__prompt {
+  color: var(--gray-400);
+  user-select: none;
+}
+
+.install__cmd {
+  color: #a5d6ff;
+}
+
+.install__note {
+  font-size: 0.85rem;
+  color: var(--gray-600);
+  margin-top: 24px;
+}
+
+/* ============================================================
+   FOOTER
+   ============================================================ */
+.footer {
+  background: var(--near-black);
+  color: var(--gray-400);
+  padding: 40px 24px;
+  text-align: center;
+}
+
+.footer__inner {
+  max-width: var(--content-width);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.footer__brand {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--white);
+  letter-spacing: -0.02em;
+}
+
+.footer__tagline {
+  font-size: 0.85rem;
+  color: var(--gray-600);
+}
+
+.footer__links {
+  display: flex;
+  gap: 24px;
+  margin-top: 4px;
+}
+
+.footer__links a {
+  font-size: 0.82rem;
+  color: var(--gray-400);
+  transition: color 0.2s;
+}
+
+.footer__links a:hover {
+  color: var(--white);
+}
+
+.footer__copy {
+  font-size: 0.78rem;
+  color: var(--gray-600);
+  margin-top: 8px;
+}
+
+/* ============================================================
+   RESPONSIVE REFINEMENTS
+   ============================================================ */
+@media (max-width: 480px) {
+  .hero {
+    padding: 100px 20px 60px;
+  }
+
+  .btn {
+    padding: 12px 22px;
+    font-size: 0.92rem;
+  }
+
+  .module-card {
+    padding: 22px 20px;
+  }
+
+  .config__block {
+    padding: 20px 16px;
+  }
+
+  .config__code {
+    font-size: 0.75rem;
+  }
+
+  .install__block {
+    padding: 22px 20px;
+    font-size: 0.8rem;
+  }
+}
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     NAV
+     ============================================================ -->
+<nav class="nav" role="navigation" aria-label="Primary">
+  <div class="nav__inner">
+    <a href="#" class="nav__brand">iConnect</a>
+    <ul class="nav__links">
+      <li><a href="#modules">Modules</a></li>
+      <li><a href="#how-it-works">How It Works</a></li>
+      <li><a href="#workflows">Workflows</a></li>
+      <li><a href="#installation">Install</a></li>
+      <li><a href="https://github.com/heznpc/iConnect">GitHub</a></li>
+    </ul>
+  </div>
+</nav>
+
+<!-- ============================================================
+     HERO
+     ============================================================ -->
+<section class="hero">
+  <div class="container">
+    <h1 class="hero__title">iConnect</h1>
+    <p class="hero__tagline">Connect AI to your entire Apple ecosystem.</p>
+    <p class="hero__sub">123 tools. 23 prompts. 11 resources. One MCP server.</p>
+    <div class="hero__buttons">
+      <a href="#installation" class="btn btn--primary">Get Started</a>
+      <a href="https://github.com/heznpc/iConnect" class="btn btn--secondary">View on GitHub</a>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     STATS BAR
+     ============================================================ -->
+<section class="stats" aria-label="Project stats">
+  <div class="stats__grid reveal-stagger">
+    <div class="reveal-child">
+      <div class="stats__item-number">14</div>
+      <div class="stats__item-label">Modules</div>
+    </div>
+    <div class="reveal-child">
+      <div class="stats__item-number">123</div>
+      <div class="stats__item-label">Tools</div>
+    </div>
+    <div class="reveal-child">
+      <div class="stats__item-number">23</div>
+      <div class="stats__item-label">Prompts</div>
+    </div>
+    <div class="reveal-child">
+      <div class="stats__item-number">216</div>
+      <div class="stats__item-label">Tests</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     MODULES
+     ============================================================ -->
+<section class="modules" id="modules">
+  <div class="modules__header reveal">
+    <p class="section-label">Modules</p>
+    <h2 class="section-title">One server. Fourteen apps.</h2>
+    <p class="section-subtitle">Every tool is native, fast, and built on AppleScript and Apple frameworks. No hacks, no workarounds.</p>
+  </div>
+
+  <div class="modules__grid reveal-stagger">
+    <div class="module-card reveal-child">
+      <span class="module-card__icon" role="img" aria-label="Notes">&#x1F4DD;</span>
+      <span class="module-card__name">Notes</span>
+      <span class="module-card__count">12 tools</span>
+    </div>
+    <div class="module-card reveal-child">
+      <span class="module-card__icon" role="img" aria-label="Reminders">&#x23F0;</span>
+      <span class="module-card__name">Reminders</span>
+      <span class="module-card__count">11 tools</span>
+    </div>
+    <div class="module-card reveal-child">
+      <span class="module-card__icon" role="img" aria-label="Calendar">&#x1F4C5;</span>
+      <span class="module-card__name">Calendar</span>
+      <span class="module-card__count">10 tools</span>
+    </div>
+    <div class="module-card reveal-child">
+      <span class="module-card__icon" role="img" aria-label="Contacts">&#x1F465;</span>
+      <span class="module-card__name">Contacts</span>
+      <span class="module-card__count">10 tools</span>
+    </div>
+    <div class="module-card reveal-child">
+      <span class="module-card__icon" role="img" aria-label="Mail">&#x2709;&#xFE0F;</span>
+      <span class="module-card__name">Mail</span>
+      <span class="module-card__count">11 tools</span>
+    </div>
+    <div class="module-card reveal-child">
+      <span class="module-card__icon" role="img" aria-label="Music">&#x1F3B5;</span>
+      <span class="module-card__name">Music</span>
+      <span class="module-card__count">9 tools</span>
+    </div>
+    <div class="module-card reveal-child">
+      <span class="module-card__icon" role="img" aria-label="Finder">&#x1F4C1;</span>
+      <span class="module-card__name">Finder</span>
+      <span class="module-card__count">8 tools</span>
+    </div>
+    <div class="module-card reveal-child">
+      <span class="module-card__icon" role="img" aria-label="Safari">&#x1F310;</span>
+      <span class="module-card__name">Safari</span>
+      <span class="module-card__count">8 tools</span>
+    </div>
+    <div class="module-card reveal-child">
+      <span class="module-card__icon" role="img" aria-label="System">&#x2699;&#xFE0F;</span>
+      <span class="module-card__name">System</span>
+      <span class="module-card__count">10 tools</span>
+    </div>
+    <div class="module-card reveal-child">
+      <span class="module-card__icon" role="img" aria-label="Photos">&#x1F4F7;</span>
+      <span class="module-card__name">Photos</span>
+      <span class="module-card__count">9 tools</span>
+    </div>
+    <div class="module-card reveal-child">
+      <span class="module-card__icon" role="img" aria-label="Messages">&#x1F4AC;</span>
+      <span class="module-card__name">Messages</span>
+      <span class="module-card__count">6 tools</span>
+    </div>
+    <div class="module-card reveal-child">
+      <span class="module-card__icon" role="img" aria-label="Shortcuts">&#x26A1;</span>
+      <span class="module-card__name">Shortcuts</span>
+      <span class="module-card__count">4 tools</span>
+    </div>
+    <div class="module-card reveal-child">
+      <span class="module-card__icon" role="img" aria-label="Intelligence">&#x1F9E0;</span>
+      <span class="module-card__name">Intelligence</span>
+      <span class="module-card__count">3 tools &middot; macOS 26+</span>
+    </div>
+    <div class="module-card reveal-child">
+      <span class="module-card__icon" role="img" aria-label="TV">&#x1F4FA;</span>
+      <span class="module-card__name">TV</span>
+      <span class="module-card__count">6 tools</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     HOW IT WORKS
+     ============================================================ -->
+<section class="how" id="how-it-works">
+  <div class="how__header reveal">
+    <p class="section-label">How It Works</p>
+    <h2 class="section-title">Up and running in minutes.</h2>
+    <p class="section-subtitle">No configuration files to wrestle with. No dependencies to install. Just one command.</p>
+  </div>
+
+  <div class="how__steps reveal-stagger">
+    <div class="step reveal-child">
+      <div class="step__number">1</div>
+      <h3 class="step__title">Install</h3>
+      <p class="step__detail">Interactive setup wizard. Choose modules, auto-configure your MCP client.</p>
+      <span class="step__code">npx iconnect-mcp init</span>
+    </div>
+    <div class="step reveal-child">
+      <div class="step__number">2</div>
+      <h3 class="step__title">Configure</h3>
+      <p class="step__detail">Or add a single JSON block to Claude Code, Codex, or any MCP client manually.</p>
+    </div>
+    <div class="step reveal-child">
+      <div class="step__number">3</div>
+      <h3 class="step__title">Use</h3>
+      <p class="step__detail">AI reads your notes, manages your calendar, controls Music, sends mail, and more.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     CODE EXAMPLE
+     ============================================================ -->
+<section class="config">
+  <div class="config__inner">
+    <div class="config__text reveal">
+      <p class="section-label section-label--light">Configuration</p>
+      <h2 class="section-title" style="color: #fff;">One block. That's it.</h2>
+      <p class="section-subtitle" style="color: var(--gray-400);">Add this to your MCP client configuration and every Apple app is instantly available to your AI.</p>
+    </div>
+    <div class="config__block reveal">
+      <div class="config__block-header">
+        <span class="config__dot config__dot--red"></span>
+        <span class="config__dot config__dot--yellow"></span>
+        <span class="config__dot config__dot--green"></span>
+        <span class="config__block-title">mcp-config.json</span>
+      </div>
+      <code class="config__code"><span class="bracket">{</span>
+  <span class="key">"mcpServers"</span><span class="punct">:</span> <span class="bracket">{</span>
+    <span class="key">"iconnect"</span><span class="punct">:</span> <span class="bracket">{</span>
+      <span class="key">"command"</span><span class="punct">:</span> <span class="string">"npx"</span><span class="punct">,</span>
+      <span class="key">"args"</span><span class="punct">:</span> <span class="bracket">[</span><span class="string">"-y"</span><span class="punct">,</span> <span class="string">"iconnect-mcp"</span><span class="bracket">]</span>
+    <span class="bracket">}</span>
+  <span class="bracket">}</span>
+<span class="bracket">}</span></code>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     WORKFLOWS
+     ============================================================ -->
+<section class="workflows" id="workflows">
+  <div class="workflows__header reveal">
+    <p class="section-label">Cross-Module Workflows</p>
+    <h2 class="section-title">Prompts that connect everything.</h2>
+    <p class="section-subtitle">Pre-built prompts that orchestrate multiple Apple apps together. Ask your AI to run any of these by name.</p>
+  </div>
+
+  <div class="workflows__grid reveal-stagger">
+    <div class="workflow-card reveal-child">
+      <div class="workflow-card__modules">
+        <span class="workflow-card__tag">Calendar</span>
+        <span class="workflow-card__tag">Reminders</span>
+        <span class="workflow-card__tag">Notes</span>
+      </div>
+      <h3 class="workflow-card__name"><code>daily-briefing</code></h3>
+      <p class="workflow-card__desc">Summarize today's events, due reminders, and recent notes in one concise briefing.</p>
+    </div>
+
+    <div class="workflow-card reveal-child">
+      <div class="workflow-card__modules">
+        <span class="workflow-card__tag">Calendar</span>
+        <span class="workflow-card__tag">Notes</span>
+        <span class="workflow-card__tag">Reminders</span>
+      </div>
+      <h3 class="workflow-card__name"><code>weekly-digest</code></h3>
+      <p class="workflow-card__desc">Review the past week and plan ahead with a digest of events, notes, and completed tasks.</p>
+    </div>
+
+    <div class="workflow-card reveal-child">
+      <div class="workflow-card__modules">
+        <span class="workflow-card__tag">Calendar</span>
+        <span class="workflow-card__tag">Notes</span>
+      </div>
+      <h3 class="workflow-card__name"><code>meeting-prep</code></h3>
+      <p class="workflow-card__desc">Pull event details, search related notes, and build context to prepare for any meeting.</p>
+    </div>
+
+    <div class="workflow-card reveal-child">
+      <div class="workflow-card__modules">
+        <span class="workflow-card__tag">Safari</span>
+        <span class="workflow-card__tag">Notes</span>
+      </div>
+      <h3 class="workflow-card__name"><code>research-with-safari</code></h3>
+      <p class="workflow-card__desc">Research topics using Safari tabs and reading list, then save findings to Notes.</p>
+    </div>
+
+    <div class="workflow-card reveal-child">
+      <div class="workflow-card__modules">
+        <span class="workflow-card__tag">Calendar</span>
+        <span class="workflow-card__tag">Reminders</span>
+        <span class="workflow-card__tag">Music</span>
+      </div>
+      <h3 class="workflow-card__name"><code>focus-session</code></h3>
+      <p class="workflow-card__desc">Check for conflicts, prioritize reminders, and manage music for a distraction-free session.</p>
+    </div>
+
+    <div class="workflow-card reveal-child">
+      <div class="workflow-card__modules">
+        <span class="workflow-card__tag">Finder</span>
+        <span class="workflow-card__tag">Notes</span>
+      </div>
+      <h3 class="workflow-card__name"><code>file-organizer</code></h3>
+      <p class="workflow-card__desc">Scan a folder, categorize contents, and create a structured summary in Notes.</p>
+    </div>
+
+    <div class="workflow-card reveal-child">
+      <div class="workflow-card__modules">
+        <span class="workflow-card__tag">Calendar</span>
+        <span class="workflow-card__tag">Notes</span>
+        <span class="workflow-card__tag">Reminders</span>
+      </div>
+      <h3 class="workflow-card__name"><code>event-follow-up</code></h3>
+      <p class="workflow-card__desc">After a meeting, create follow-up notes and action item reminders automatically.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     INSTALLATION
+     ============================================================ -->
+<section class="install" id="installation">
+  <div class="install__header reveal">
+    <p class="section-label section-label--light">Installation</p>
+    <h2 class="section-title">Start in seconds.</h2>
+    <p class="section-subtitle">Install globally, or run directly with npx. No build step required.</p>
+  </div>
+
+  <div class="install__commands reveal">
+    <div class="install__block">
+<span class="install__comment"># Install globally</span>
+<span class="install__prompt">$ </span><span class="install__cmd">npm install -g iconnect-mcp</span>
+
+<span class="install__comment"># Or run directly</span>
+<span class="install__prompt">$ </span><span class="install__cmd">npx iconnect-mcp</span>
+    </div>
+    <p class="install__note">Requires Node.js 18+ and macOS. Works with Claude Code, Codex, and any MCP-compatible client.</p>
+  </div>
+</section>
+
+<!-- ============================================================
+     FOOTER
+     ============================================================ -->
+<footer class="footer">
+  <div class="footer__inner">
+    <span class="footer__brand">iConnect</span>
+    <p class="footer__tagline">Built for Claude Code, Codex, and every MCP client.</p>
+    <div class="footer__links">
+      <a href="https://github.com/heznpc/iConnect">GitHub</a>
+      <a href="https://github.com/heznpc/iConnect/issues">Issues</a>
+      <a href="https://www.npmjs.com/package/iconnect-mcp">npm</a>
+    </div>
+    <p class="footer__copy">MIT License &middot; Made with care for the Apple ecosystem.</p>
+  </div>
+</footer>
+
+<!-- ============================================================
+     SCROLL REVEAL SCRIPT (IntersectionObserver only)
+     ============================================================ -->
+<script>
+(function () {
+  var targets = document.querySelectorAll('.reveal, .reveal-stagger');
+  if (!('IntersectionObserver' in window)) {
+    targets.forEach(function (t) { t.classList.add('visible'); });
+    return;
+  }
+  var observer = new IntersectionObserver(function (entries) {
+    entries.forEach(function (entry) {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+  targets.forEach(function (t) { observer.observe(t); });
+})();
+</script>
+
+</body>
+</html>

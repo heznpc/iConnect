@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_call:
+
+jobs:
+  ci:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Scan for secrets
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check for large files
+        run: |
+          LARGE=$(find . -not -path './.git/*' -not -path './node_modules/*' -type f -size +5M)
+          if [ -n "$LARGE" ]; then
+            echo "::error::Large files detected (>5 MB):"
+            echo "$LARGE"
+            exit 1
+          fi
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check licenses
+        run: npx license-checker --failOn "GPL-2.0;GPL-3.0;AGPL-3.0"
+
+      - name: Security audit
+        run: npm audit --audit-level=high
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+
+      - name: Test
+        run: npm test

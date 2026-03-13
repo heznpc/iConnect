@@ -1,0 +1,9 @@
+node_modules/
+dist/
+swift/.build/
+app/.build/
+*.tgz
+.DS_Store
+.idea/
+iMcp-*.md
+iconnect-test-report-*.md

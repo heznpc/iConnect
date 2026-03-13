@@ -1,0 +1,139 @@
+# Contributing to iConnect
+
+Thanks for your interest in contributing to iConnect! This guide covers everything you need to get started.
+
+## Development Setup
+
+```bash
+git clone https://github.com/heznpc/iConnect.git
+cd iConnect
+npm install
+npm run build
+```
+
+### Requirements
+
+- macOS (required — Apple app automation only works on macOS)
+- Node.js >= 18
+- For Swift bridge features: macOS 26+ with Apple Silicon
+
+### Running Locally
+
+```bash
+# stdio mode (default)
+npm start
+
+# HTTP mode
+node dist/index.js --http --port 3847
+
+# Development with auto-reload
+npm run dev
+```
+
+## Branch Strategy
+
+- **`main`** is the production branch — always deployable
+- Create feature branches from `main`
+- All changes to `main` must go through a Pull Request
+- PRs require CI to pass before merging
+
+### Branch Naming
+
+```
+feat/short-description    # new feature
+fix/short-description     # bug fix
+docs/short-description    # documentation only
+refactor/short-description # code refactoring
+```
+
+## Making Changes
+
+### 1. Create a Branch
+
+```bash
+git checkout -b feat/my-feature
+```
+
+### 2. Write Code
+
+**Project structure** — each Apple app is a module under `src/`:
+
+```
+src/
+├── notes/          # tools.ts, scripts.ts, prompts.ts
+├── reminders/
+├── calendar/
+├── ...
+├── shared/         # esc.ts, config.ts, setup.ts, resources.ts
+└── index.ts        # server entry point
+```
+
+**Key patterns:**
+- `scripts.ts` — JXA script generators (pure functions returning strings)
+- `tools.ts` — MCP tool registrations (use `server.tool()`)
+- `prompts.ts` — MCP prompt registrations (use `server.prompt()`)
+- Always use `esc()` for JXA string interpolation and `escJxaShell()` for shell arguments inside JXA
+
+### 3. Validate
+
+```bash
+npm run lint       # ESLint
+npm run typecheck  # TypeScript type checking
+npm run build      # Full build
+npm test           # Jest tests
+```
+
+All four must pass — CI runs them automatically on every PR.
+
+### 4. Commit
+
+Write clear, concise commit messages:
+
+```
+feat: add search_contacts tool
+fix: escape single quotes in JXA chat ID
+docs: update README tool count
+refactor: extract shared pagination logic
+```
+
+### 5. Open a Pull Request
+
+- Target the `main` branch
+- Fill in the PR template
+- Wait for CI to pass
+- Request a review if needed
+
+## Adding a New Tool
+
+1. Add the JXA script generator to `src/<module>/scripts.ts`
+2. Register the tool in `src/<module>/tools.ts` with proper safety annotations:
+   - `readOnlyHint: true` for read operations
+   - `destructiveHint: true` for delete/update operations
+3. Add tests for script generators in `tests/<module>-scripts.test.js`
+4. Update tool count in `README.md`, `README.ko.md`, and `docs/index.html`
+
+## Adding a New Module
+
+1. Create `src/<module>/scripts.ts` and `src/<module>/tools.ts`
+2. Add `register<Module>Tools()` to `src/index.ts`
+3. Add prompts if applicable (`src/<module>/prompts.ts`)
+4. Add tests
+5. Update all documentation (README, landing page)
+
+## Code Style
+
+- TypeScript strict mode
+- ESLint enforced — run `npm run lint` before committing
+- No `any` types — use `unknown` and narrow
+- Prefer `const` over `let`
+- Use the shared `esc()` / `escJxaShell()` utilities — never inline string escaping
+
+## Security
+
+- **Never** interpolate user input directly into JXA scripts — always use `esc()` or `escJxaShell()`
+- Every tool must have `annotations` with `readOnlyHint` or `destructiveHint`
+- Destructive tools should validate input before executing
+
+## Questions?
+
+Open an [issue](https://github.com/heznpc/iConnect/issues) for bugs, feature requests, or questions.

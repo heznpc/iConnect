@@ -1,0 +1,16 @@
+startCommand:
+  type: stdio
+  configSchema:
+    type: object
+    properties:
+      includeShared:
+        type: boolean
+        default: false
+        description: Include shared notes/folders in results
+  commandFunction:
+    |-
+    (config) => ({
+      command: 'npx',
+      args: ['-y', 'iconnect-mcp'],
+      env: config.includeShared ? { ICONNECT_INCLUDE_SHARED: 'true' } : {}
+    })

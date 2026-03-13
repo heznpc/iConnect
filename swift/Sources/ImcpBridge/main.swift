@@ -1,0 +1,490 @@
+import Foundation
+import EventKit
+import Photos
+import NaturalLanguage
+import Accelerate
+
+// IConnectBridge CLI — thin wrapper around Apple frameworks.
+// Reads JSON from stdin, dispatches to subcommand, writes JSON to stdout.
+//
+// Usage:
+//   echo '{"text":"Hello world"}' | IConnectBridge summarize
+//   echo '{"text":"Hello","tone":"friendly"}' | IConnectBridge rewrite
+//   echo '{"text":"Helo wrold"}' | IConnectBridge proofread
+//   echo '{"title":"Standup","startDate":"...","endDate":"...","recurrence":{...}}' | IConnectBridge create-recurring-event
+//   echo '{"title":"Take meds","recurrence":{...}}' | IConnectBridge create-recurring-reminder
+//   echo '{"filePath":"/tmp/photo.jpg"}' | IConnectBridge import-photo
+//   echo '{"identifiers":["ABC123"]}' | IConnectBridge delete-photos
+
+#if canImport(FoundationModels)
+import FoundationModels
+#endif
+
+// MARK: - Shared I/O
+
+struct Input: Decodable {
+    let text: String
+    let tone: String?
+}
+
+struct Output: Encodable {
+    let output: String
+}
+
+func readStdin() -> Data {
+    var data = Data()
+    while let line = readLine(strippingNewline: false) {
+        data.append(Data(line.utf8))
+    }
+    return data
+}
+
+func writeOutput(_ output: Output) throws {
+    let encoder = JSONEncoder()
+    let data = try encoder.encode(output)
+    FileHandle.standardOutput.write(data)
+    FileHandle.standardOutput.write(Data("\n".utf8))
+}
+
+func writeError(_ message: String) {
+    let error = ["error": message]
+    if let data = try? JSONSerialization.data(withJSONObject: error) {
+        FileHandle.standardOutput.write(data)
+        FileHandle.standardOutput.write(Data("\n".utf8))
+    }
+    exit(1)
+}
+
+// MARK: - EventKit input/output types
+
+struct RecurrenceInput: Decodable {
+    let frequency: String // daily, weekly, monthly, yearly
+    let interval: Int     // every N frequency units
+    let endDate: String?  // ISO 8601 end date
+    let count: Int?       // number of occurrences
+    let daysOfWeek: [Int]? // 1=Sun, 2=Mon, ..., 7=Sat (for weekly)
+}
+
+struct RecurringEventInput: Decodable {
+    let title: String
+    let startDate: String
+    let endDate: String
+    let calendar: String?
+    let location: String?
+    let notes: String?
+    let recurrence: RecurrenceInput
+}
+
+struct RecurringReminderInput: Decodable {
+    let title: String
+    let list: String?
+    let notes: String?
+    let dueDate: String?
+    let priority: Int?
+    let recurrence: RecurrenceInput
+}
+
+struct EventOutput: Encodable {
+    let id: String
+    let title: String
+    let recurring: Bool
+}
+
+struct ReminderOutput: Encodable {
+    let id: String
+    let title: String
+    let recurring: Bool
+}
+
+// MARK: - PhotoKit input/output types
+
+struct ImportPhotoInput: Decodable {
+    let filePath: String
+    let albumName: String?
+}
+
+struct DeletePhotosInput: Decodable {
+    let identifiers: [String]
+}
+
+struct PhotoImportOutput: Encodable {
+    let imported: Bool
+    let identifier: String?
+}
+
+struct PhotoDeleteOutput: Encodable {
+    let deleted: Int
+    let identifiers: [String]
+}
+
+// MARK: - Helpers
+
+func parseISO8601(_ string: String) -> Date? {
+    let formatter = ISO8601DateFormatter()
+    formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+    if let date = formatter.date(from: string) { return date }
+    formatter.formatOptions = [.withInternetDateTime]
+    return formatter.date(from: string)
+}
+
+func buildRecurrenceRule(_ input: RecurrenceInput) -> EKRecurrenceRule {
+    let freq: EKRecurrenceFrequency
+    switch input.frequency {
+    case "daily": freq = .daily
+    case "weekly": freq = .weekly
+    case "monthly": freq = .monthly
+    case "yearly": freq = .yearly
+    default: freq = .daily
+    }
+
+    var end: EKRecurrenceEnd? = nil
+    if let endDateStr = input.endDate, let endDate = parseISO8601(endDateStr) {
+        end = EKRecurrenceEnd(end: endDate)
+    } else if let count = input.count {
+        end = EKRecurrenceEnd(occurrenceCount: count)
+    }
+
+    var daysOfWeek: [EKRecurrenceDayOfWeek]? = nil
+    if let days = input.daysOfWeek {
+        daysOfWeek = days.compactMap { day in
+            guard (1...7).contains(day) else { return nil }
+            return EKRecurrenceDayOfWeek(EKWeekday(rawValue: day)!)
+        }
+    }
+
+    return EKRecurrenceRule(
+        recurrenceWith: freq,
+        interval: input.interval,
+        daysOfTheWeek: daysOfWeek,
+        daysOfTheMonth: nil,
+        monthsOfTheYear: nil,
+        weeksOfTheYear: nil,
+        daysOfTheYear: nil,
+        setPositions: nil,
+        end: end
+    )
+}
+
+// MARK: - NLContextualEmbedding types
+
+struct EmbedTextInput: Decodable {
+    let text: String
+    let language: String? // ISO 639-1 code (e.g. "ko", "en")
+}
+
+struct EmbedBatchInput: Decodable {
+    let texts: [String]
+    let language: String?
+}
+
+struct EmbedTextOutput: Encodable {
+    let vector: [Double]
+    let dimension: Int
+}
+
+struct EmbedBatchOutput: Encodable {
+    let vectors: [[Double]]
+    let dimension: Int
+    let count: Int
+}
+
+func detectLanguage(_ text: String) -> NLLanguage {
+    let recognizer = NLLanguageRecognizer()
+    recognizer.processString(text)
+    return recognizer.dominantLanguage ?? .english
+}
+
+func nlLanguageFromCode(_ code: String?) -> NLLanguage? {
+    guard let code = code else { return nil }
+    switch code {
+    case "ko": return .korean
+    case "en": return .english
+    case "ja": return .japanese
+    case "zh": return .simplifiedChinese
+    case "fr": return .french
+    case "de": return .german
+    case "es": return .spanish
+    case "it": return .italian
+    case "pt": return .portuguese
+    default: return NLLanguage(rawValue: code)
+    }
+}
+
+func embedText(_ text: String, language: NLLanguage) throws -> [Double] {
+    guard let embedding = NLContextualEmbedding(language: language) else {
+        throw NSError(domain: "IConnectBridge", code: 1,
+            userInfo: [NSLocalizedDescriptionKey: "NLContextualEmbedding unavailable for language: \(language.rawValue)"])
+    }
+    try embedding.load()
+
+    guard let result = try? embedding.embeddingResult(for: text, language: language) else {
+        throw NSError(domain: "IConnectBridge", code: 2,
+            userInfo: [NSLocalizedDescriptionKey: "Failed to generate embedding for text"])
+    }
+
+    var tokenVectors: [[Double]] = []
+    result.enumerateTokenVectors(in: text.startIndex..<text.endIndex) { vector, _ in
+        tokenVectors.append(vector)
+        return true
+    }
+
+    guard !tokenVectors.isEmpty else {
+        throw NSError(domain: "IConnectBridge", code: 3,
+            userInfo: [NSLocalizedDescriptionKey: "No token vectors generated"])
+    }
+
+    // Mean pooling with Accelerate
+    let dim = tokenVectors[0].count
+    var sumVector = [Double](repeating: 0.0, count: dim)
+    for tv in tokenVectors {
+        vDSP_vaddD(sumVector, 1, tv, 1, &sumVector, 1, vDSP_Length(dim))
+    }
+    var count = Double(tokenVectors.count)
+    vDSP_vsdivD(sumVector, 1, &count, &sumVector, 1, vDSP_Length(dim))
+
+    return sumVector
+}
+
+// MARK: - Main
+
+let args = CommandLine.arguments
+guard args.count >= 2 else {
+    writeError("Usage: IConnectBridge <command>")
+    exit(1)
+}
+
+let command = args[1]
+let stdinData = readStdin()
+
+let eventStore = EKEventStore()
+
+switch command {
+
+// --- EventKit: Recurring Events ---
+case "create-recurring-event":
+    guard let eventInput = try? JSONDecoder().decode(RecurringEventInput.self, from: stdinData) else {
+        writeError("Invalid JSON. Expected RecurringEventInput.")
+        exit(1)
+    }
+
+    let granted: Bool
+    if #available(macOS 14.0, *) {
+        granted = try await eventStore.requestFullAccessToEvents()
+    } else {
+        granted = try await eventStore.requestAccess(to: .event)
+    }
+    guard granted else { writeError("Calendar access denied"); exit(1) }
+
+    let event = EKEvent(eventStore: eventStore)
+    event.title = eventInput.title
+    guard let start = parseISO8601(eventInput.startDate) else { writeError("Invalid startDate"); exit(1) }
+    guard let end = parseISO8601(eventInput.endDate) else { writeError("Invalid endDate"); exit(1) }
+    event.startDate = start
+    event.endDate = end
+    event.location = eventInput.location
+    event.notes = eventInput.notes
+
+    if let calName = eventInput.calendar {
+        if let cal = eventStore.calendars(for: .event).first(where: { $0.title == calName }) {
+            event.calendar = cal
+        } else {
+            writeError("Calendar not found: \(calName)"); exit(1)
+        }
+    } else {
+        event.calendar = eventStore.defaultCalendarForNewEvents
+    }
+
+    event.addRecurrenceRule(buildRecurrenceRule(eventInput.recurrence))
+    try eventStore.save(event, span: .futureEvents)
+
+    let output = EventOutput(id: event.eventIdentifier, title: event.title, recurring: true)
+    let data = try JSONEncoder().encode(output)
+    FileHandle.standardOutput.write(data)
+    FileHandle.standardOutput.write(Data("\n".utf8))
+
+// --- EventKit: Recurring Reminders ---
+case "create-recurring-reminder":
+    guard let remInput = try? JSONDecoder().decode(RecurringReminderInput.self, from: stdinData) else {
+        writeError("Invalid JSON. Expected RecurringReminderInput.")
+        exit(1)
+    }
+
+    let granted: Bool
+    if #available(macOS 14.0, *) {
+        granted = try await eventStore.requestFullAccessToReminders()
+    } else {
+        granted = try await eventStore.requestAccess(to: .reminder)
+    }
+    guard granted else { writeError("Reminders access denied"); exit(1) }
+
+    let reminder = EKReminder(eventStore: eventStore)
+    reminder.title = remInput.title
+    reminder.notes = remInput.notes
+    if let p = remInput.priority { reminder.priority = p }
+
+    if let dueDateStr = remInput.dueDate, let dueDate = parseISO8601(dueDateStr) {
+        reminder.dueDateComponents = Calendar.current.dateComponents(
+            [.year, .month, .day, .hour, .minute], from: dueDate
+        )
+    }
+
+    if let listName = remInput.list {
+        if let list = eventStore.calendars(for: .reminder).first(where: { $0.title == listName }) {
+            reminder.calendar = list
+        } else {
+            writeError("Reminder list not found: \(listName)"); exit(1)
+        }
+    } else {
+        reminder.calendar = eventStore.defaultCalendarForNewReminders()
+    }
+
+    reminder.addRecurrenceRule(buildRecurrenceRule(remInput.recurrence))
+    try eventStore.save(reminder, commit: true)
+
+    let output = ReminderOutput(id: reminder.calendarItemIdentifier, title: reminder.title ?? "", recurring: true)
+    let data = try JSONEncoder().encode(output)
+    FileHandle.standardOutput.write(data)
+    FileHandle.standardOutput.write(Data("\n".utf8))
+
+// --- PhotoKit: Import ---
+case "import-photo":
+    guard let photoInput = try? JSONDecoder().decode(ImportPhotoInput.self, from: stdinData) else {
+        writeError("Invalid JSON. Expected ImportPhotoInput.")
+        exit(1)
+    }
+
+    let fileURL = URL(fileURLWithPath: photoInput.filePath)
+    guard FileManager.default.fileExists(atPath: photoInput.filePath) else {
+        writeError("File not found: \(photoInput.filePath)"); exit(1)
+    }
+
+    var localId: String? = nil
+    try await PHPhotoLibrary.shared().performChanges {
+        let request = PHAssetChangeRequest.creationRequestForAssetFromImage(atFileURL: fileURL)
+        localId = request?.placeholderForCreatedAsset?.localIdentifier
+
+        if let albumName = photoInput.albumName {
+            let fetchOptions = PHFetchOptions()
+            fetchOptions.predicate = NSPredicate(format: "title = %@", albumName)
+            let albums = PHAssetCollection.fetchAssetCollections(with: .album, subtype: .any, options: fetchOptions)
+            if let album = albums.firstObject, let placeholder = request?.placeholderForCreatedAsset {
+                let albumRequest = PHAssetCollectionChangeRequest(for: album)
+                albumRequest?.addAssets([placeholder] as NSArray)
+            }
+        }
+    }
+
+    let output = PhotoImportOutput(imported: true, identifier: localId)
+    let data = try JSONEncoder().encode(output)
+    FileHandle.standardOutput.write(data)
+    FileHandle.standardOutput.write(Data("\n".utf8))
+
+// --- PhotoKit: Delete ---
+case "delete-photos":
+    guard let deleteInput = try? JSONDecoder().decode(DeletePhotosInput.self, from: stdinData) else {
+        writeError("Invalid JSON. Expected DeletePhotosInput.")
+        exit(1)
+    }
+
+    let assets = PHAsset.fetchAssets(withLocalIdentifiers: deleteInput.identifiers, options: nil)
+    var toDelete: [PHAsset] = []
+    assets.enumerateObjects { asset, _, _ in
+        toDelete.append(asset)
+    }
+
+    guard !toDelete.isEmpty else {
+        writeError("No matching photos found"); exit(1)
+    }
+
+    try await PHPhotoLibrary.shared().performChanges {
+        PHAssetChangeRequest.deleteAssets(toDelete as NSArray)
+    }
+
+    let deletedIds = toDelete.map { $0.localIdentifier }
+    let output = PhotoDeleteOutput(deleted: deletedIds.count, identifiers: deletedIds)
+    let data = try JSONEncoder().encode(output)
+    FileHandle.standardOutput.write(data)
+    FileHandle.standardOutput.write(Data("\n".utf8))
+
+// --- NLContextualEmbedding: embed text ---
+case "embed-text":
+    guard let input = try? JSONDecoder().decode(EmbedTextInput.self, from: stdinData) else {
+        writeError("Invalid JSON. Expected EmbedTextInput.")
+        exit(1)
+    }
+    let lang = nlLanguageFromCode(input.language) ?? detectLanguage(input.text)
+    do {
+        let vector = try embedText(input.text, language: lang)
+        let output = EmbedTextOutput(vector: vector, dimension: vector.count)
+        let data = try JSONEncoder().encode(output)
+        FileHandle.standardOutput.write(data)
+        FileHandle.standardOutput.write(Data("\n".utf8))
+    } catch {
+        writeError("Embedding failed: \(error.localizedDescription)")
+    }
+
+case "embed-batch":
+    guard let input = try? JSONDecoder().decode(EmbedBatchInput.self, from: stdinData) else {
+        writeError("Invalid JSON. Expected EmbedBatchInput.")
+        exit(1)
+    }
+    do {
+        var vectors: [[Double]] = []
+        for text in input.texts {
+            let lang = nlLanguageFromCode(input.language) ?? detectLanguage(text)
+            let vector = try embedText(text, language: lang)
+            vectors.append(vector)
+        }
+        let dim = vectors.first?.count ?? 0
+        let output = EmbedBatchOutput(vectors: vectors, dimension: dim, count: vectors.count)
+        let data = try JSONEncoder().encode(output)
+        FileHandle.standardOutput.write(data)
+        FileHandle.standardOutput.write(Data("\n".utf8))
+    } catch {
+        writeError("Batch embedding failed: \(error.localizedDescription)")
+    }
+
+// --- Apple Intelligence: summarize, rewrite, proofread ---
+case "summarize", "rewrite", "proofread":
+    guard let input = try? JSONDecoder().decode(Input.self, from: stdinData) else {
+        writeError("Invalid JSON input. Expected: {\"text\": \"...\", \"tone\": \"...\"}")
+        exit(1)
+    }
+
+    #if canImport(FoundationModels)
+    do {
+        let session = LanguageModelSession()
+
+        switch command {
+        case "summarize":
+            let result = try await session.respond(
+                to: "Summarize the following text concisely:\n\n\(input.text)"
+            )
+            try writeOutput(Output(output: result.content))
+
+        case "rewrite":
+            let tone = input.tone ?? "professional"
+            let result = try await session.respond(
+                to: "Rewrite the following text in a \(tone) tone:\n\n\(input.text)"
+            )
+            try writeOutput(Output(output: result.content))
+
+        case "proofread":
+            let result = try await session.respond(
+                to: "Proofread and correct any grammar or spelling errors in the following text. Return only the corrected text:\n\n\(input.text)"
+            )
+            try writeOutput(Output(output: result.content))
+
+        default:
+            break
+        }
+    } catch {
+        writeError("Foundation Models error: \(error.localizedDescription)")
+    }
+    #else
+    writeError("Apple Intelligence (Foundation Models) requires macOS 26+ with Apple Silicon. This binary was compiled without FoundationModels support.")
+    #endif
+
+default:
+    writeError("Unknown command: \(command). Use: embed-text, embed-batch, summarize, rewrite, proofread, create-recurring-event, create-recurring-reminder, import-photo, delete-photos")
+}

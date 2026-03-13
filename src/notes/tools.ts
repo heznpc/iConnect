@@ -1,0 +1,445 @@
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { z } from "zod";
+import { runJxa } from "../shared/jxa.js";
+import type { IConnectConfig } from "../shared/config.js";
+import { ok, err } from "../shared/result.js";
+import {
+  listNotesScript,
+  searchNotesScript,
+  readNoteScript,
+  createNoteScript,
+  createNoteSharedScript,
+  updateNoteScript,
+  deleteNoteScript,
+  guardSharedScript,
+  guardSharedBulkScript,
+  listFoldersScript,
+  createFolderScript,
+  scanNotesScript,
+  compareNotesScript,
+  moveNoteScript,
+  bulkMoveNotesScript,
+} from "./scripts.js";
+
+interface Shareable {
+  shared: boolean;
+}
+
+interface NoteListItem extends Shareable {
+  id: string;
+  name: string;
+  folder: string;
+  creationDate: string;
+  modificationDate: string;
+}
+
+interface SearchResult extends NoteListItem {
+  preview: string;
+}
+
+interface NoteDetail extends NoteListItem {
+  body: string;
+  plaintext: string;
+  passwordProtected: boolean;
+}
+
+interface MutationResult {
+  id: string;
+  name: string;
+}
+
+interface DeleteResult {
+  deleted: boolean;
+  name: string;
+}
+
+interface FolderItem extends Shareable {
+  id: string;
+  name: string;
+  account: string;
+  noteCount: number;
+}
+
+interface ScanNote extends NoteListItem {
+  preview: string;
+  charCount: number;
+}
+
+interface ScanResult {
+  total: number;
+  offset: number;
+  returned: number;
+  notes: ScanNote[];
+}
+
+interface CompareResult extends Shareable {
+  id: string;
+  name: string;
+  plaintext: string;
+  folder: string;
+  creationDate: string;
+  modificationDate: string;
+  charCount: number;
+}
+
+function filterShared<T extends Shareable>(items: T[], includeShared: boolean): T[] {
+  if (includeShared) return items;
+  return items.filter((item) => !item.shared);
+}
+
+async function guardShared(id: string, includeShared: boolean): Promise<string | null> {
+  if (includeShared) return null;
+  const result = await runJxa<{ shared: boolean }>(guardSharedScript(id));
+  if (result.shared) {
+    return "This note is shared. Modifying shared notes is disabled by default. Set ICONNECT_INCLUDE_SHARED=true to allow.";
+  }
+  return null;
+}
+
+export function registerNoteTools(server: McpServer, config: IConnectConfig): void {
+  const { includeShared } = config;
+
+  // --- Layer 1: CRUD ---
+
+  server.registerTool(
+    "list_notes",
+    {
+      title: "List Notes",
+      description: "List all notes with title, folder, and dates. Optionally filter by folder name.",
+      inputSchema: {
+        folder: z.string().optional().describe("Filter by folder name"),
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async ({ folder }) => {
+      try {
+        const result = await runJxa<NoteListItem[]>(listNotesScript(folder));
+        return ok(filterShared(result, includeShared));
+      } catch (e) {
+        return err(`Failed to list notes: ${e instanceof Error ? e.message : String(e)}`);
+      }
+    },
+  );
+
+  server.registerTool(
+    "search_notes",
+    {
+      title: "Search Notes",
+      description: "Search notes by keyword in title and body. Returns matching notes with a 200-char preview.",
+      inputSchema: {
+        query: z.string().min(1).describe("Search keyword"),
+        limit: z.number().int().min(1).max(500).optional().default(50).describe("Max results to return (default: 50)"),
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async ({ query, limit }) => {
+      try {
+        const result = await runJxa<{ total: number; returned: number; notes: SearchResult[] }>(searchNotesScript(query, limit));
+        result.notes = filterShared(result.notes, includeShared);
+        result.returned = result.notes.length;
+        return ok(result);
+      } catch (e) {
+        return err(`Failed to search notes: ${e instanceof Error ? e.message : String(e)}`);
+      }
+    },
+  );
+
+  server.registerTool(
+    "read_note",
+    {
+      title: "Read Note",
+      description: "Read the full content of a specific note by its ID. Returns HTML body and plaintext.",
+      inputSchema: {
+        id: z.string().describe("Note ID (x-coredata:// format)"),
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async ({ id }) => {
+      try {
+        const result = await runJxa<NoteDetail>(readNoteScript(id));
+        if (!includeShared && result.shared) return err("This note is shared. Set ICONNECT_INCLUDE_SHARED=true to access shared notes.");
+        return ok(result);
+      } catch (e) {
+        return err(`Failed to read note: ${e instanceof Error ? e.message : String(e)}`);
+      }
+    },
+  );
+
+  server.registerTool(
+    "create_note",
+    {
+      title: "Create Note",
+      description:
+        "Create a new note with HTML body. The first line of the body becomes the note title automatically. Optionally specify a target folder.",
+      inputSchema: {
+        body: z.string().describe("Note content in HTML (e.g. '<h1>Title</h1><p>Body text</p>')"),
+        folder: z.string().optional().describe("Target folder name"),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: false,
+      },
+    },
+    async ({ body, folder }) => {
+      try {
+        const script = includeShared
+          ? createNoteSharedScript(body, folder)
+          : createNoteScript(body, folder);
+        const result = await runJxa<MutationResult>(script);
+        return ok(result);
+      } catch (e) {
+        return err(`Failed to create note: ${e instanceof Error ? e.message : String(e)}`);
+      }
+    },
+  );
+
+  server.registerTool(
+    "update_note",
+    {
+      title: "Update Note",
+      description:
+        "Replace the entire body of an existing note. WARNING: This overwrites all content. Read the note first if you need to preserve parts of it. Attachments may be lost.",
+      inputSchema: {
+        id: z.string().describe("Note ID (x-coredata:// format)"),
+        body: z.string().describe("New HTML body to replace existing content"),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async ({ id, body }) => {
+      try {
+        const blocked = await guardShared(id, includeShared);
+        if (blocked) return err(blocked);
+        const result = await runJxa<MutationResult>(updateNoteScript(id, body));
+        return ok(result);
+      } catch (e) {
+        return err(`Failed to update note: ${e instanceof Error ? e.message : String(e)}`);
+      }
+    },
+  );
+
+  server.registerTool(
+    "delete_note",
+    {
+      title: "Delete Note",
+      description:
+        "Delete a note by ID. The note is moved to Recently Deleted and permanently removed after 30 days.",
+      inputSchema: {
+        id: z.string().describe("Note ID (x-coredata:// format)"),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async ({ id }) => {
+      try {
+        const blocked = await guardShared(id, includeShared);
+        if (blocked) return err(blocked);
+        const result = await runJxa<DeleteResult>(deleteNoteScript(id));
+        return ok(result);
+      } catch (e) {
+        return err(`Failed to delete note: ${e instanceof Error ? e.message : String(e)}`);
+      }
+    },
+  );
+
+  server.registerTool(
+    "list_folders",
+    {
+      title: "List Folders",
+      description: "List all folders across all accounts with note counts.",
+      inputSchema: {},
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async () => {
+      try {
+        const result = await runJxa<FolderItem[]>(listFoldersScript());
+        return ok(filterShared(result, includeShared));
+      } catch (e) {
+        return err(`Failed to list folders: ${e instanceof Error ? e.message : String(e)}`);
+      }
+    },
+  );
+
+  server.registerTool(
+    "create_folder",
+    {
+      title: "Create Folder",
+      description: "Create a new folder. Optionally specify which account to create it in.",
+      inputSchema: {
+        name: z.string().describe("Folder name"),
+        account: z.string().optional().describe("Account name (e.g. 'iCloud'). Defaults to primary account."),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async ({ name, account }) => {
+      try {
+        const result = await runJxa<MutationResult>(createFolderScript(name, account));
+        return ok(result);
+      } catch (e) {
+        return err(`Failed to create folder: ${e instanceof Error ? e.message : String(e)}`);
+      }
+    },
+  );
+
+  server.registerTool(
+    "move_note",
+    {
+      title: "Move Note",
+      description:
+        "Move a note to a different folder. NOTE: Apple Notes has no native move command, so this copies the note body to the target folder and deletes the original. The note will get a new ID and creation date. Attachments (images) will be lost.",
+      inputSchema: {
+        id: z.string().describe("Note ID to move"),
+        folder: z.string().describe("Target folder name"),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: false,
+        openWorldHint: false,
+      },
+    },
+    async ({ id, folder }) => {
+      try {
+        const blocked = await guardShared(id, includeShared);
+        if (blocked) return err(blocked);
+        const result = await runJxa<MutationResult>(moveNoteScript(id, folder));
+        return ok(result);
+      } catch (e) {
+        return err(`Failed to move note: ${e instanceof Error ? e.message : String(e)}`);
+      }
+    },
+  );
+
+  // --- Layer 2: Bulk ---
+
+  server.registerTool(
+    "scan_notes",
+    {
+      title: "Scan Notes",
+      description:
+        "Bulk scan notes returning metadata and a text preview for each. Supports pagination via offset. Optionally filter by folder. Use this to get an overview before organizing.",
+      inputSchema: {
+        folder: z.string().optional().describe("Filter by folder name. Omit to scan all notes."),
+        limit: z.number().int().min(1).max(10000).optional().default(100).describe("Max number of notes to return (default: 100)"),
+        offset: z.number().int().min(0).optional().default(0).describe("Number of notes to skip for pagination (default: 0)"),
+        previewLength: z.number().int().min(1).max(5000).optional().default(300).describe("Preview text length in characters (default: 300)"),
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async ({ folder, limit, offset, previewLength }) => {
+      try {
+        const result = await runJxa<ScanResult>(scanNotesScript(limit, previewLength, offset, folder));
+        result.notes = filterShared(result.notes, includeShared);
+        result.returned = result.notes.length;
+        return ok(result);
+      } catch (e) {
+        return err(`Failed to scan notes: ${e instanceof Error ? e.message : String(e)}`);
+      }
+    },
+  );
+
+  server.registerTool(
+    "compare_notes",
+    {
+      title: "Compare Notes",
+      description:
+        "Retrieve full plaintext content of 2-5 notes at once for comparison. Use this after scan_notes to safely compare potentially duplicate or similar notes before deciding what to keep, merge, or delete.",
+      inputSchema: {
+        ids: z
+          .array(z.string())
+          .min(2)
+          .max(5)
+          .describe("Array of 2-5 note IDs to compare"),
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async ({ ids }) => {
+      try {
+        const result = await runJxa<CompareResult[]>(compareNotesScript(ids));
+        if (!includeShared) {
+          const shared = result.filter((n) => n.shared);
+          if (shared.length > 0) return err(`Shared notes found: ${shared.map((n) => n.name).join(", ")}. Set ICONNECT_INCLUDE_SHARED=true to access.`);
+        }
+        return ok(result);
+      } catch (e) {
+        return err(`Failed to compare notes: ${e instanceof Error ? e.message : String(e)}`);
+      }
+    },
+  );
+
+  server.registerTool(
+    "bulk_move_notes",
+    {
+      title: "Bulk Move Notes",
+      description:
+        "Move multiple notes to a target folder at once. Same limitations as move_note apply to each note (new ID, date reset, attachments lost). Returns per-note success/failure results.",
+      inputSchema: {
+        ids: z.array(z.string()).min(1).describe("Array of note IDs to move"),
+        folder: z.string().describe("Target folder name"),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: false,
+        openWorldHint: false,
+      },
+    },
+    async ({ ids, folder }) => {
+      try {
+        if (!includeShared) {
+          const { sharedIds } = await runJxa<{ sharedIds: string[] }>(guardSharedBulkScript(ids));
+          if (sharedIds.length > 0) return err(`Blocked: ${sharedIds.length} shared note(s) found. Set ICONNECT_INCLUDE_SHARED=true to allow.`);
+        }
+        const result = await runJxa<unknown>(bulkMoveNotesScript(ids, folder));
+        return ok(result);
+      } catch (e) {
+        return err(`Failed to bulk move notes: ${e instanceof Error ? e.message : String(e)}`);
+      }
+    },
+  );
+}

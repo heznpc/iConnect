@@ -1,0 +1,179 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
+/** npm package name — single source of truth for npx/install references */
+export const NPM_PACKAGE_NAME = "iconnect-mcp";
+
+export type HitlLevel = "off" | "destructive-only" | "all-writes" | "all";
+
+export interface HitlConfig {
+  level: HitlLevel;
+  whitelist: Set<string>;
+  timeout: number;
+  socketPath: string;
+}
+
+const HITL_LEVELS: readonly string[] = ["off", "destructive-only", "all-writes", "all"];
+
+export const MODULE_NAMES = [
+  "notes",
+  "reminders",
+  "calendar",
+  "contacts",
+  "mail",
+  "messages",
+  "music",
+  "finder",
+  "safari",
+  "system",
+  "photos",
+  "shortcuts",
+  "intelligence",
+  "tv",
+] as const;
+
+/** Core modules enabled by default when no config.json exists */
+export const STARTER_MODULES: ReadonlySet<string> = new Set([
+  "notes",
+  "reminders",
+  "calendar",
+  "shortcuts",
+  "system",
+]);
+
+export type ModuleName = (typeof MODULE_NAMES)[number];
+
+export interface IConnectConfig {
+  /** Include shared notes/folders in results. Default: false */
+  includeShared: boolean;
+  /** Set of disabled module names */
+  disabledModules: Set<string>;
+  /** Set of module names that require share approval */
+  shareApprovalModules: Set<string>;
+  /** Allow sending messages via Messages app. Default: true */
+  allowSendMessages: boolean;
+  /** Allow sending emails via Mail app. Default: true */
+  allowSendMail: boolean;
+  /** Human-in-the-loop confirmation config */
+  hitl: HitlConfig;
+}
+
+interface FileConfig {
+  includeShared?: boolean;
+  allowSendMessages?: boolean;
+  allowSendMail?: boolean;
+  disabledModules?: string[];
+  shareApproval?: string[];
+  hitl?: { level?: string; whitelist?: string[]; timeout?: number };
+}
+
+interface LoadResult {
+  config: FileConfig;
+  /** true if config.json was found and parsed successfully */
+  fileExists: boolean;
+}
+
+function loadFileConfig(): LoadResult {
+  try {
+    const home = process.env.HOME ?? process.env.USERPROFILE ?? "";
+    const file = join(home, ".config", "iconnect", "config.json");
+    const data = readFileSync(file, "utf-8");
+    return { config: JSON.parse(data) as FileConfig, fileExists: true };
+  } catch {
+    return { config: {}, fileExists: false };
+  }
+}
+
+/**
+ * Read a boolean config value with env-var override.
+ * Env var is checked with strict `=== "true"` (positive opt-in) for all booleans.
+ *
+ * NOTE: Prior to this refactor, allowSendMessages and allowSendMail used
+ * `!== "false"` (any non-"false" value enabled the feature). This has been
+ * unified to `=== "true"` for consistency and safety — these are
+ * action-oriented settings (sending mail/messages), so explicit opt-in
+ * is more predictable. To enable via env var, set the value to exactly "true".
+ */
+function envBool(envKey: string, fileValue: boolean | undefined, defaultValue: boolean): boolean {
+  const env = process.env[envKey];
+  if (env !== undefined) return env === "true";
+  return fileValue ?? defaultValue;
+}
+
+export function parseConfig(): IConnectConfig {
+  const { config: file, fileExists } = loadFileConfig();
+  const fullMode = process.env.ICONNECT_FULL === "true" || process.argv.includes("--full");
+
+  // Disabled modules: env vars override, then JSON fallback, then starter preset
+  const disabledModules = new Set<string>();
+  const fileDisabled = new Set(file.disabledModules ?? []);
+  for (const mod of MODULE_NAMES) {
+    const envKey = `ICONNECT_DISABLE_${mod.toUpperCase()}`;
+    const envVal = process.env[envKey];
+    if (envVal === "true") {
+      disabledModules.add(mod);
+    } else if (envVal === undefined && fileDisabled.has(mod)) {
+      disabledModules.add(mod);
+    } else if (envVal === undefined && !fileExists && !fullMode && !STARTER_MODULES.has(mod)) {
+      // No config.json & not --full: apply starter preset
+      disabledModules.add(mod);
+    }
+  }
+
+  // Share approval: env var overrides, then JSON fallback
+  const shareApprovalModules = new Set<string>();
+  const shareApprovalEnv = process.env.ICONNECT_SHARE_APPROVAL;
+  if (shareApprovalEnv) {
+    for (const raw of shareApprovalEnv.split(",")) {
+      const mod = raw.trim().toLowerCase();
+      if (mod && (MODULE_NAMES as readonly string[]).includes(mod)) {
+        shareApprovalModules.add(mod);
+      }
+    }
+  } else if (file.shareApproval) {
+    for (const mod of file.shareApproval) {
+      if ((MODULE_NAMES as readonly string[]).includes(mod)) {
+        shareApprovalModules.add(mod);
+      }
+    }
+  }
+
+  // Boolean configs: env var > JSON > default
+  const includeShared = envBool("ICONNECT_INCLUDE_SHARED", file.includeShared, false);
+  const allowSendMessages = envBool("ICONNECT_ALLOW_SEND_MESSAGES", file.allowSendMessages, true);
+  const allowSendMail = envBool("ICONNECT_ALLOW_SEND_MAIL", file.allowSendMail, true);
+
+  // HITL config: env var > JSON > default
+  const home = process.env.HOME ?? process.env.USERPROFILE ?? "";
+  const hitlLevelRaw = process.env.ICONNECT_HITL_LEVEL ?? file.hitl?.level ?? "off";
+  const hitlLevel: HitlLevel = HITL_LEVELS.includes(hitlLevelRaw)
+    ? (hitlLevelRaw as HitlLevel)
+    : "off";
+  const hitlWhitelist = new Set<string>(file.hitl?.whitelist ?? []);
+  const hitlTimeout = file.hitl?.timeout ?? 30;
+  const hitlSocketPath = join(home, ".config", "iconnect", "hitl.sock");
+
+  const hitl: HitlConfig = {
+    level: hitlLevel,
+    whitelist: hitlWhitelist,
+    timeout: hitlTimeout,
+    socketPath: hitlSocketPath,
+  };
+
+  return {
+    includeShared,
+    disabledModules,
+    shareApprovalModules,
+    allowSendMessages,
+    allowSendMail,
+    hitl,
+  };
+}
+
+export function isModuleEnabled(config: IConnectConfig, moduleName: string): boolean {
+  return !config.disabledModules.has(moduleName);
+}
+
+export function needsShareApproval(config: IConnectConfig, moduleName: string): boolean {
+  return config.shareApprovalModules.has(moduleName);
+}
