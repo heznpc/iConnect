@@ -17,6 +17,7 @@ import { registerShortcutPrompts } from "../shortcuts/prompts.js";
 import { registerMessagesTools } from "../messages/tools.js";
 import { registerIntelligenceTools } from "../intelligence/tools.js";
 import { registerTvTools } from "../tv/tools.js";
+import { registerUiTools } from "../ui/tools.js";
 
 export const MODULE_REGISTRY: ModuleRegistration[] = [
   { name: "notes", tools: registerNoteTools, prompts: registerNotePrompts },
@@ -31,6 +32,7 @@ export const MODULE_REGISTRY: ModuleRegistration[] = [
   { name: "photos", tools: registerPhotosTools },
   { name: "shortcuts", tools: registerShortcutsTools, prompts: registerShortcutPrompts },
   { name: "messages", tools: registerMessagesTools },
-  { name: "intelligence", tools: registerIntelligenceTools },
+  { name: "intelligence", tools: registerIntelligenceTools, minMacosVersion: 26 },
   { name: "tv", tools: registerTvTools },
+  { name: "ui", tools: registerUiTools },
 ];

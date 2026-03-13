@@ -1,5 +1,6 @@
 import SwiftUI
 import UserNotifications
+import AppKit
 
 @main
 struct iConnectApp: App {
@@ -8,7 +9,10 @@ struct iConnectApp: App {
     @State private var configManager = ConfigManager()
     @State private var setupManager = SetupManager()
     @State private var hitlManager = HitlManager()
+    @State private var logManager = LogManager()
+    @State private var updateManager = UpdateManager()
     @State private var hitlInitialized = false
+    @State private var appInitialized = false
 
     private let notificationDelegate: HitlNotificationDelegate
 
@@ -33,13 +37,25 @@ struct iConnectApp: App {
                 permissionManager: permissionManager,
                 configManager: configManager,
                 setupManager: setupManager,
-                hitlManager: hitlManager
+                hitlManager: hitlManager,
+                logManager: logManager,
+                updateManager: updateManager
             )
             .onAppear {
+                serverManager.logManager = logManager
                 serverManager.startPolling()
                 if !hitlInitialized {
                     hitlInitialized = true
                     setupHitl()
+                }
+                if !appInitialized {
+                    appInitialized = true
+                    updateManager.startPeriodicChecks()
+                    if !UserDefaults.standard.bool(forKey: "onboardingCompleted") {
+                        showOnboardingWindow()
+                    } else {
+                        serverManager.autoStartIfNeeded()
+                    }
                 }
             }
             .onReceive(NotificationCenter.default.publisher(for: .hitlNotificationResponse)) { notification in
@@ -62,6 +78,49 @@ struct iConnectApp: App {
             hitlManager.startListening()
         }
     }
+
+    private func showOnboardingWindow() {
+        let onboardingView = OnboardingView(configManager: configManager) { [serverManager] in
+            // Enable auto-start by default after first onboarding
+            serverManager.autoStartEnabled = true
+            serverManager.autoStartIfNeeded()
+        }
+
+        let hostingController = NSHostingController(rootView: onboardingView)
+        let window = NSWindow(contentViewController: hostingController)
+        window.title = "iConnect Setup"
+        window.styleMask = [.titled, .closable]
+        window.setContentSize(NSSize(width: 520, height: 480))
+        window.center()
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate()
+
+        // Keep a reference so the window isn't deallocated
+        OnboardingWindowHolder.shared.setWindow(window)
+    }
+}
+
+/// Holds a reference to the onboarding window to prevent deallocation.
+@MainActor
+final class OnboardingWindowHolder: NSObject {
+    static let shared = OnboardingWindowHolder()
+    var window: NSWindow?
+
+    func setWindow(_ newWindow: NSWindow) {
+        window = newWindow
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(windowWillClose),
+            name: NSWindow.willCloseNotification,
+            object: newWindow
+        )
+    }
+
+    @objc private func windowWillClose(_ notification: Notification) {
+        window = nil
+    }
+
+    private override init() { super.init() }
 }
 
 extension Notification.Name {

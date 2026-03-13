@@ -8,6 +8,29 @@ interface TextResult {
   output: string;
 }
 
+interface StructuredResult {
+  output: string;
+  valid_json: boolean;
+}
+
+interface TagResult {
+  tags: Record<string, number>;
+  text_preview: string;
+}
+
+interface ChatResult {
+  sessionName: string;
+  response: string;
+}
+
+interface AiStatusResult {
+  available: boolean;
+  message: string;
+  macOSVersion: string;
+  hasAppleSilicon: boolean;
+  foundationModelsSupported: boolean;
+}
+
 export function registerIntelligenceTools(server: McpServer, _config: IConnectConfig): void {
   server.registerTool(
     "summarize_text",
@@ -88,6 +111,179 @@ export function registerIntelligenceTools(server: McpServer, _config: IConnectCo
         return ok(result);
       } catch (e) {
         return err(`Failed to proofread: ${e instanceof Error ? e.message : String(e)}`);
+      }
+    },
+  );
+
+  // --- Foundation Models SDK tools (macOS 26+) ---
+
+  server.registerTool(
+    "generate_text",
+    {
+      title: "Generate Text",
+      description:
+        "Generate text using Apple's on-device Foundation Model with custom system instructions. Runs entirely on-device via Apple Silicon. Requires macOS 26+.",
+      inputSchema: {
+        prompt: z.string().describe("The user prompt / instruction for text generation"),
+        systemInstruction: z
+          .string()
+          .optional()
+          .describe("Optional system instruction to guide the model's behavior"),
+        temperature: z
+          .number()
+          .min(0)
+          .max(2)
+          .optional()
+          .describe("Sampling temperature (0-2). Lower = more deterministic"),
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: false,
+      },
+    },
+    async ({ prompt, systemInstruction, temperature }) => {
+      try {
+        const result = await runSwift<TextResult>(
+          "generate-text",
+          JSON.stringify({ prompt, systemInstruction, temperature }),
+        );
+        return ok(result);
+      } catch (e) {
+        return err(`Failed to generate text: ${e instanceof Error ? e.message : String(e)}`);
+      }
+    },
+  );
+
+  server.registerTool(
+    "generate_structured",
+    {
+      title: "Generate Structured Output",
+      description:
+        "Generate structured JSON output from Apple's on-device Foundation Model with optional schema constraints. Useful for extracting structured data from natural language. Requires macOS 26+.",
+      inputSchema: {
+        prompt: z.string().describe("The prompt describing what structured data to generate"),
+        systemInstruction: z
+          .string()
+          .optional()
+          .describe("Optional system instruction to guide output format"),
+        schema: z
+          .record(
+            z.object({
+              type: z.string().describe("JSON type: string, number, boolean, array, object"),
+              description: z.string().optional().describe("Description of this field"),
+            }),
+          )
+          .optional()
+          .describe("Optional JSON schema describing expected output fields"),
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: false,
+      },
+    },
+    async ({ prompt, systemInstruction, schema }) => {
+      try {
+        const result = await runSwift<StructuredResult>(
+          "generate-structured",
+          JSON.stringify({ prompt, systemInstruction, schema }),
+        );
+        return ok(result);
+      } catch (e) {
+        return err(`Failed to generate structured output: ${e instanceof Error ? e.message : String(e)}`);
+      }
+    },
+  );
+
+  server.registerTool(
+    "tag_content",
+    {
+      title: "Tag Content",
+      description:
+        "Classify and tag content using Apple's on-device Foundation Model. Returns confidence scores for each provided tag/category. Requires macOS 26+.",
+      inputSchema: {
+        text: z.string().describe("The text content to classify"),
+        tags: z
+          .array(z.string())
+          .min(1)
+          .describe("List of tag/category names to classify the content against"),
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async ({ text, tags }) => {
+      try {
+        const result = await runSwift<TagResult>("tag-content", JSON.stringify({ text, tags }));
+        return ok(result);
+      } catch (e) {
+        return err(`Failed to tag content: ${e instanceof Error ? e.message : String(e)}`);
+      }
+    },
+  );
+
+  server.registerTool(
+    "ai_chat",
+    {
+      title: "AI Chat",
+      description:
+        "Send a message to a named on-device AI chat session using Apple Foundation Models. Use a consistent sessionName to maintain conversational context across calls. Requires macOS 26+.",
+      inputSchema: {
+        sessionName: z
+          .string()
+          .describe("Name for this chat session (use same name to continue a conversation)"),
+        message: z.string().describe("The message to send to the AI"),
+        systemInstruction: z
+          .string()
+          .optional()
+          .describe("Optional system instruction for this session"),
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: false,
+      },
+    },
+    async ({ sessionName, message, systemInstruction }) => {
+      try {
+        const result = await runSwift<ChatResult>(
+          "ai-chat",
+          JSON.stringify({ sessionName, message, systemInstruction }),
+        );
+        return ok(result);
+      } catch (e) {
+        return err(`Failed to chat: ${e instanceof Error ? e.message : String(e)}`);
+      }
+    },
+  );
+
+  server.registerTool(
+    "ai_status",
+    {
+      title: "AI Status",
+      description:
+        "Check availability and status of Apple's on-device Foundation Models. Returns whether the model is available, macOS version, and Apple Silicon status.",
+      inputSchema: {},
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async () => {
+      try {
+        const result = await runSwift<AiStatusResult>("ai-status", "{}");
+        return ok(result);
+      } catch (e) {
+        return err(`Failed to check AI status: ${e instanceof Error ? e.message : String(e)}`);
       }
     },
   );

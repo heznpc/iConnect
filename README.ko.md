@@ -6,14 +6,14 @@ Apple 생태계 전체를 위한 MCP 서버 — Notes, Reminders, Calendar, Cont
 
 ## 특징
 
-- **127개 도구** (14개 모듈) — Apple 앱 CRUD + 시스템 제어 + Apple Intelligence + TV
+- **140개 도구** (15개 모듈) — Apple 앱 CRUD + 시스템 제어 + Apple Intelligence + UI Automation + TV
 - **23개 프롬프트** — 앱별 워크플로우 + 크로스 모듈 + 개발자 워크플로우 (dev-session, debug-loop, build-log)
 - **11개 MCP 리소스** — Notes, Calendar, Reminders 실시간 데이터 URI
 - **JXA + Swift 브릿지** — JXA로 기본 자동화, EventKit/PhotoKit으로 고급 기능
 - **반복 이벤트/리마인더** — EventKit으로 반복 규칙 생성 (macOS 26+ Swift 브릿지)
 - **사진 가져오기/삭제** — PhotoKit으로 사진 관리 (macOS 26+ Swift 브릿지)
 - **Apple Intelligence** — 온디바이스 요약, 재작성, 교정 (macOS 26+)
-- **네이티브 메뉴바 앱** — SwiftUI 컴패니언 앱으로 상태 모니터링, 권한 설정, 설정 복사
+- **네이티브 메뉴바 앱** — SwiftUI 컴패니언 앱 (온보딩 위자드, 자동 시작, 로그 뷰어, 업데이트 알림, 권한 설정)
 - **원클릭 셋업** — `setup_permissions` 도구 또는 메뉴바 앱으로 모든 macOS 권한을 한번에 요청
 - **듀얼 전송** — stdio (기본, 안전한 로컬 통신) + HTTP/SSE (`--http`) 원격 에이전트 및 레지스트리 지원
 - **Safety Annotations** — 모든 도구에 readOnly/destructive 힌트 적용
@@ -95,7 +95,7 @@ cd app && swift build -c release
 # 바이너리: app/.build/release/iConnectApp
 ```
 
-기능: 서버 상태 표시, 원클릭 권한 설정, MCP 클라이언트 설정 클립보드 복사.
+기능: 온보딩 위자드, 로그인 시 자동 시작, 로그 뷰어, 업데이트 알림, 서버 상태 표시, 원클릭 권한 설정, MCP 클라이언트 설정 클립보드 복사.
 
 ### HTTP 모드
 
@@ -273,7 +273,7 @@ Mac Mini를 "상시 가동 AI 허브"로 활용할 때 유용합니다.
 | `send_file` | iMessage/SMS 파일 첨부 전송 | 쓰기 |
 | `list_participants` | 대화 참여자 목록 | 읽기 |
 
-### Shortcuts (8개)
+### Shortcuts (10개)
 
 | 도구 | 설명 | 타입 |
 |------|------|------|
@@ -285,8 +285,21 @@ Mac Mini를 "상시 가동 AI 허브"로 활용할 때 유용합니다.
 | `delete_shortcut` | 이름으로 단축어 삭제 (macOS 13+) | 파괴적 |
 | `export_shortcut` | .shortcut 파일로 단축어 내보내기 | 쓰기 |
 | `import_shortcut` | .shortcut 파일에서 단축어 가져오기 | 쓰기 |
+| `edit_shortcut` | Shortcuts 앱에서 단축어 편집 열기 | 쓰기 |
+| `duplicate_shortcut` | 기존 단축어 복제 | 쓰기 |
 
-### Apple Intelligence (3개)
+### UI Automation (6개)
+
+| 도구 | 설명 | 타입 |
+|------|------|------|
+| `ui_open_app` | 앱 열기 + 접근성 요약 읽기 | 읽기 |
+| `ui_click` | 좌표 또는 텍스트로 요소 클릭 | 쓰기 |
+| `ui_type` | 포커스된 필드에 텍스트 입력 | 쓰기 |
+| `ui_press_key` | 키 조합 전송 | 쓰기 |
+| `ui_scroll` | 방향 스크롤 | 쓰기 |
+| `ui_read` | 앱 접근성 트리 읽기 | 읽기 |
+
+### Apple Intelligence (8개)
 
 macOS 26+ Apple Silicon 필요.
 
@@ -295,6 +308,11 @@ macOS 26+ Apple Silicon 필요.
 | `summarize_text` | 온디바이스 텍스트 요약 | 읽기 |
 | `rewrite_text` | 톤 지정 재작성 | 읽기 |
 | `proofread_text` | 문법/맞춤법 교정 | 읽기 |
+| `generate_text` | 온디바이스 AI로 커스텀 텍스트 생성 | 읽기 |
+| `generate_structured` | 스키마 기반 구조화 JSON 출력 | 읽기 |
+| `tag_content` | 콘텐츠 태깅/분류 (신뢰도 포함) | 읽기 |
+| `ai_chat` | 이름 기반 멀티턴 온디바이스 AI 세션 | 읽기 |
+| `ai_status` | Foundation Model 가용성 확인 | 읽기 |
 
 ### TV (6개)
 
@@ -419,7 +437,7 @@ npx iconnect-mcp --full
 | `npx iconnect-mcp init` | 대화형 설정 위자드 |
 | `npx iconnect-mcp doctor` | 설치 문제 진단 |
 | `npx iconnect-mcp` | MCP 서버 시작 (stdio, 기본) |
-| `npx iconnect-mcp --full` | 14개 모듈 전체 활성화로 시작 |
+| `npx iconnect-mcp --full` | 15개 모듈 전체 활성화로 시작 |
 | `npx iconnect-mcp --http` | HTTP 서버로 시작 (포트 3847) |
 
 ## 설정
@@ -475,6 +493,8 @@ npx iconnect-mcp --full
 - Apple Intelligence: macOS 26+ Apple Silicon
 
 ## 제한 사항
+
+OS 요구 사항이 있는 모듈(예: Intelligence는 macOS 26+ 필요)은 런타임 OS 감지를 통해 이전 시스템에서 자동으로 비활성화됩니다.
 
 ### Notes
 - 이동 시 복사 후 삭제 (새 ID, 날짜 초기화, 첨부 파일 유실)

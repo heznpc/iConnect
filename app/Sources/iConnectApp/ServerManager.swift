@@ -11,8 +11,16 @@ final class ServerManager {
     }
 
     var status: Status = .checking
+    var autoStartEnabled: Bool {
+        get { UserDefaults.standard.bool(forKey: "autoStartServer") }
+        set { UserDefaults.standard.set(newValue, forKey: "autoStartServer") }
+    }
+
     private var timer: Timer?
     private var serverProcess: Process?
+    var logManager: LogManager?
+    private var stdoutPipe: Pipe?
+    private var stderrPipe: Pipe?
 
     // MARK: - Polling
 
@@ -49,19 +57,37 @@ final class ServerManager {
         status = .checking
 
         Task {
-            let process = await Self.launchServer()
+            var pipes: (stdout: Pipe, stderr: Pipe)?
+            if let logManager {
+                pipes = logManager.makePipes()
+            }
+            let process = await Self.launchServer(stdoutPipe: pipes?.stdout, stderrPipe: pipes?.stderr)
             if let process {
                 serverProcess = process
+                stdoutPipe = pipes?.stdout
+                stderrPipe = pipes?.stderr
                 try? await Task.sleep(nanoseconds: 1_000_000_000)
                 checkStatus()
             } else {
+                if let pipes, let logManager {
+                    logManager.detachPipes(stdout: pipes.stdout, stderr: pipes.stderr)
+                }
                 status = .stopped
             }
         }
     }
 
+    /// Auto-start server if enabled. Call after onboarding completes.
+    func autoStartIfNeeded() {
+        guard autoStartEnabled, status != .running else { return }
+        startServer()
+    }
+
     func stopServer() {
         status = .checking
+        logManager?.detachPipes(stdout: stdoutPipe, stderr: stderrPipe)
+        stdoutPipe = nil
+        stderrPipe = nil
 
         if let process = serverProcess, process.isRunning {
             process.terminate()
@@ -92,7 +118,7 @@ final class ServerManager {
         ]
     }()
 
-    private static func launchServer() async -> Process? {
+    private static func launchServer(stdoutPipe: Pipe?, stderrPipe: Pipe?) async -> Process? {
         await withCheckedContinuation { continuation in
             DispatchQueue.global().async {
                 let npxPath = findNpx()
@@ -104,8 +130,8 @@ final class ServerManager {
                 let process = Process()
                 process.executableURL = URL(fileURLWithPath: npxPath)
                 process.arguments = ["-y", IConnectConstants.npmPackageName]
-                process.standardOutput = FileHandle.nullDevice
-                process.standardError = FileHandle.nullDevice
+                process.standardOutput = stdoutPipe ?? FileHandle.nullDevice
+                process.standardError = stderrPipe ?? FileHandle.nullDevice
 
                 var env = ProcessInfo.processInfo.environment
                 let currentPath = env["PATH"] ?? "/usr/bin:/bin"

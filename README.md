@@ -6,14 +6,14 @@ MCP server for the entire Apple ecosystem — Notes, Reminders, Calendar, Contac
 
 ## Features
 
-- **127 tools** (14 modules) — Apple app CRUD + system control + Apple Intelligence + TV
+- **140 tools** (15 modules) — Apple app CRUD + system control + Apple Intelligence + UI Automation + TV
 - **23 prompts** — per-app workflows + cross-module + developer workflows (dev-session, debug-loop, build-log)
 - **11 MCP resources** — Notes, Calendar, Reminders live data URIs
 - **JXA + Swift bridge** — JXA for basic automation, EventKit/PhotoKit for advanced features
 - **Recurring events/reminders** — EventKit recurrence rules (macOS 26+ Swift bridge)
 - **Photo import/delete** — PhotoKit photo management (macOS 26+ Swift bridge)
 - **Apple Intelligence** — On-device summarize, rewrite, proofread (macOS 26+)
-- **Native menubar app** — SwiftUI companion for status monitoring, permission setup, config copy
+- **Native menubar app** — SwiftUI companion with onboarding wizard, auto-start, log viewer, update notifications, permission setup
 - **One-click setup** — `setup_permissions` tool or menubar app to request all macOS permissions at once
 - **Dual transport** — stdio (default, safe local) + HTTP/SSE (`--http`) for remote agents and registries
 - **Safety annotations** — readOnly/destructive hints on all tools
@@ -134,7 +134,7 @@ cd app && swift build -c release
 # Binary: app/.build/release/iConnectApp
 ```
 
-Features: server status, one-click permission setup, MCP client config clipboard copy.
+Features: onboarding wizard, auto-start on login, log viewer, update notifications, server status, one-click permission setup, MCP client config clipboard copy.
 
 ### HTTP Mode
 
@@ -312,7 +312,7 @@ Useful for running a Mac Mini as an "always-on AI hub."
 | `send_file` | Send file via iMessage/SMS | write |
 | `list_participants` | List chat participants | read |
 
-### Shortcuts (8 tools)
+### Shortcuts (10 tools)
 
 | Tool | Description | Type |
 |------|-------------|------|
@@ -324,8 +324,21 @@ Useful for running a Mac Mini as an "always-on AI hub."
 | `delete_shortcut` | Delete shortcut by name (macOS 13+) | destructive |
 | `export_shortcut` | Export shortcut to .shortcut file | write |
 | `import_shortcut` | Import shortcut from .shortcut file | write |
+| `edit_shortcut` | Open shortcut in Shortcuts app for editing | write |
+| `duplicate_shortcut` | Duplicate an existing shortcut | write |
 
-### Apple Intelligence (3 tools)
+### UI Automation (6 tools)
+
+| Tool | Description | Type |
+|------|-------------|------|
+| `ui_open_app` | Open app and read accessibility summary | read |
+| `ui_click` | Click element by coordinates or text | write |
+| `ui_type` | Type text into focused field | write |
+| `ui_press_key` | Send key combinations | write |
+| `ui_scroll` | Scroll in direction | write |
+| `ui_read` | Read app accessibility tree | read |
+
+### Apple Intelligence (8 tools)
 
 Requires macOS 26+ with Apple Silicon.
 
@@ -334,6 +347,11 @@ Requires macOS 26+ with Apple Silicon.
 | `summarize_text` | On-device text summarization | read |
 | `rewrite_text` | Rewrite with specified tone | read |
 | `proofread_text` | Grammar/spelling correction | read |
+| `generate_text` | Generate text with custom instructions via on-device AI | read |
+| `generate_structured` | Generate structured JSON output with schema | read |
+| `tag_content` | Content classification/tagging with confidence | read |
+| `ai_chat` | Named multi-turn on-device AI session | read |
+| `ai_status` | Check Foundation Model availability | read |
 
 ### TV (6 tools)
 
@@ -456,7 +474,7 @@ Or edit `~/.config/iconnect/config.json` directly:
 | `npx iconnect-mcp init` | Interactive setup wizard |
 | `npx iconnect-mcp doctor` | Diagnose installation issues |
 | `npx iconnect-mcp` | Start MCP server (stdio, default) |
-| `npx iconnect-mcp --full` | Start with all 14 modules enabled |
+| `npx iconnect-mcp --full` | Start with all 15 modules enabled |
 | `npx iconnect-mcp --http` | Start as HTTP server (port 3847) |
 
 ## Configuration
@@ -536,6 +554,8 @@ npm run swift-build
 - Apple Intelligence: macOS 26+ with Apple Silicon
 
 ## Limitations
+
+Modules with OS requirements (e.g., Intelligence requires macOS 26+) are automatically disabled at startup on older systems via runtime OS detection.
 
 ### Notes
 - Move copies and deletes (new ID, reset dates, lost attachments). Update replaces entire body — read first to preserve content.

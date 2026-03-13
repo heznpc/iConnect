@@ -1,5 +1,23 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { release } from "node:os";
+
+/**
+ * Return the macOS major version number.
+ *
+ * Darwin kernel versions map to macOS versions:
+ *   Darwin 24.x → macOS 15 (Sequoia)
+ *   Darwin 25.x → macOS 26 (Tahoe)
+ *
+ * The formula is: macOS_major = Darwin_major - 9  (for macOS 11+).
+ * Returns 0 on non-macOS platforms so version checks always pass.
+ */
+export function getOsVersion(): number {
+  if (process.platform !== "darwin") return 0;
+  const darwinMajor = parseInt(release().split(".")[0], 10);
+  if (isNaN(darwinMajor)) return 0;
+  return darwinMajor - 9;
+}
 
 /** npm package name — single source of truth for npx/install references */
 export const NPM_PACKAGE_NAME = "iconnect-mcp";
@@ -30,6 +48,7 @@ export const MODULE_NAMES = [
   "shortcuts",
   "intelligence",
   "tv",
+  "ui",
 ] as const;
 
 /** Core modules enabled by default when no config.json exists */

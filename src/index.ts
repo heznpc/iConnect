@@ -25,7 +25,7 @@ import { registerCrossTools } from "./cross/tools.js";
 import { registerSemanticTools } from "./semantic/tools.js";
 import { registerResources } from "./shared/resources.js";
 import { registerSetupTools } from "./shared/setup.js";
-import { parseConfig, isModuleEnabled, NPM_PACKAGE_NAME } from "./shared/config.js";
+import { parseConfig, isModuleEnabled, getOsVersion, NPM_PACKAGE_NAME } from "./shared/config.js";
 import { MODULE_REGISTRY } from "./shared/modules.js";
 import { HitlClient } from "./shared/hitl.js";
 import { installHitlGuard } from "./shared/hitl-guard.js";
@@ -69,16 +69,23 @@ function createServer(): McpServer {
     installHitlGuard(server, hitlClient, config);
   }
 
+  const osVersion = getOsVersion();
   const enabled: string[] = [];
   const disabled: string[] = [];
+  const osBlocked: string[] = [];
   for (const mod of MODULE_REGISTRY) {
-    if (isModuleEnabled(config, mod.name)) {
+    if (mod.minMacosVersion && osVersion > 0 && osVersion < mod.minMacosVersion) {
+      osBlocked.push(`${mod.name} (requires macOS ${mod.minMacosVersion}+)`);
+    } else if (isModuleEnabled(config, mod.name)) {
       mod.tools(server, config);
       mod.prompts?.(server);
       enabled.push(mod.name);
     } else {
       disabled.push(mod.name);
     }
+  }
+  if (osBlocked.length > 0) {
+    console.error(`iConnect modules unavailable on macOS ${osVersion}: ${osBlocked.join(", ")}`);
   }
   if (disabled.length > 0) {
     console.error(`iConnect modules disabled: ${disabled.join(", ")}`);

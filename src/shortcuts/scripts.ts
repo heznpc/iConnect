@@ -77,6 +77,35 @@ export function importShortcutScript(filePath: string): string {
   `;
 }
 
+export function duplicateShortcutScript(name: string, newName: string): string {
+  const tmpPath = `/tmp/${escJxaShell(newName)}.shortcut`;
+  return `
+    const app = Application.currentApplication();
+    app.includeStandardAdditions = true;
+    app.doShellScript('shortcuts export "${escJxaShell(name)}" -o "${tmpPath}" && shortcuts import "${tmpPath}"');
+    app.doShellScript('rm -f "${tmpPath}"');
+    JSON.stringify({original: '${esc(name)}', duplicate: '${esc(newName)}', success: true});
+  `;
+}
+
+export function editShortcutScript(name: string): string {
+  return `
+    const app = Application.currentApplication();
+    app.includeStandardAdditions = true;
+    const se = Application('System Events');
+    const shortcuts = Application('Shortcuts');
+    shortcuts.activate();
+    delay(1);
+    se.keystroke('f', {using: 'command down'});
+    delay(0.5);
+    se.keystroke('${esc(name)}');
+    delay(1);
+    se.keyCode(36);
+    delay(0.5);
+    JSON.stringify({shortcut: '${esc(name)}', success: true, note: 'Opened shortcut in Shortcuts app for editing. Use the Shortcuts app UI to make changes.'});
+  `;
+}
+
 export function createShortcutScript(name: string): string {
   return `
     const app = Application.currentApplication();

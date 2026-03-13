@@ -9,6 +9,24 @@ private struct ModuleInfo: Identifiable {
     let icon: String
     let description: String
     let toolCount: Int
+    /// Minimum macOS version required, or nil if available on all versions.
+    let minMacosVersion: Int?
+
+    init(id: String, name: String, icon: String, description: String, toolCount: Int, minMacosVersion: Int? = nil) {
+        self.id = id
+        self.name = name
+        self.icon = icon
+        self.description = description
+        self.toolCount = toolCount
+        self.minMacosVersion = minMacosVersion
+    }
+
+    /// Whether this module is available on the current macOS version.
+    var isAvailableOnCurrentOS: Bool {
+        guard let required = minMacosVersion else { return true }
+        let current = ProcessInfo.processInfo.operatingSystemVersion.majorVersion
+        return current >= required
+    }
 }
 
 private let allModules: [ModuleInfo] = [
@@ -35,9 +53,9 @@ private let allModules: [ModuleInfo] = [
     ModuleInfo(id: "photos", name: "Photos", icon: "photo",
                description: "Browse, search, albums", toolCount: 9),
     ModuleInfo(id: "shortcuts", name: "Shortcuts", icon: "command",
-               description: "Run, list, import, export shortcuts", toolCount: 8),
+               description: "Run, list, import, export shortcuts", toolCount: 10),
     ModuleInfo(id: "intelligence", name: "Intelligence", icon: "brain",
-               description: "AI summarize, rewrite (macOS 26+)", toolCount: 3),
+               description: "AI summarize, rewrite (macOS 26+)", toolCount: 3, minMacosVersion: 26),
     ModuleInfo(id: "tv", name: "TV", icon: "tv",
                description: "Playback, library, search", toolCount: 6),
 ]
@@ -68,7 +86,7 @@ enum IConnectConstants {
 
 private func activeToolCount(disabledModules: [String]) -> Int {
     allModules
-        .filter { !disabledModules.contains($0.id) }
+        .filter { !disabledModules.contains($0.id) && $0.isAvailableOnCurrentOS }
         .reduce(0) { $0 + $1.toolCount }
 }
 
@@ -84,6 +102,8 @@ struct MenuContent: View {
     let configManager: ConfigManager
     let setupManager: SetupManager
     let hitlManager: HitlManager
+    let logManager: LogManager
+    let updateManager: UpdateManager
 
     var body: some View {
         // Server Status
@@ -102,6 +122,9 @@ struct MenuContent: View {
         .keyboardShortcut("r")
 
         Divider()
+
+        // Update notification
+        updateSection
 
         // Quick Setup (visible when server not running)
         quickSetupSection
@@ -129,6 +152,13 @@ struct MenuContent: View {
 
         // Quick Settings
         Menu("Settings") {
+            Toggle("Start Server on Launch", isOn: Binding(
+                get: { serverManager.autoStartEnabled },
+                set: { serverManager.autoStartEnabled = $0 }
+            ))
+
+            Divider()
+
             Toggle("Include Shared Notes", isOn: Binding(
                 get: { configManager.includeShared },
                 set: { configManager.includeShared = $0 }
@@ -189,6 +219,34 @@ struct MenuContent: View {
 
         Divider()
 
+        // Log Viewer
+        Menu("View Logs (\(logManager.entries.count))") {
+            if logManager.entries.isEmpty {
+                Text("No log entries yet")
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(logManager.recentLines) { entry in
+                    Text(entry.message)
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundStyle(entry.isError ? .red : .primary)
+                        .lineLimit(1)
+                }
+
+                if logManager.entries.count > 20 {
+                    Divider()
+                    Text("\(logManager.entries.count - 20) more lines...")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Divider()
+
+                Button("Clear Logs") {
+                    logManager.clear()
+                }
+            }
+        }
+
         // Permissions & Config
         Button(permissionManager.isRunning ? "Setting Up..." : "Setup Permissions...") {
             permissionManager.runSetup()
@@ -218,9 +276,39 @@ struct MenuContent: View {
             .foregroundStyle(.secondary)
 
         Button("Quit") {
-            NSApplication.shared.terminate(nil)
+            serverManager.stopServer()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                NSApplication.shared.terminate(nil)
+            }
         }
         .keyboardShortcut("q")
+    }
+
+    // MARK: - Update Section
+
+    @ViewBuilder
+    private var updateSection: some View {
+        if let version = updateManager.availableVersion {
+            Label("Update Available: v\(version)", systemImage: "arrow.down.circle.fill")
+                .foregroundStyle(.orange)
+
+            if updateManager.isUpdating {
+                Label("Updating...", systemImage: "progress.indicator")
+                    .foregroundStyle(.secondary)
+            } else {
+                Button("Update Now") {
+                    updateManager.performUpdate()
+                }
+            }
+
+            if let error = updateManager.updateError {
+                Text(error)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            }
+
+            Divider()
+        }
     }
 
     // MARK: - Server Control Button
@@ -279,19 +367,24 @@ struct MenuContent: View {
         let isDisabled = configManager.disabledModules.contains(module.id)
         let label = "\(module.name) \u{2014} \(module.description)"
 
-        Toggle(isOn: Binding(
-            get: { !isDisabled },
-            set: { enabled in
-                var modules = configManager.disabledModules
-                if enabled {
-                    modules.removeAll { $0 == module.id }
-                } else {
-                    modules.append(module.id)
+        if module.isAvailableOnCurrentOS {
+            Toggle(isOn: Binding(
+                get: { !isDisabled },
+                set: { enabled in
+                    var modules = configManager.disabledModules
+                    if enabled {
+                        modules.removeAll { $0 == module.id }
+                    } else {
+                        modules.append(module.id)
+                    }
+                    configManager.disabledModules = modules
                 }
-                configManager.disabledModules = modules
+            )) {
+                Label(label, systemImage: module.icon)
             }
-        )) {
-            Label(label, systemImage: module.icon)
+        } else {
+            Label("\(label) — requires macOS \(module.minMacosVersion!)+", systemImage: module.icon)
+                .foregroundStyle(.secondary)
         }
     }
 

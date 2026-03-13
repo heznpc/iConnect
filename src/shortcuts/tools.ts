@@ -12,6 +12,8 @@ import {
   exportShortcutScript,
   importShortcutScript,
   createShortcutScript,
+  duplicateShortcutScript,
+  editShortcutScript,
 } from "./scripts.js";
 
 export function registerShortcutsTools(server: McpServer, _config: IConnectConfig): void {
@@ -109,5 +111,30 @@ export function registerShortcutsTools(server: McpServer, _config: IConnectConfi
   }, async ({ filePath }) => {
     try { return ok(await runJxa(importShortcutScript(filePath))); }
     catch (e) { return err(`Failed to import shortcut: ${e instanceof Error ? e.message : String(e)}`); }
+  });
+
+  server.registerTool("duplicate_shortcut", {
+    title: "Duplicate Shortcut",
+    description: "Duplicate an existing Siri Shortcut. Exports the shortcut to a temporary file and re-imports it with a new name.",
+    inputSchema: {
+      name: z.string().describe("Name of the shortcut to duplicate (exact match)"),
+      newName: z.string().describe("Name for the duplicated shortcut"),
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+  }, async ({ name, newName }) => {
+    try { return ok(await runJxa(duplicateShortcutScript(name, newName))); }
+    catch (e) { return err(`Failed to duplicate shortcut: ${e instanceof Error ? e.message : String(e)}`); }
+  });
+
+  server.registerTool("edit_shortcut", {
+    title: "Edit Shortcut",
+    description: "Open a Siri Shortcut in the Shortcuts app for manual editing. Uses UI automation (System Events) to activate the app, search for the shortcut, and open it. The user can then edit the shortcut in the Shortcuts app UI.",
+    inputSchema: {
+      name: z.string().describe("Shortcut name to edit (exact match)"),
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
+  }, async ({ name }) => {
+    try { return ok(await runJxa(editShortcutScript(name))); }
+    catch (e) { return err(`Failed to open shortcut for editing: ${e instanceof Error ? e.message : String(e)}`); }
   });
 }

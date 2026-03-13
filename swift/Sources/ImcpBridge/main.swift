@@ -31,6 +31,44 @@ struct Output: Encodable {
     let output: String
 }
 
+// MARK: - Foundation Models input/output types
+
+struct GenerateTextInput: Decodable {
+    let prompt: String
+    let systemInstruction: String?
+    let temperature: Double?
+}
+
+struct GenerateStructuredInput: Decodable {
+    let prompt: String
+    let systemInstruction: String?
+    let schema: [String: SchemaProperty]?
+}
+
+struct SchemaProperty: Decodable {
+    let type: String
+    let description: String?
+}
+
+struct TagContentInput: Decodable {
+    let text: String
+    let tags: [String]
+}
+
+struct AiChatInput: Decodable {
+    let sessionName: String
+    let message: String
+    let systemInstruction: String?
+}
+
+struct AiStatusOutput: Encodable {
+    let available: Bool
+    let message: String
+    let macOSVersion: String
+    let hasAppleSilicon: Bool
+    let foundationModelsSupported: Bool
+}
+
 func readStdin() -> Data {
     var data = Data()
     while let line = readLine(strippingNewline: false) {
@@ -485,6 +523,169 @@ case "summarize", "rewrite", "proofread":
     writeError("Apple Intelligence (Foundation Models) requires macOS 26+ with Apple Silicon. This binary was compiled without FoundationModels support.")
     #endif
 
+// --- Foundation Models: generate-text ---
+case "generate-text":
+    guard let genInput = try? JSONDecoder().decode(GenerateTextInput.self, from: stdinData) else {
+        writeError("Invalid JSON. Expected GenerateTextInput.")
+        exit(1)
+    }
+
+    #if canImport(FoundationModels)
+    do {
+        let instructions = genInput.systemInstruction ?? "You are a helpful assistant."
+        let session = LanguageModelSession(instructions: instructions)
+        let result = try await session.respond(to: genInput.prompt)
+        try writeOutput(Output(output: result.content))
+    } catch {
+        writeError("Foundation Models error: \(error.localizedDescription)")
+    }
+    #else
+    writeError("generate-text requires macOS 26+ with Apple Silicon. This binary was compiled without FoundationModels support.")
+    #endif
+
+// --- Foundation Models: generate-structured ---
+case "generate-structured":
+    guard let structInput = try? JSONDecoder().decode(GenerateStructuredInput.self, from: stdinData) else {
+        writeError("Invalid JSON. Expected GenerateStructuredInput.")
+        exit(1)
+    }
+
+    #if canImport(FoundationModels)
+    do {
+        let instructions = structInput.systemInstruction ?? "You are a helpful assistant. Respond with valid JSON only."
+        let session = LanguageModelSession(instructions: instructions)
+        let prompt = if let schema = structInput.schema {
+            let schemaDesc = schema.map { "\($0.key): \($0.value.type)\($0.value.description.map { " — \($0)" } ?? "")" }.joined(separator: "\n")
+            "\(structInput.prompt)\n\nRespond with a JSON object matching this schema:\n\(schemaDesc)"
+        } else {
+            "\(structInput.prompt)\n\nRespond with valid JSON only."
+        }
+        let result = try await session.respond(to: prompt)
+        // Try to validate as JSON, pass through as-is
+        let content = result.content.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let jsonData = content.data(using: .utf8),
+           let jsonObj = try? JSONSerialization.jsonObject(with: jsonData) {
+            let formatted = try JSONSerialization.data(withJSONObject: jsonObj, options: [.sortedKeys])
+            let jsonDict: [String: Any] = ["output": String(data: formatted, encoding: .utf8) ?? content, "valid_json": true]
+            let outData = try JSONSerialization.data(withJSONObject: jsonDict)
+            FileHandle.standardOutput.write(outData)
+            FileHandle.standardOutput.write(Data("\n".utf8))
+        } else {
+            let jsonDict: [String: Any] = ["output": content, "valid_json": false]
+            let outData = try JSONSerialization.data(withJSONObject: jsonDict)
+            FileHandle.standardOutput.write(outData)
+            FileHandle.standardOutput.write(Data("\n".utf8))
+        }
+    } catch {
+        writeError("Foundation Models error: \(error.localizedDescription)")
+    }
+    #else
+    writeError("generate-structured requires macOS 26+ with Apple Silicon. This binary was compiled without FoundationModels support.")
+    #endif
+
+// --- Foundation Models: tag-content ---
+case "tag-content":
+    guard let tagInput = try? JSONDecoder().decode(TagContentInput.self, from: stdinData) else {
+        writeError("Invalid JSON. Expected TagContentInput.")
+        exit(1)
+    }
+
+    #if canImport(FoundationModels)
+    do {
+        let tagList = tagInput.tags.joined(separator: ", ")
+        let instructions = "You are a content classification system. Classify text into the provided categories. Respond with ONLY a JSON object mapping each applicable tag to a confidence score between 0.0 and 1.0."
+        let session = LanguageModelSession(instructions: instructions)
+        let prompt = "Classify this text into these categories: [\(tagList)]\n\nText: \(tagInput.text)\n\nRespond with a JSON object like {\"tag\": confidence_score} for each applicable tag."
+        let result = try await session.respond(to: prompt)
+        let content = result.content.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let jsonData = content.data(using: .utf8),
+           let jsonObj = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any] {
+            let outDict: [String: Any] = ["tags": jsonObj, "text_preview": String(tagInput.text.prefix(100))]
+            let outData = try JSONSerialization.data(withJSONObject: outDict, options: [.sortedKeys])
+            FileHandle.standardOutput.write(outData)
+            FileHandle.standardOutput.write(Data("\n".utf8))
+        } else {
+            let outDict: [String: Any] = ["output": content, "text_preview": String(tagInput.text.prefix(100))]
+            let outData = try JSONSerialization.data(withJSONObject: outDict)
+            FileHandle.standardOutput.write(outData)
+            FileHandle.standardOutput.write(Data("\n".utf8))
+        }
+    } catch {
+        writeError("Foundation Models error: \(error.localizedDescription)")
+    }
+    #else
+    writeError("tag-content requires macOS 26+ with Apple Silicon. This binary was compiled without FoundationModels support.")
+    #endif
+
+// --- Foundation Models: ai-chat ---
+case "ai-chat":
+    guard let chatInput = try? JSONDecoder().decode(AiChatInput.self, from: stdinData) else {
+        writeError("Invalid JSON. Expected AiChatInput.")
+        exit(1)
+    }
+
+    #if canImport(FoundationModels)
+    do {
+        // Each invocation creates a fresh session — true multi-turn persistence
+        // would require a long-lived process. The sessionName is included in the
+        // response so callers can track conversation identity.
+        let instructions = chatInput.systemInstruction ?? "You are a helpful on-device AI assistant."
+        let session = LanguageModelSession(instructions: instructions)
+        let result = try await session.respond(to: chatInput.message)
+        let outDict: [String: Any] = [
+            "sessionName": chatInput.sessionName,
+            "response": result.content,
+        ]
+        let outData = try JSONSerialization.data(withJSONObject: outDict, options: [.sortedKeys])
+        FileHandle.standardOutput.write(outData)
+        FileHandle.standardOutput.write(Data("\n".utf8))
+    } catch {
+        writeError("Foundation Models error: \(error.localizedDescription)")
+    }
+    #else
+    writeError("ai-chat requires macOS 26+ with Apple Silicon. This binary was compiled without FoundationModels support.")
+    #endif
+
+// --- Foundation Models: ai-status ---
+case "ai-status":
+    let processInfo = ProcessInfo.processInfo
+    let osVersion = processInfo.operatingSystemVersion
+    let versionString = "\(osVersion.majorVersion).\(osVersion.minorVersion).\(osVersion.patchVersion)"
+
+    #if arch(arm64)
+    let hasAppleSilicon = true
+    #else
+    let hasAppleSilicon = false
+    #endif
+
+    #if canImport(FoundationModels)
+    let fmSupported = true
+    let available = hasAppleSilicon && osVersion.majorVersion >= 26
+    let message: String
+    if available {
+        message = "Apple Foundation Models are available and ready to use."
+    } else if !hasAppleSilicon {
+        message = "Apple Foundation Models require Apple Silicon (M1 or later)."
+    } else {
+        message = "Apple Foundation Models require macOS 26 or later. Current: macOS \(versionString)."
+    }
+    #else
+    let fmSupported = false
+    let available = false
+    let message = "This binary was compiled without Foundation Models support. Requires macOS 26+ SDK."
+    #endif
+
+    let statusOutput = AiStatusOutput(
+        available: available,
+        message: message,
+        macOSVersion: versionString,
+        hasAppleSilicon: hasAppleSilicon,
+        foundationModelsSupported: fmSupported
+    )
+    let data = try JSONEncoder().encode(statusOutput)
+    FileHandle.standardOutput.write(data)
+    FileHandle.standardOutput.write(Data("\n".utf8))
+
 default:
-    writeError("Unknown command: \(command). Use: embed-text, embed-batch, summarize, rewrite, proofread, create-recurring-event, create-recurring-reminder, import-photo, delete-photos")
+    writeError("Unknown command: \(command). Use: embed-text, embed-batch, summarize, rewrite, proofread, generate-text, generate-structured, tag-content, ai-chat, ai-status, create-recurring-event, create-recurring-reminder, import-photo, delete-photos")
 }
