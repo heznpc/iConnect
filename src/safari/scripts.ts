@@ -55,11 +55,19 @@ export function getCurrentTabScript(): string {
 }
 
 export function openUrlScript(url: string): string {
+  // openLocation removed in macOS 26; create a new tab/document instead
   return `
     const Safari = Application('Safari');
     Safari.activate();
     const u = '${esc(url)}';
-    Safari.openLocation(u);
+    const wins = Safari.windows();
+    if (wins.length > 0) {
+      const tab = Safari.Tab({url: u});
+      wins[0].tabs.push(tab);
+    } else {
+      const doc = Safari.Document({url: u});
+      Safari.documents.push(doc);
+    }
     JSON.stringify({opened: true, url: u});
   `;
 }

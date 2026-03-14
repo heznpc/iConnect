@@ -85,25 +85,84 @@ npm test           # Jest tests
 
 All four must pass — CI runs them automatically on every PR.
 
-### 4. Run QA Test
+### 4. Run QA Tests
+
+**Read-only smoke test** — safe, fast, no side effects:
 
 ```bash
-node scripts/qa-test.mjs
-```
-
-This starts the MCP server, calls every read-only tool, and prints a Markdown report with PASS/SKIP/FAIL per module. Paste the output into your PR under the **QA Report** section.
-
-- **PASS** — tool returned data successfully
-- **SKIP** — expected skip (app not running, macOS version, permissions)
-- **FAIL** — unexpected error that needs investigation
-
-Write/destructive tools are not covered by the QA script — describe manual testing for those in the PR.
-
-Options:
-```bash
+npm run qa                         # run all 61 read-only tool tests
 node scripts/qa-test.mjs --out     # save to qa-report-<date>.md
 node scripts/qa-test.mjs --json    # machine-readable JSON output
 ```
+
+**CRUD roundtrip test** — full create → read → update → read → delete cycles:
+
+```bash
+npm run qa:crud                              # run all CRUD modules
+node scripts/qa-crud-test.mjs --module notes # single module only
+node scripts/qa-crud-test.mjs --module notes,calendar  # multiple modules
+node scripts/qa-crud-test.mjs --dry-run      # preview test plan
+node scripts/qa-crud-test.mjs --out          # save report to file
+```
+
+CRUD tests create real data (notes, reminders, events, etc.) prefixed with `[AirMCP-QA]`. Cleanup runs automatically even if a step fails. If cleanup fails, search for `[AirMCP-QA]` in the relevant app and delete manually.
+
+Paste the output from both tests into your PR under the **QA Report** section.
+
+**Status meanings:**
+
+| Status | Meaning |
+|--------|---------|
+| PASS | Tool returned expected data |
+| SKIP | Expected skip (app not running, macOS version, permissions, previous step failed) |
+| FAIL | Unexpected error — needs investigation |
+| WARN | Cleanup issue — test data may remain |
+
+### Adding a CRUD test for a new module
+
+Open `scripts/qa-crud-test.mjs` and add an entry to `CRUD_MODULES`:
+
+```javascript
+{
+  name: "MyModule",
+  steps: async function* (ctx) {
+    // CREATE — store the ID for later steps
+    yield {
+      action: "create",
+      tool: "create_thing",
+      args: { name: "[AirMCP-QA] Test " + Date.now() },
+      validate: (r) => { ctx.set("id", r.id); return !!r.id; },
+    };
+    // READ — verify creation
+    yield {
+      action: "read",
+      tool: "list_things",
+      args: {},
+      validate: (r) => r.things?.some(t => t.id === ctx.get("id")),
+    };
+    // UPDATE
+    yield {
+      action: "update",
+      tool: "update_thing",
+      args: () => ({ id: ctx.get("id"), name: "[AirMCP-QA] Updated" }),
+      validate: (r) => r.updated === true,
+    };
+    // DELETE (cleanup: true = always runs, even after failures)
+    yield {
+      action: "delete",
+      tool: "delete_thing",
+      args: () => ({ id: ctx.get("id") }),
+      cleanup: true,
+    };
+  },
+}
+```
+
+Key points:
+- Use `ctx.set(key, value)` / `ctx.get(key)` to pass data between steps
+- Use `args: () => ({...})` (function) when args depend on earlier steps
+- Mark the last step `cleanup: true` so it runs even if earlier steps fail
+- Always prefix test data with `[AirMCP-QA]` for easy identification
 
 ### 5. Commit
 
