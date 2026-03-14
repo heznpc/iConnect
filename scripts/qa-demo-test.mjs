@@ -329,32 +329,54 @@ async function main() {
   const { name: srvName, version: srvVer } = initResp.result.serverInfo;
   section(`AirMCP ${srvVer} — Demo & Manual Test`);
 
-  // Screen recording
+  // Artifacts directory
+  const artifactDir = `${HOME}/Desktop/airmcp-demo-${new Date().toISOString().slice(0, 10)}`;
+
+  // Screen recording — record a 60s clip covering the demo highlights
   let recordingPath = null;
   if (!noRecord && !manualOnly) {
     info("Starting 60s screen recording...");
-    const recResp = await callTool("record_screen", { duration: 60 }, 5_000);
+    // record_screen runs for the full duration before returning,
+    // so we fire it concurrently and let it capture while demo runs.
+    const recPromise = callTool("record_screen", { duration: 60 }, 70_000);
+    await sleep(1000); // give it a moment to start
+
+    try {
+      if (!manualOnly) await runDemo();
+
+      // Take summary screenshot after demo
+      section("Capture");
+      const shotResp = await callTool("capture_screen", {});
+      const shotResult = parseResult(shotResp);
+      if (shotResult.ok) {
+        pass(`Screenshot captured (${((shotResult.data?.size || 0) / 1024).toFixed(0)} KB)`);
+      }
+    } finally {}
+
+    if (!demoOnly) await runManualTests();
+
+    // Wait for recording to finish
+    info("Waiting for recording to complete...");
+    const recResp = await recPromise;
     const recResult = parseResult(recResp);
     if (recResult.ok) {
-      recordingPath = recResult.data?.path || recResult.data?.file;
-      pass(`Recording started → ${recordingPath || "(recording)"}`);
+      recordingPath = recResult.data?.path;
+      pass(`Recording saved → ${recordingPath}`);
     } else {
-      fail(`Screen recording failed: ${recResult.error?.slice(0, 100)}`);
-      info("Continuing without recording...");
-    }
-  }
-
-  try {
-    if (!manualOnly) await runDemo();
-    if (!demoOnly) await runManualTests();
-  } finally {
-    // Recording should auto-stop after duration
-    if (recordingPath) {
-      info(`Screen recording saved to: ${recordingPath}`);
+      fail(`Recording: ${recResult.error?.slice(0, 100)}`);
     }
 
     section("Done");
+    if (recordingPath) info(`Demo video: ${recordingPath}`);
     server.kill();
+  } else {
+    try {
+      if (!manualOnly) await runDemo();
+      if (!demoOnly) await runManualTests();
+    } finally {
+      section("Done");
+      server.kill();
+    }
   }
 }
 
