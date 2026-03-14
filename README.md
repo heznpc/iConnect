@@ -611,7 +611,10 @@ Or edit `~/.config/airmcp/config.json` directly:
 | `AIRMCP_ALLOW_SEND_MAIL` | `true` | Allow sending emails |
 | `AIRMCP_FULL` | `false` | Enable all modules (ignores preset) |
 | `AIRMCP_DISABLE_{MODULE}` | — | Disable a specific module (e.g. `AIRMCP_DISABLE_MUSIC=true`) |
-| `GEMINI_API_KEY` | — | Google Gemini API key for higher-quality embeddings (optional) |
+| `GEMINI_API_KEY` | — | Google Gemini API key for cloud embeddings (optional) |
+| `AIRMCP_EMBEDDING_MODEL` | `text-embedding-004` | Gemini embedding model name |
+| `AIRMCP_EMBEDDING_DIM` | `768` | Embedding dimension (768/1024/2048/3072) |
+| `AIRMCP_EMBEDDING_PROVIDER` | auto | Force provider: `gemini`, `swift`, `hybrid`, `none` |
 
 ### Config File
 

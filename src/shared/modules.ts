@@ -1,56 +1,99 @@
 import type { ModuleRegistration } from "./registry.js";
-import { registerNoteTools } from "../notes/tools.js";
-import { registerNotePrompts } from "../notes/prompts.js";
-import { registerReminderTools } from "../reminders/tools.js";
-import { registerReminderPrompts } from "../reminders/prompts.js";
-import { registerCalendarTools } from "../calendar/tools.js";
-import { registerCalendarPrompts } from "../calendar/prompts.js";
-import { registerContactTools } from "../contacts/tools.js";
-import { registerMailTools } from "../mail/tools.js";
-import { registerMusicTools } from "../music/tools.js";
-import { registerFinderTools } from "../finder/tools.js";
-import { registerSafariTools } from "../safari/tools.js";
-import { registerSystemTools } from "../system/tools.js";
-import { registerPhotosTools } from "../photos/tools.js";
-import { registerShortcutsTools } from "../shortcuts/tools.js";
-import { registerShortcutPrompts } from "../shortcuts/prompts.js";
-import { registerMessagesTools } from "../messages/tools.js";
-import { registerIntelligenceTools } from "../intelligence/tools.js";
-import { registerTvTools } from "../tv/tools.js";
-import { registerUiTools } from "../ui/tools.js";
-import { registerScreenTools } from "../screen/tools.js";
-import { registerMapsTools } from "../maps/tools.js";
-import { registerPodcastsTools } from "../podcasts/tools.js";
-import { registerWeatherTools } from "../weather/tools.js";
-import { registerPagesTools } from "../pages/tools.js";
-import { registerNumbersTools } from "../numbers/tools.js";
-import { registerKeynoteTools } from "../keynote/tools.js";
-import { registerLocationTools } from "../location/tools.js";
-import { registerBluetoothTools } from "../bluetooth/tools.js";
 
-export const MODULE_REGISTRY: ModuleRegistration[] = [
-  { name: "notes", tools: registerNoteTools, prompts: registerNotePrompts },
-  { name: "reminders", tools: registerReminderTools, prompts: registerReminderPrompts },
-  { name: "calendar", tools: registerCalendarTools, prompts: registerCalendarPrompts },
-  { name: "contacts", tools: registerContactTools },
-  { name: "mail", tools: registerMailTools },
-  { name: "music", tools: registerMusicTools },
-  { name: "finder", tools: registerFinderTools },
-  { name: "safari", tools: registerSafariTools },
-  { name: "system", tools: registerSystemTools },
-  { name: "photos", tools: registerPhotosTools },
-  { name: "shortcuts", tools: registerShortcutsTools, prompts: registerShortcutPrompts },
-  { name: "messages", tools: registerMessagesTools },
-  { name: "intelligence", tools: registerIntelligenceTools, minMacosVersion: 26 },
-  { name: "tv", tools: registerTvTools },
-  { name: "ui", tools: registerUiTools },
-  { name: "screen", tools: registerScreenTools },
-  { name: "maps", tools: registerMapsTools },
-  { name: "podcasts", tools: registerPodcastsTools },
-  { name: "weather", tools: registerWeatherTools },
-  { name: "pages", tools: registerPagesTools },
-  { name: "numbers", tools: registerNumbersTools },
-  { name: "keynote", tools: registerKeynoteTools },
-  { name: "location", tools: registerLocationTools },
-  { name: "bluetooth", tools: registerBluetoothTools },
+/**
+ * Module manifest — the single source of truth for all AirMCP modules.
+ *
+ * To add a new module:
+ *   1. Create src/<name>/tools.ts  (export registerXxxTools)
+ *   2. Optionally create src/<name>/prompts.ts  (export registerXxxPrompts)
+ *   3. Add one line to MANIFEST below
+ *   That's it. No other imports needed.
+ */
+const MANIFEST: Array<{
+  name: string;
+  hasPrompts?: boolean;
+  minMacosVersion?: number;
+}> = [
+  { name: "notes", hasPrompts: true },
+  { name: "reminders", hasPrompts: true },
+  { name: "calendar", hasPrompts: true },
+  { name: "contacts" },
+  { name: "mail" },
+  { name: "music" },
+  { name: "finder" },
+  { name: "safari" },
+  { name: "system" },
+  { name: "photos" },
+  { name: "shortcuts", hasPrompts: true },
+  { name: "messages" },
+  { name: "intelligence", minMacosVersion: 26 },
+  { name: "tv" },
+  { name: "ui" },
+  { name: "screen" },
+  { name: "maps" },
+  { name: "podcasts" },
+  { name: "weather" },
+  { name: "pages" },
+  { name: "numbers" },
+  { name: "keynote" },
+  { name: "location" },
+  { name: "bluetooth" },
 ];
+
+/**
+ * Dynamically load all module registrations.
+ * Each module's tools.ts exports a single register function.
+ * Only the first exported function is used (convention over configuration).
+ */
+export async function loadModuleRegistry(): Promise<ModuleRegistration[]> {
+  const registry: ModuleRegistration[] = [];
+
+  for (const def of MANIFEST) {
+    // Dynamic import: module is only loaded when iterated
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const toolsMod: Record<string, any> = await import(`../${def.name}/tools.js`);
+    const toolsFn = findRegisterFn(toolsMod);
+    if (!toolsFn) {
+      console.error(`[AirMCP] Warning: no register function found in ${def.name}/tools.ts`);
+      continue;
+    }
+
+    let promptsFn: ModuleRegistration["prompts"] | undefined;
+    if (def.hasPrompts) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const promptsMod: Record<string, any> = await import(`../${def.name}/prompts.js`);
+      promptsFn = findRegisterFn(promptsMod);
+    }
+
+    registry.push({
+      name: def.name,
+      tools: toolsFn,
+      prompts: promptsFn,
+      minMacosVersion: def.minMacosVersion,
+    });
+  }
+
+  return registry;
+}
+
+/** Find the first exported function whose name starts with "register". */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function findRegisterFn(mod: Record<string, any>): ((...args: any[]) => any) | undefined {
+  for (const [key, val] of Object.entries(mod)) {
+    if (typeof val === "function" && key.startsWith("register")) return val;
+  }
+  return undefined;
+}
+
+// Backward compat: synchronous MODULE_REGISTRY for code that reads it after init
+export let MODULE_REGISTRY: ModuleRegistration[] = [];
+
+/** Call once at startup after loadModuleRegistry(). */
+export function setModuleRegistry(r: ModuleRegistration[]): void {
+  MODULE_REGISTRY = r;
+}
+
+/** Get module names from manifest (no import needed). */
+export function getModuleNames(): string[] {
+  return MANIFEST.map((m) => m.name);
+}

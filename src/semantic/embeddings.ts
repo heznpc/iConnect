@@ -23,26 +23,43 @@ interface GeminiBatchEmbedResponse {
 
 // -- Provider detection --
 
-export type EmbeddingProvider = "gemini" | "swift" | "none";
+export type EmbeddingProvider = "gemini" | "swift" | "hybrid" | "none";
+
+// Configurable via env vars
+const GEMINI_MODEL = process.env.AIRMCP_EMBEDDING_MODEL || "text-embedding-004";
+const GEMINI_DIMENSION = parseInt(process.env.AIRMCP_EMBEDDING_DIM || "768", 10);
+
+const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1/models";
+const GEMINI_EMBED_URL = `${GEMINI_BASE}/${GEMINI_MODEL}:embedContent`;
+const GEMINI_BATCH_URL = `${GEMINI_BASE}/${GEMINI_MODEL}:batchEmbedContents`;
 
 /**
  * Detect which embedding provider is available.
- * Pure async check with no global state -- caller is responsible for caching.
+ *
+ * Priority:
+ *   1. AIRMCP_EMBEDDING_PROVIDER env var (explicit override)
+ *   2. "hybrid" if both GEMINI_API_KEY and Swift bridge are available
+ *   3. "gemini" if GEMINI_API_KEY is set
+ *   4. "swift" if Swift bridge is available
+ *   5. "none"
  */
 export async function detectProvider(): Promise<EmbeddingProvider> {
-  if (process.env.GEMINI_API_KEY) {
-    return "gemini";
+  const explicit = process.env.AIRMCP_EMBEDDING_PROVIDER as EmbeddingProvider | undefined;
+  if (explicit && ["gemini", "swift", "hybrid", "none"].includes(explicit)) {
+    return explicit;
   }
 
-  const err = await checkSwiftBridge();
-  return err === null ? "swift" : "none";
+  const hasGemini = !!process.env.GEMINI_API_KEY;
+  const swiftErr = await checkSwiftBridge();
+  const hasSwift = swiftErr === null;
+
+  if (hasGemini && hasSwift) return "hybrid";
+  if (hasGemini) return "gemini";
+  if (hasSwift) return "swift";
+  return "none";
 }
 
 // -- Gemini Embedding API --
-
-const GEMINI_EMBED_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent";
-const GEMINI_BATCH_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:batchEmbedContents";
-const GEMINI_DIMENSION = 768; // good balance of quality vs storage
 
 async function geminiEmbed(text: string): Promise<number[]> {
   const apiKey = process.env.GEMINI_API_KEY!;
@@ -54,6 +71,7 @@ async function geminiEmbed(text: string): Promise<number[]> {
       taskType: "SEMANTIC_SIMILARITY",
       outputDimensionality: GEMINI_DIMENSION,
     }),
+    signal: AbortSignal.timeout(15_000),
   });
 
   if (!res.ok) {
@@ -82,12 +100,13 @@ async function geminiBatchEmbed(texts: string[]): Promise<number[][]> {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         requests: chunk.map((text) => ({
-          model: "models/gemini-embedding-001",
+          model: `models/${GEMINI_MODEL}`,
           content: { parts: [{ text }] },
           taskType: "SEMANTIC_SIMILARITY",
           outputDimensionality: GEMINI_DIMENSION,
         })),
       }),
+      signal: AbortSignal.timeout(30_000),
     });
 
     if (!res.ok) {
@@ -102,40 +121,65 @@ async function geminiBatchEmbed(texts: string[]): Promise<number[][]> {
   return allVectors;
 }
 
-// -- Public API (auto-selects provider) --
+// -- Swift bridge embedding --
 
-/** Embed a single text. Uses Gemini if GEMINI_API_KEY is set, otherwise Swift bridge. */
-export async function embedText(text: string, provider: EmbeddingProvider, language?: string): Promise<number[]> {
-  if (provider === "gemini") {
-    return geminiEmbed(text);
-  }
-
-  if (provider === "swift") {
-    const result = await runSwift<EmbedTextResult>(
-      "embed-text",
-      JSON.stringify({ text, language }),
-    );
-    return result.vector;
-  }
-
-  throw new Error("No embedding backend available. Set GEMINI_API_KEY or run 'npm run swift-build'.");
+async function swiftEmbed(text: string, language?: string): Promise<number[]> {
+  const result = await runSwift<EmbedTextResult>(
+    "embed-text",
+    JSON.stringify({ text, language }),
+  );
+  return result.vector;
 }
 
-/** Embed multiple texts. Uses Gemini batch API if available, otherwise Swift bridge. */
-export async function embedBatch(texts: string[], provider: EmbeddingProvider, language?: string): Promise<number[][]> {
-  if (provider === "gemini") {
+async function swiftBatchEmbed(texts: string[], language?: string): Promise<number[][]> {
+  const result = await runSwift<EmbedBatchResult>(
+    "embed-batch",
+    JSON.stringify({ texts, language }),
+  );
+  return result.vectors;
+}
+
+// -- Hybrid: on-device first, cloud fallback --
+
+async function hybridEmbed(text: string, language?: string): Promise<number[]> {
+  try {
+    return await swiftEmbed(text, language);
+  } catch {
+    // Swift bridge failed — fallback to Gemini cloud
+    return geminiEmbed(text);
+  }
+}
+
+async function hybridBatchEmbed(texts: string[], language?: string): Promise<number[][]> {
+  try {
+    return await swiftBatchEmbed(texts, language);
+  } catch {
     return geminiBatchEmbed(texts);
   }
+}
 
-  if (provider === "swift") {
-    const result = await runSwift<EmbedBatchResult>(
-      "embed-batch",
-      JSON.stringify({ texts, language }),
-    );
-    return result.vectors;
+// -- Public API (auto-selects provider) --
+
+/** Embed a single text. Provider priority: hybrid > gemini > swift > error. */
+export async function embedText(text: string, provider: EmbeddingProvider, language?: string): Promise<number[]> {
+  switch (provider) {
+    case "gemini":  return geminiEmbed(text);
+    case "swift":   return swiftEmbed(text, language);
+    case "hybrid":  return hybridEmbed(text, language);
+    default:
+      throw new Error("No embedding backend available. Set GEMINI_API_KEY or run 'npm run swift-build'.");
   }
+}
 
-  throw new Error("No embedding backend available. Set GEMINI_API_KEY or run 'npm run swift-build'.");
+/** Embed multiple texts. Provider priority: hybrid > gemini > swift > error. */
+export async function embedBatch(texts: string[], provider: EmbeddingProvider, language?: string): Promise<number[][]> {
+  switch (provider) {
+    case "gemini":  return geminiBatchEmbed(texts);
+    case "swift":   return swiftBatchEmbed(texts, language);
+    case "hybrid":  return hybridBatchEmbed(texts, language);
+    default:
+      throw new Error("No embedding backend available. Set GEMINI_API_KEY or run 'npm run swift-build'.");
+  }
 }
 
 /** Cosine similarity between two vectors. */
@@ -150,4 +194,14 @@ export function cosineSimilarity(a: number[], b: number[]): number {
   }
   const denom = Math.sqrt(magA) * Math.sqrt(magB);
   return denom === 0 ? 0 : dot / denom;
+}
+
+/** Get current embedding config for diagnostics. */
+export function getEmbeddingConfig() {
+  return {
+    model: GEMINI_MODEL,
+    dimension: GEMINI_DIMENSION,
+    hasApiKey: !!process.env.GEMINI_API_KEY,
+    explicitProvider: process.env.AIRMCP_EMBEDDING_PROVIDER || null,
+  };
 }

@@ -28,7 +28,7 @@ import { registerSetupTools } from "./shared/setup.js";
 import { registerSkillEngine } from "./skills/index.js";
 import { registerApps } from "./apps/tools.js";
 import { parseConfig, isModuleEnabled, getOsVersion, NPM_PACKAGE_NAME } from "./shared/config.js";
-import { MODULE_REGISTRY } from "./shared/modules.js";
+import { loadModuleRegistry, setModuleRegistry } from "./shared/modules.js";
 import { registerDynamicShortcutTools } from "./shortcuts/tools.js";
 import { HitlClient } from "./shared/hitl.js";
 import { installHitlGuard } from "./shared/hitl-guard.js";
@@ -72,6 +72,10 @@ async function createServer(): Promise<McpServer> {
   if (hitlClient && config.hitl.level !== "off") {
     installHitlGuard(server, hitlClient, config);
   }
+
+  // Dynamic module loading — only imports modules at startup
+  const MODULE_REGISTRY = await loadModuleRegistry();
+  setModuleRegistry(MODULE_REGISTRY);
 
   const enabled: string[] = [];
   const disabled: string[] = [];
