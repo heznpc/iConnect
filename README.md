@@ -1,8 +1,8 @@
-# iConnect
+# AirMCP
 
 MCP server for the entire Apple ecosystem — Notes, Reminders, Calendar, Contacts, Mail, Messages, Music, Finder, Safari, System, Photos, Shortcuts, Apple Intelligence, TV, Screen Capture, Maps, and Podcasts. Connect any AI to your Mac.
 
-> [한국어](README.ko.md)
+> Available in multiple languages at the [project landing page](https://heznpc.github.io/AirMCP/).
 
 ## Features
 
@@ -34,13 +34,13 @@ brew install node
 ### 2. Run the Setup Wizard
 
 ```bash
-npx iconnect-mcp init
+npx airmcp init
 ```
 
 This will:
 - Let you choose which Apple apps to connect (Notes, Calendar, Reminders, etc.)
 - Automatically configure your MCP client
-- Save your preferences to `~/.config/iconnect/config.json`
+- Save your preferences to `~/.config/airmcp/config.json`
 
 ### 3. Restart Your MCP Client
 
@@ -49,7 +49,7 @@ That's it! Your AI can now read your notes, manage reminders, check your calenda
 ### Troubleshooting
 
 ```bash
-npx iconnect-mcp doctor
+npx airmcp doctor
 ```
 
 Checks Node.js version, config files, MCP client setup, macOS permissions, and module status — all in one command.
@@ -67,9 +67,9 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 ```json
 {
   "mcpServers": {
-    "iconnect": {
+    "airmcp": {
       "command": "npx",
-      "args": ["-y", "iconnect-mcp"]
+      "args": ["-y", "airmcp"]
     }
   }
 }
@@ -78,7 +78,7 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 ### Claude Code
 
 ```bash
-claude mcp add iconnect -- npx -y iconnect-mcp
+claude mcp add airmcp -- npx -y airmcp
 ```
 
 ### Cursor
@@ -88,9 +88,9 @@ Add to `.cursor/mcp.json`:
 ```json
 {
   "mcpServers": {
-    "iconnect": {
+    "airmcp": {
       "command": "npx",
-      "args": ["-y", "iconnect-mcp"]
+      "args": ["-y", "airmcp"]
     }
   }
 }
@@ -103,9 +103,9 @@ Add to `~/.codeium/windsurf/mcp_config.json`:
 ```json
 {
   "mcpServers": {
-    "iconnect": {
+    "airmcp": {
       "command": "npx",
-      "args": ["-y", "iconnect-mcp"]
+      "args": ["-y", "airmcp"]
     }
   }
 }
@@ -113,13 +113,13 @@ Add to `~/.codeium/windsurf/mcp_config.json`:
 
 ### Other MCP Clients
 
-Any client that supports the MCP stdio transport can use iConnect. Use `npx -y iconnect-mcp` as the server command.
+Any client that supports the MCP stdio transport can use AirMCP. Use `npx -y airmcp` as the server command.
 
 ### Local Development
 
 ```bash
-git clone https://github.com/heznpc/iConnect.git
-cd iConnect
+git clone https://github.com/heznpc/AirMCP.git
+cd AirMCP
 npm install
 npm run build
 node dist/index.js
@@ -131,7 +131,7 @@ A native SwiftUI companion app for server status monitoring and permission setup
 
 ```bash
 cd app && swift build -c release
-# Binary: app/.build/release/iConnectApp
+# Binary: app/.build/release/AirMCPApp
 ```
 
 Features: onboarding wizard, auto-start on login, log viewer, update notifications, server status, one-click permission setup, MCP client config clipboard copy.
@@ -141,7 +141,7 @@ Features: onboarding wizard, auto-start on login, log viewer, update notificatio
 HTTP server mode for remote agents, registries, and multi-client setups:
 
 ```bash
-npx iconnect-mcp --http --port 3847
+npx airmcp --http --port 3847
 ```
 
 - Endpoint: `POST/GET/DELETE /mcp`
@@ -464,7 +464,7 @@ MCP resources provide live data from Apple apps via URI.
 
 ## Developer Agent Pipeline
 
-iConnect's developer prompts connect Apple apps into autonomous agent workflows. Each prompt orchestrates tools across multiple modules — AI reads the actual filesystem, Notes, Calendar, and Reminders for context, then records structured results.
+AirMCP's developer prompts connect Apple apps into autonomous agent workflows. Each prompt orchestrates tools across multiple modules — AI reads the actual filesystem, Notes, Calendar, and Reminders for context, then records structured results.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -500,13 +500,13 @@ By default, new installations start with 5 core modules (Notes, Reminders, Calen
 
 ```bash
 # Re-run the setup wizard to change modules
-npx iconnect-mcp init
+npx airmcp init
 
 # Or enable all modules at once
-npx iconnect-mcp --full
+npx airmcp --full
 ```
 
-Or edit `~/.config/iconnect/config.json` directly:
+Or edit `~/.config/airmcp/config.json` directly:
 
 ```json
 {
@@ -518,11 +518,11 @@ Or edit `~/.config/iconnect/config.json` directly:
 
 | Command | Description |
 |---------|-------------|
-| `npx iconnect-mcp init` | Interactive setup wizard |
-| `npx iconnect-mcp doctor` | Diagnose installation issues |
-| `npx iconnect-mcp` | Start MCP server (stdio, default) |
-| `npx iconnect-mcp --full` | Start with all 18 modules enabled |
-| `npx iconnect-mcp --http` | Start as HTTP server (port 3847) |
+| `npx airmcp init` | Interactive setup wizard |
+| `npx airmcp doctor` | Diagnose installation issues |
+| `npx airmcp` | Start MCP server (stdio, default) |
+| `npx airmcp --full` | Start with all 18 modules enabled |
+| `npx airmcp --http` | Start as HTTP server (port 3847) |
 
 ## Configuration
 
@@ -530,16 +530,16 @@ Or edit `~/.config/iconnect/config.json` directly:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `ICONNECT_INCLUDE_SHARED` | `false` | Include shared notes/folders |
-| `ICONNECT_ALLOW_SEND_MESSAGES` | `true` | Allow sending iMessages |
-| `ICONNECT_ALLOW_SEND_MAIL` | `true` | Allow sending emails |
-| `ICONNECT_FULL` | `false` | Enable all modules (ignores preset) |
-| `ICONNECT_DISABLE_{MODULE}` | — | Disable a specific module (e.g. `ICONNECT_DISABLE_MUSIC=true`) |
+| `AIRMCP_INCLUDE_SHARED` | `false` | Include shared notes/folders |
+| `AIRMCP_ALLOW_SEND_MESSAGES` | `true` | Allow sending iMessages |
+| `AIRMCP_ALLOW_SEND_MAIL` | `true` | Allow sending emails |
+| `AIRMCP_FULL` | `false` | Enable all modules (ignores preset) |
+| `AIRMCP_DISABLE_{MODULE}` | — | Disable a specific module (e.g. `AIRMCP_DISABLE_MUSIC=true`) |
 | `GEMINI_API_KEY` | — | Google Gemini API key for higher-quality embeddings (optional) |
 
 ### Config File
 
-`~/.config/iconnect/config.json`:
+`~/.config/airmcp/config.json`:
 
 ```json
 {
