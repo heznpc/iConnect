@@ -490,34 +490,38 @@ case "summarize", "rewrite", "proofread":
     }
 
     #if canImport(FoundationModels)
-    do {
-        let session = LanguageModelSession()
+    if #available(macOS 26, *) {
+        do {
+            let session = LanguageModelSession()
 
-        switch command {
-        case "summarize":
-            let result = try await session.respond(
-                to: "Summarize the following text concisely:\n\n\(input.text)"
-            )
-            try writeOutput(Output(output: result.content))
+            switch command {
+            case "summarize":
+                let result = try await session.respond(
+                    to: "Summarize the following text concisely:\n\n\(input.text)"
+                )
+                try writeOutput(Output(output: result.content))
 
-        case "rewrite":
-            let tone = input.tone ?? "professional"
-            let result = try await session.respond(
-                to: "Rewrite the following text in a \(tone) tone:\n\n\(input.text)"
-            )
-            try writeOutput(Output(output: result.content))
+            case "rewrite":
+                let tone = input.tone ?? "professional"
+                let result = try await session.respond(
+                    to: "Rewrite the following text in a \(tone) tone:\n\n\(input.text)"
+                )
+                try writeOutput(Output(output: result.content))
 
-        case "proofread":
-            let result = try await session.respond(
-                to: "Proofread and correct any grammar or spelling errors in the following text. Return only the corrected text:\n\n\(input.text)"
-            )
-            try writeOutput(Output(output: result.content))
+            case "proofread":
+                let result = try await session.respond(
+                    to: "Proofread and correct any grammar or spelling errors in the following text. Return only the corrected text:\n\n\(input.text)"
+                )
+                try writeOutput(Output(output: result.content))
 
-        default:
-            break
+            default:
+                break
+            }
+        } catch {
+            writeError("Foundation Models error: \(error.localizedDescription)")
         }
-    } catch {
-        writeError("Foundation Models error: \(error.localizedDescription)")
+    } else {
+        writeError("Apple Intelligence (Foundation Models) requires macOS 26+.")
     }
     #else
     writeError("Apple Intelligence (Foundation Models) requires macOS 26+ with Apple Silicon. This binary was compiled without FoundationModels support.")
@@ -531,13 +535,17 @@ case "generate-text":
     }
 
     #if canImport(FoundationModels)
-    do {
-        let instructions = genInput.systemInstruction ?? "You are a helpful assistant."
-        let session = LanguageModelSession(instructions: instructions)
-        let result = try await session.respond(to: genInput.prompt)
-        try writeOutput(Output(output: result.content))
-    } catch {
-        writeError("Foundation Models error: \(error.localizedDescription)")
+    if #available(macOS 26, *) {
+        do {
+            let instructions = genInput.systemInstruction ?? "You are a helpful assistant."
+            let session = LanguageModelSession(instructions: instructions)
+            let result = try await session.respond(to: genInput.prompt)
+            try writeOutput(Output(output: result.content))
+        } catch {
+            writeError("Foundation Models error: \(error.localizedDescription)")
+        }
+    } else {
+        writeError("generate-text requires macOS 26+.")
     }
     #else
     writeError("generate-text requires macOS 26+ with Apple Silicon. This binary was compiled without FoundationModels support.")
@@ -551,33 +559,37 @@ case "generate-structured":
     }
 
     #if canImport(FoundationModels)
-    do {
-        let instructions = structInput.systemInstruction ?? "You are a helpful assistant. Respond with valid JSON only."
-        let session = LanguageModelSession(instructions: instructions)
-        let prompt = if let schema = structInput.schema {
-            let schemaDesc = schema.map { "\($0.key): \($0.value.type)\($0.value.description.map { " — \($0)" } ?? "")" }.joined(separator: "\n")
-            "\(structInput.prompt)\n\nRespond with a JSON object matching this schema:\n\(schemaDesc)"
-        } else {
-            "\(structInput.prompt)\n\nRespond with valid JSON only."
+    if #available(macOS 26, *) {
+        do {
+            let instructions = structInput.systemInstruction ?? "You are a helpful assistant. Respond with valid JSON only."
+            let session = LanguageModelSession(instructions: instructions)
+            let prompt: String
+            if let schema = structInput.schema {
+                let schemaDesc = schema.map { "\($0.key): \($0.value.type)\($0.value.description.map { " — \($0)" } ?? "")" }.joined(separator: "\n")
+                prompt = "\(structInput.prompt)\n\nRespond with a JSON object matching this schema:\n\(schemaDesc)"
+            } else {
+                prompt = "\(structInput.prompt)\n\nRespond with valid JSON only."
+            }
+            let result = try await session.respond(to: prompt)
+            let content = result.content.trimmingCharacters(in: .whitespacesAndNewlines)
+            if let jsonData = content.data(using: .utf8),
+               let jsonObj = try? JSONSerialization.jsonObject(with: jsonData) {
+                let formatted = try JSONSerialization.data(withJSONObject: jsonObj, options: [.sortedKeys])
+                let jsonDict: [String: Any] = ["output": String(data: formatted, encoding: .utf8) ?? content, "valid_json": true]
+                let outData = try JSONSerialization.data(withJSONObject: jsonDict)
+                FileHandle.standardOutput.write(outData)
+                FileHandle.standardOutput.write(Data("\n".utf8))
+            } else {
+                let jsonDict: [String: Any] = ["output": content, "valid_json": false]
+                let outData = try JSONSerialization.data(withJSONObject: jsonDict)
+                FileHandle.standardOutput.write(outData)
+                FileHandle.standardOutput.write(Data("\n".utf8))
+            }
+        } catch {
+            writeError("Foundation Models error: \(error.localizedDescription)")
         }
-        let result = try await session.respond(to: prompt)
-        // Try to validate as JSON, pass through as-is
-        let content = result.content.trimmingCharacters(in: .whitespacesAndNewlines)
-        if let jsonData = content.data(using: .utf8),
-           let jsonObj = try? JSONSerialization.jsonObject(with: jsonData) {
-            let formatted = try JSONSerialization.data(withJSONObject: jsonObj, options: [.sortedKeys])
-            let jsonDict: [String: Any] = ["output": String(data: formatted, encoding: .utf8) ?? content, "valid_json": true]
-            let outData = try JSONSerialization.data(withJSONObject: jsonDict)
-            FileHandle.standardOutput.write(outData)
-            FileHandle.standardOutput.write(Data("\n".utf8))
-        } else {
-            let jsonDict: [String: Any] = ["output": content, "valid_json": false]
-            let outData = try JSONSerialization.data(withJSONObject: jsonDict)
-            FileHandle.standardOutput.write(outData)
-            FileHandle.standardOutput.write(Data("\n".utf8))
-        }
-    } catch {
-        writeError("Foundation Models error: \(error.localizedDescription)")
+    } else {
+        writeError("generate-structured requires macOS 26+.")
     }
     #else
     writeError("generate-structured requires macOS 26+ with Apple Silicon. This binary was compiled without FoundationModels support.")
@@ -591,27 +603,31 @@ case "tag-content":
     }
 
     #if canImport(FoundationModels)
-    do {
-        let tagList = tagInput.tags.joined(separator: ", ")
-        let instructions = "You are a content classification system. Classify text into the provided categories. Respond with ONLY a JSON object mapping each applicable tag to a confidence score between 0.0 and 1.0."
-        let session = LanguageModelSession(instructions: instructions)
-        let prompt = "Classify this text into these categories: [\(tagList)]\n\nText: \(tagInput.text)\n\nRespond with a JSON object like {\"tag\": confidence_score} for each applicable tag."
-        let result = try await session.respond(to: prompt)
-        let content = result.content.trimmingCharacters(in: .whitespacesAndNewlines)
-        if let jsonData = content.data(using: .utf8),
-           let jsonObj = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any] {
-            let outDict: [String: Any] = ["tags": jsonObj, "text_preview": String(tagInput.text.prefix(100))]
-            let outData = try JSONSerialization.data(withJSONObject: outDict, options: [.sortedKeys])
-            FileHandle.standardOutput.write(outData)
-            FileHandle.standardOutput.write(Data("\n".utf8))
-        } else {
-            let outDict: [String: Any] = ["output": content, "text_preview": String(tagInput.text.prefix(100))]
-            let outData = try JSONSerialization.data(withJSONObject: outDict)
-            FileHandle.standardOutput.write(outData)
-            FileHandle.standardOutput.write(Data("\n".utf8))
+    if #available(macOS 26, *) {
+        do {
+            let tagList = tagInput.tags.joined(separator: ", ")
+            let instructions = "You are a content classification system. Classify text into the provided categories. Respond with ONLY a JSON object mapping each applicable tag to a confidence score between 0.0 and 1.0."
+            let session = LanguageModelSession(instructions: instructions)
+            let prompt = "Classify this text into these categories: [\(tagList)]\n\nText: \(tagInput.text)\n\nRespond with a JSON object like {\"tag\": confidence_score} for each applicable tag."
+            let result = try await session.respond(to: prompt)
+            let content = result.content.trimmingCharacters(in: .whitespacesAndNewlines)
+            if let jsonData = content.data(using: .utf8),
+               let jsonObj = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any] {
+                let outDict: [String: Any] = ["tags": jsonObj, "text_preview": String(tagInput.text.prefix(100))]
+                let outData = try JSONSerialization.data(withJSONObject: outDict, options: [.sortedKeys])
+                FileHandle.standardOutput.write(outData)
+                FileHandle.standardOutput.write(Data("\n".utf8))
+            } else {
+                let outDict: [String: Any] = ["output": content, "text_preview": String(tagInput.text.prefix(100))]
+                let outData = try JSONSerialization.data(withJSONObject: outDict)
+                FileHandle.standardOutput.write(outData)
+                FileHandle.standardOutput.write(Data("\n".utf8))
+            }
+        } catch {
+            writeError("Foundation Models error: \(error.localizedDescription)")
         }
-    } catch {
-        writeError("Foundation Models error: \(error.localizedDescription)")
+    } else {
+        writeError("tag-content requires macOS 26+.")
     }
     #else
     writeError("tag-content requires macOS 26+ with Apple Silicon. This binary was compiled without FoundationModels support.")
@@ -625,22 +641,23 @@ case "ai-chat":
     }
 
     #if canImport(FoundationModels)
-    do {
-        // Each invocation creates a fresh session — true multi-turn persistence
-        // would require a long-lived process. The sessionName is included in the
-        // response so callers can track conversation identity.
-        let instructions = chatInput.systemInstruction ?? "You are a helpful on-device AI assistant."
-        let session = LanguageModelSession(instructions: instructions)
-        let result = try await session.respond(to: chatInput.message)
-        let outDict: [String: Any] = [
-            "sessionName": chatInput.sessionName,
-            "response": result.content,
-        ]
-        let outData = try JSONSerialization.data(withJSONObject: outDict, options: [.sortedKeys])
-        FileHandle.standardOutput.write(outData)
-        FileHandle.standardOutput.write(Data("\n".utf8))
-    } catch {
-        writeError("Foundation Models error: \(error.localizedDescription)")
+    if #available(macOS 26, *) {
+        do {
+            let instructions = chatInput.systemInstruction ?? "You are a helpful on-device AI assistant."
+            let session = LanguageModelSession(instructions: instructions)
+            let result = try await session.respond(to: chatInput.message)
+            let outDict: [String: Any] = [
+                "sessionName": chatInput.sessionName,
+                "response": result.content,
+            ]
+            let outData = try JSONSerialization.data(withJSONObject: outDict, options: [.sortedKeys])
+            FileHandle.standardOutput.write(outData)
+            FileHandle.standardOutput.write(Data("\n".utf8))
+        } catch {
+            writeError("Foundation Models error: \(error.localizedDescription)")
+        }
+    } else {
+        writeError("ai-chat requires macOS 26+.")
     }
     #else
     writeError("ai-chat requires macOS 26+ with Apple Silicon. This binary was compiled without FoundationModels support.")

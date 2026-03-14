@@ -18,24 +18,24 @@ describe('reminders script generators', () => {
   });
 
   test('listRemindersScript without filters', () => {
-    const script = listRemindersScript();
+    const script = listRemindersScript(200, 0);
     expect(script).toContain("Application('Reminders')");
     expect(script).toContain("l.reminders()");
     expect(script).not.toContain(".filter");
   });
 
   test('listRemindersScript with list filter', () => {
-    const script = listRemindersScript('Shopping');
+    const script = listRemindersScript(200, 0, 'Shopping');
     expect(script).toContain("whose({name: 'Shopping'})");
   });
 
   test('listRemindersScript with completed filter', () => {
-    const script = listRemindersScript(undefined, false);
+    const script = listRemindersScript(200, 0, undefined, false);
     expect(script).toContain("!r.completed()");
   });
 
   test('listRemindersScript with both filters', () => {
-    const script = listRemindersScript('Work', true);
+    const script = listRemindersScript(200, 0, 'Work', true);
     expect(script).toContain("whose({name: 'Work'})");
     expect(script).toContain("r.completed()");
   });
@@ -99,7 +99,7 @@ describe('reminders script generators', () => {
 
 describe('reminders esc() injection prevention', () => {
   test('escapes single quotes in list name', () => {
-    const script = listRemindersScript("it's a list");
+    const script = listRemindersScript(200, 0, "it's a list");
     expect(script).toContain("it\\'s a list");
     expect(script).not.toContain("it's a list");
   });

@@ -99,10 +99,12 @@ export function registerReminderTools(server: McpServer, _config: IConnectConfig
     {
       title: "List Reminders",
       description:
-        "List reminders. Optionally filter by list name and/or completion status.",
+        "List reminders. Optionally filter by list name and/or completion status. Supports pagination via limit/offset.",
       inputSchema: {
         list: z.string().optional().describe("Filter by list name"),
         completed: z.boolean().optional().describe("Filter by completed status (true/false). Omit to list all."),
+        limit: z.number().int().min(1).max(1000).optional().default(200).describe("Max number of reminders to return (default: 200)"),
+        offset: z.number().int().min(0).optional().default(0).describe("Number of reminders to skip for pagination (default: 0)"),
       },
       annotations: {
         readOnlyHint: true,
@@ -111,10 +113,10 @@ export function registerReminderTools(server: McpServer, _config: IConnectConfig
         openWorldHint: false,
       },
     },
-    async ({ list, completed }) => {
+    async ({ list, completed, limit, offset }) => {
       try {
-        const result = await runJxa<ReminderItem[]>(listRemindersScript(list, completed));
-        return ok({ total: result.length, reminders: result });
+        const result = await runJxa<{ total: number; offset: number; returned: number; reminders: ReminderItem[] }>(listRemindersScript(limit, offset, list, completed));
+        return ok(result);
       } catch (e) {
         return err(`Failed to list reminders: ${e instanceof Error ? e.message : String(e)}`);
       }

@@ -18,7 +18,7 @@ export function listReminderListsScript(): string {
   `;
 }
 
-export function listRemindersScript(list?: string, completed?: boolean): string {
+export function listRemindersScript(limit: number, offset: number, list?: string, completed?: boolean): string {
   const filterParts: string[] = [];
   if (completed === true) filterParts.push("r.completed()");
   if (completed === false) filterParts.push("!r.completed()");
@@ -35,7 +35,7 @@ export function listRemindersScript(list?: string, completed?: boolean): string 
       const l = lists[0];
       const reminders = l.reminders();
       const filtered = reminders${filterExpr};
-      const result = filtered.map(r => ({
+      const all = filtered.map(r => ({
         id: r.id(),
         name: r.name(),
         completed: r.completed(),
@@ -44,19 +44,22 @@ export function listRemindersScript(list?: string, completed?: boolean): string 
         flagged: r.flagged(),
         list: '${esc(list)}'
       }));
-      JSON.stringify(result);
+      const start = Math.min(${offset}, all.length);
+      const end = Math.min(start + ${limit}, all.length);
+      const result = all.slice(start, end);
+      JSON.stringify({total: all.length, offset: start, returned: result.length, reminders: result});
     `;
   }
   return `
     const Reminders = Application('Reminders');
     const lists = Reminders.lists();
-    const result = [];
+    const all = [];
     for (const l of lists) {
       const reminders = l.reminders();
       const filtered = reminders${filterExpr};
       const listName = l.name();
       for (const r of filtered) {
-        result.push({
+        all.push({
           id: r.id(),
           name: r.name(),
           completed: r.completed(),
@@ -67,7 +70,10 @@ export function listRemindersScript(list?: string, completed?: boolean): string 
         });
       }
     }
-    JSON.stringify(result);
+    const start = Math.min(${offset}, all.length);
+    const end = Math.min(start + ${limit}, all.length);
+    const result = all.slice(start, end);
+    JSON.stringify({total: all.length, offset: start, returned: result.length, reminders: result});
   `;
 }
 

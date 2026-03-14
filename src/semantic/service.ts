@@ -74,10 +74,10 @@ async function collectCalendarEvents(): Promise<CollectedItem[]> {
 }
 
 async function collectReminders(): Promise<CollectedItem[]> {
-  const raw = await runJxa<Array<{ id: string; name: string; body: string | null }>>(
-    listRemindersScript(undefined, false),
+  const { reminders: raw } = await runJxa<{ reminders: Array<{ id: string; name: string; body: string | null }> }>(
+    listRemindersScript(200, 0, undefined, false),
   );
-  return raw.slice(0, 200).map((r) => ({
+  return raw.map((r) => ({
     id: "reminder:" + r.id,
     source: "reminders",
     title: r.name,

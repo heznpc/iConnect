@@ -97,9 +97,11 @@ export function registerNoteTools(server: McpServer, config: IConnectConfig): vo
     "list_notes",
     {
       title: "List Notes",
-      description: "List all notes with title, folder, and dates. Optionally filter by folder name.",
+      description: "List all notes with title, folder, and dates. Optionally filter by folder name. Supports pagination via limit/offset.",
       inputSchema: {
         folder: z.string().optional().describe("Filter by folder name"),
+        limit: z.number().int().min(1).max(1000).optional().default(200).describe("Max number of notes to return (default: 200)"),
+        offset: z.number().int().min(0).optional().default(0).describe("Number of notes to skip for pagination (default: 0)"),
       },
       annotations: {
         readOnlyHint: true,
@@ -108,10 +110,12 @@ export function registerNoteTools(server: McpServer, config: IConnectConfig): vo
         openWorldHint: false,
       },
     },
-    async ({ folder }) => {
+    async ({ folder, limit, offset }) => {
       try {
-        const result = await runJxa<NoteListItem[]>(listNotesScript(folder));
-        return ok(filterSharedAccess(result, config, "notes"));
+        const result = await runJxa<{ total: number; offset: number; returned: number; notes: NoteListItem[] }>(listNotesScript(limit, offset, folder));
+        result.notes = filterSharedAccess(result.notes, config, "notes");
+        result.returned = result.notes.length;
+        return ok(result);
       } catch (e) {
         return err(`Failed to list notes: ${e instanceof Error ? e.message : String(e)}`);
       }

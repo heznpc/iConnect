@@ -13,13 +13,13 @@ import {
 
 describe('script generators', () => {
   test('listNotesScript without folder', () => {
-    const script = listNotesScript();
+    const script = listNotesScript(200, 0);
     expect(script).toContain("Notes.notes.name()");
     expect(script).toContain("JSON.stringify");
   });
 
   test('listNotesScript with folder', () => {
-    const script = listNotesScript('Work');
+    const script = listNotesScript(200, 0, 'Work');
     expect(script).toContain("whose({name: 'Work'})");
   });
 
@@ -84,7 +84,7 @@ describe('script generators', () => {
 
 describe('esc() injection prevention', () => {
   test('escapes single quotes in folder name', () => {
-    const script = listNotesScript("it's a test");
+    const script = listNotesScript(200, 0, "it's a test");
     expect(script).toContain("it\\'s a test");
     expect(script).not.toContain("it's a test");
   });

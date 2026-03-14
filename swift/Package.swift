@@ -4,12 +4,11 @@ import PackageDescription
 
 let package = Package(
     name: "ImcpBridge",
-    platforms: [.macOS(.v26)],
+    platforms: [.macOS(.v14)],
     targets: [
         .executableTarget(
             name: "ImcpBridge",
-            path: "Sources/ImcpBridge",
-            swiftSettings: [.enableExperimentalFeature("FoundationModels")]
+            path: "Sources/ImcpBridge"
         ),
     ]
 )

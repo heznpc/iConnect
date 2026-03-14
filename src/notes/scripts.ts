@@ -3,7 +3,7 @@
 
 import { esc } from "../shared/esc.js";
 
-export function listNotesScript(folder?: string): string {
+export function listNotesScript(limit: number, offset: number, folder?: string): string {
   if (folder) {
     return `
       const Notes = Application('Notes');
@@ -15,15 +15,20 @@ export function listNotesScript(folder?: string): string {
       const creationDates = f.notes.creationDate();
       const modificationDates = f.notes.modificationDate();
       const shareds = f.notes.shared();
-      const result = names.map((name, i) => ({
-        id: ids[i],
-        name: name,
-        folder: '${esc(folder)}',
-        creationDate: creationDates[i].toISOString(),
-        modificationDate: modificationDates[i].toISOString(),
-        shared: shareds[i]
-      }));
-      JSON.stringify(result);
+      const start = Math.min(${offset}, names.length);
+      const end = Math.min(start + ${limit}, names.length);
+      const result = [];
+      for (let i = start; i < end; i++) {
+        result.push({
+          id: ids[i],
+          name: names[i],
+          folder: '${esc(folder)}',
+          creationDate: creationDates[i].toISOString(),
+          modificationDate: modificationDates[i].toISOString(),
+          shared: shareds[i]
+        });
+      }
+      JSON.stringify({total: names.length, offset: start, returned: result.length, notes: result});
     `;
   }
   return `
@@ -34,15 +39,20 @@ export function listNotesScript(folder?: string): string {
     const modificationDates = Notes.notes.modificationDate();
     const containers = Notes.notes.container();
     const shareds = Notes.notes.shared();
-    const result = names.map((name, i) => ({
-      id: ids[i],
-      name: name,
-      folder: containers[i].name(),
-      creationDate: creationDates[i].toISOString(),
-      modificationDate: modificationDates[i].toISOString(),
-      shared: shareds[i]
-    }));
-    JSON.stringify(result);
+    const start = Math.min(${offset}, names.length);
+    const end = Math.min(start + ${limit}, names.length);
+    const result = [];
+    for (let i = start; i < end; i++) {
+      result.push({
+        id: ids[i],
+        name: names[i],
+        folder: containers[i].name(),
+        creationDate: creationDates[i].toISOString(),
+        modificationDate: modificationDates[i].toISOString(),
+        shared: shareds[i]
+      });
+    }
+    JSON.stringify({total: names.length, offset: start, returned: result.length, notes: result});
   `;
 }
 

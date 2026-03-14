@@ -48,7 +48,7 @@ const DEPTH: Record<string, DepthConfig> = {
 type ReminderRecord = { completed: boolean; dueDate: string | null; [k: string]: unknown };
 
 async function fetchDueReminders(): Promise<ReminderRecord[]> {
-  const all = await runJxa<ReminderRecord[]>(listRemindersScript(undefined, false));
+  const { reminders: all } = await runJxa<{ reminders: ReminderRecord[] }>(listRemindersScript(10000, 0, undefined, false));
   const now = new Date();
   return all
     .filter((r) => r.dueDate && new Date(r.dueDate) <= now)
@@ -56,7 +56,7 @@ async function fetchDueReminders(): Promise<ReminderRecord[]> {
 }
 
 async function fetchTodayReminders(): Promise<ReminderRecord[]> {
-  const all = await runJxa<ReminderRecord[]>(listRemindersScript(undefined, false));
+  const { reminders: all } = await runJxa<{ reminders: ReminderRecord[] }>(listRemindersScript(10000, 0, undefined, false));
   const today = new Date();
   const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
   const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1).getTime();
@@ -219,8 +219,8 @@ export async function buildSnapshot(
     tasks.push({
       key: "reminders",
       promise: (async () => {
-        const all = await runJxa<Array<{ completed: boolean; dueDate: string | null; [k: string]: unknown }>>(
-          listRemindersScript(undefined, false),
+        const { reminders: all, total: totalIncomplete } = await runJxa<{ reminders: Array<{ completed: boolean; dueDate: string | null; [k: string]: unknown }>; total: number }>(
+          listRemindersScript(10000, 0, undefined, false),
         );
         const now = new Date();
         const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -234,7 +234,7 @@ export async function buildSnapshot(
         return {
           overdueCount: overdue.length,
           dueTodayCount: dueToday.length,
-          totalIncomplete: all.length,
+          totalIncomplete,
           overdue: overdue.slice(0, dc.reminders),
           dueToday: dueToday.slice(0, dc.reminders),
         };

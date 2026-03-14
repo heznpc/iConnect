@@ -66,11 +66,16 @@ describe('buildSnapshot', () => {
     const yesterday = new Date(now.getTime() - 86400000).toISOString();
     const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12).toISOString();
 
-    mockRunJxa.mockResolvedValue([
-      { completed: false, dueDate: yesterday, name: 'Overdue task' },
-      { completed: false, dueDate: todayDate, name: 'Today task' },
-      { completed: false, dueDate: null, name: 'No date task' },
-    ]);
+    mockRunJxa.mockResolvedValue({
+      total: 3,
+      offset: 0,
+      returned: 3,
+      reminders: [
+        { completed: false, dueDate: yesterday, name: 'Overdue task' },
+        { completed: false, dueDate: todayDate, name: 'Today task' },
+        { completed: false, dueDate: null, name: 'No date task' },
+      ],
+    });
 
     const result = JSON.parse(await buildSnapshot(enabled, 'standard'));
     expect(result.reminders).toBeDefined();
