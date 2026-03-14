@@ -48,8 +48,8 @@ function clearConfigEnv() {
 /* ================================================================== */
 
 describe('MODULE_NAMES', () => {
-  test('contains exactly 22 modules', () => {
-    expect(MODULE_NAMES).toHaveLength(22);
+  test('contains exactly 24 modules', () => {
+    expect(MODULE_NAMES).toHaveLength(24);
   });
 
   test('includes the "tv" module', () => {

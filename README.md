@@ -1,12 +1,12 @@
 # AirMCP
 
-MCP server for the entire Apple ecosystem — Notes, Reminders, Calendar, Contacts, Mail, Messages, Music, Finder, Safari, System, Photos, Shortcuts, Apple Intelligence, TV, Screen Capture, Maps, Podcasts, Weather, Pages, Numbers, and Keynote. Connect any AI to your Mac.
+MCP server for the entire Apple ecosystem — Notes, Reminders, Calendar, Contacts, Mail, Messages, Music, Finder, Safari, System, Photos, Shortcuts, Apple Intelligence, TV, Screen Capture, Maps, Podcasts, Weather, Pages, Numbers, Keynote, Location, and Bluetooth. Connect any AI to your Mac.
 
 > Available in multiple languages at the [project landing page](https://heznpc.github.io/AirMCP/).
 
 ## Features
 
-- **220 tools** (22 modules) — Apple app CRUD + system control + Apple Intelligence + UI Automation + Screen Capture + Maps + Podcasts + Weather + iWork (Pages/Numbers/Keynote) + dynamic shortcuts
+- **226 tools** (24 modules) — Apple app CRUD + system control + Apple Intelligence + UI Automation + Screen Capture + Maps + Podcasts + Weather + iWork (Pages/Numbers/Keynote) + dynamic shortcuts
 - **30 prompts** — per-app workflows (notes, calendar, reminders, shortcuts) + cross-module + developer workflows
 - **11 MCP resources** — Notes, Calendar, Reminders live data URIs
 - **JXA + Swift bridge** — JXA for basic automation, EventKit/PhotoKit for advanced features
@@ -280,7 +280,7 @@ Useful for running a Mac Mini as an "always-on AI hub."
 | `list_reading_list` | List Reading List items | read |
 | `add_to_reading_list` | Add URL to Reading List | write |
 
-### System (17 tools)
+### System (27 tools)
 
 | Tool | Description | Type |
 |------|-------------|------|
@@ -301,6 +301,16 @@ Useful for running a Mac Mini as an "always-on AI hub."
 | `get_brightness` | Get display brightness level | read |
 | `set_brightness` | Set display brightness level | write |
 | `toggle_focus_mode` | Toggle Do Not Disturb on or off | write |
+| `system_sleep` | Put system to sleep | write |
+| `prevent_sleep` | Keep system awake for N seconds | write |
+| `system_power` | Shutdown or restart the system | destructive |
+| `launch_app` | Launch/activate an application | write |
+| `quit_app` | Quit a running application | destructive |
+| `is_app_running` | Check if an application is running | read |
+| `list_all_windows` | List all windows across all apps | read |
+| `move_window` | Move a window to specific coordinates | write |
+| `resize_window` | Resize a window | write |
+| `minimize_window` | Minimize or restore a window | write |
 
 ### Photos (9 tools)
 
@@ -389,7 +399,7 @@ Requires macOS 26+ with Apple Silicon.
 | `list_windows` | List all visible windows with position/size | read |
 | `record_screen` | Record screen for 1-60 seconds (.mov) | write |
 
-### Maps (6 tools)
+### Maps (8 tools)
 
 | Tool | Description | Type |
 |------|-------------|------|
@@ -399,6 +409,8 @@ Requires macOS 26+ with Apple Silicon.
 | `open_address` | Open a specific address in Apple Maps | write |
 | `search_nearby` | Search for places near a location | write |
 | `share_location` | Generate a shareable Apple Maps link | read |
+| `geocode` | Convert place name/address to coordinates | read |
+| `reverse_geocode` | Convert coordinates to place name/address | read |
 
 ### Podcasts (6 tools)
 
@@ -410,6 +422,30 @@ Requires macOS 26+ with Apple Silicon.
 | `podcast_playback_control` | Play, pause, next, previous | write |
 | `play_podcast_episode` | Play a specific episode by name | write |
 | `search_podcast_episodes` | Search episodes by keyword | read |
+
+### Weather (3 tools)
+
+| Tool | Description | Type |
+|------|-------------|------|
+| `get_weather` | Get current weather for a location | read |
+| `get_forecast` | Get multi-day forecast for a location | read |
+| `get_weather_alerts` | Get active weather alerts for a location | read |
+
+### Location (2 tools)
+
+| Tool | Description | Type |
+|------|-------------|------|
+| `get_current_location` | Get device's current GPS coordinates | read |
+| `get_location_permission` | Check Location Services authorization status | read |
+
+### Bluetooth (4 tools)
+
+| Tool | Description | Type |
+|------|-------------|------|
+| `get_bluetooth_state` | Check Bluetooth power state | read |
+| `scan_bluetooth` | Scan for nearby BLE devices | read |
+| `connect_bluetooth` | Connect to a BLE device by UUID | write |
+| `disconnect_bluetooth` | Disconnect a BLE device | write |
 
 ## Resources
 
@@ -521,7 +557,7 @@ Or edit `~/.config/airmcp/config.json` directly:
 | `npx airmcp init` | Interactive setup wizard |
 | `npx airmcp doctor` | Diagnose installation issues |
 | `npx airmcp` | Start MCP server (stdio, default) |
-| `npx airmcp --full` | Start with all 22 modules enabled |
+| `npx airmcp --full` | Start with all 24 modules enabled |
 | `npx airmcp --http` | Start as HTTP server (port 3847) |
 
 ## Configuration
@@ -604,6 +640,19 @@ npm run swift-build
 
 Modules with OS requirements (e.g., Intelligence requires macOS 26+) are automatically disabled at startup on older systems via runtime OS detection.
 
+### Architecture & Security
+
+- **JXA/AppleScript dependency** — Core automation relies on Apple's scripting dictionaries. While these have been stable for 10+ years, macOS updates can theoretically break individual modules. Circuit breaker (3 failures → 60s auto-disable) isolates failures. UI Automation tools (6 tools) are inherently more brittle and separated into their own module.
+- **Read data exposure** — Destructive operations require HITL approval, but read operations (mail, messages, contacts) are not rate-limited. When connected to cloud LLMs, sensitive data passes through the LLM provider. Mitigations: PII scrubbing in logs, pagination limits, sensitive modules (mail, messages) require explicit opt-in.
+- **IPC overhead** — Multi-process path (Client → Node.js → osascript/Swift CLI → macOS app). Each JXA call adds ~50ms overhead. Pagination prevents bulk data transfers. Swift bridge path bypasses JXA for EventKit/PhotoKit operations.
+- **Scope** — 226 tools across 24 modules follow 5 repeating patterns (JXA CRUD, Swift bridge, HTTP API, System Events, CLI wrapper), keeping maintenance proportional to pattern count, not tool count.
+
+### Location & Bluetooth
+
+- Location requires macOS Location Services permission (first use triggers system dialog).
+- Bluetooth scanning discovers BLE (Low Energy) devices only. Classic Bluetooth devices are listed via `list_bluetooth_devices` in the System module.
+- Bluetooth connect/disconnect operates within the server process lifecycle.
+
 ### Notes
 - Move copies and deletes (new ID, reset dates, lost attachments). Update replaces entire body — read first to preserve content.
 - Password-protected notes cannot be read.
@@ -642,24 +691,21 @@ Modules with OS requirements (e.g., Intelligence requires macOS 26+) are automat
 
 ## Roadmap
 
-### v1.6.0 (Current)
+### v2.0 (Current)
 
-- **Progress notifications** — `record_screen`, `semantic_index` report real-time progress via `notifications/progress`
-- **MCP Elicitation** — Protocol-native user confirmation (form mode), falls back to socket HITL for older clients
-- **Server Card** — `GET /.well-known/mcp.json` discovery endpoint for Claude, VS Code Copilot, etc.
-- **Mail pagination** — `list_messages` now supports `offset` parameter, response matches `{total, offset, returned}` pattern
-- **Swift stdin validation** — MAX_STDIN_SIZE (50MB) guard on bridge input
-
-### v1.7 (Planned)
-
-- **OAuth 2.1 + PKCE** — HTTP transport authentication for remote deployments
-- **Async Tasks** — Long-running operations return handles with progress streaming
-- **MCP Registry** — Official registry.modelcontextprotocol.io submission
+- **CoreLocation** — Native GPS coordinates via Swift/CLLocationManager
+- **CoreBluetooth** — BLE device scanning, state, connect/disconnect via Swift/CBCentralManager
+- **App Management** — Launch, quit, check app status
+- **Window Management** — List, move, resize, minimize windows across all apps
+- **Geocoding** — Forward/reverse geocoding via Open-Meteo and Nominatim APIs
+- **Security hardening** — Sensitive modules (mail, messages) opt-in by default, architecture limitations documented
 
 ### Future
 
-- GUI .app distribution (Code Signing + Notarization, Homebrew Cask)
-- iOS / visionOS exploration (v2.0+)
+- **OAuth 2.1 + PKCE** — HTTP transport authentication for remote deployments
+- **GUI .app distribution** — Code Signing + Notarization, Homebrew Cask
+- **Marketplace listings** — mcp.so, Smithery, and other MCP directories
+- **iOS / visionOS exploration** (v3.0+)
 
 ## License
 

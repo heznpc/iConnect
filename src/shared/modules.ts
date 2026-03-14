@@ -25,6 +25,8 @@ import { registerWeatherTools } from "../weather/tools.js";
 import { registerPagesTools } from "../pages/tools.js";
 import { registerNumbersTools } from "../numbers/tools.js";
 import { registerKeynoteTools } from "../keynote/tools.js";
+import { registerLocationTools } from "../location/tools.js";
+import { registerBluetoothTools } from "../bluetooth/tools.js";
 
 export const MODULE_REGISTRY: ModuleRegistration[] = [
   { name: "notes", tools: registerNoteTools, prompts: registerNotePrompts },
@@ -49,4 +51,6 @@ export const MODULE_REGISTRY: ModuleRegistration[] = [
   { name: "pages", tools: registerPagesTools },
   { name: "numbers", tools: registerNumbersTools },
   { name: "keynote", tools: registerKeynoteTools },
+  { name: "location", tools: registerLocationTools },
+  { name: "bluetooth", tools: registerBluetoothTools },
 ];

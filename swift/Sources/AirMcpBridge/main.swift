@@ -3,6 +3,8 @@ import EventKit
 import Photos
 import NaturalLanguage
 import Accelerate
+import CoreLocation
+import CoreBluetooth
 
 // AirMcpBridge CLI — thin wrapper around Apple frameworks.
 // Reads JSON from stdin, dispatches to subcommand, writes JSON to stdout.
@@ -287,6 +289,202 @@ func embedText(_ text: String, language: NLLanguage) throws -> [Double] {
     vDSP_vsdivD(sumVector, 1, &count, &sumVector, 1, vDSP_Length(dim))
 
     return sumVector
+}
+
+// MARK: - CoreLocation types
+
+struct LocationOutput: Encodable {
+    let latitude: Double
+    let longitude: Double
+    let altitude: Double
+    let horizontalAccuracy: Double
+    let verticalAccuracy: Double
+    let timestamp: String
+}
+
+struct LocationPermissionOutput: Encodable {
+    let status: String
+    let authorized: Bool
+}
+
+class LocationFetcher: NSObject, CLLocationManagerDelegate, @unchecked Sendable {
+    private var continuation: CheckedContinuation<CLLocation, Error>?
+    private var manager: CLLocationManager?
+
+    func fetch() async throws -> CLLocation {
+        try await withCheckedThrowingContinuation { cont in
+            self.continuation = cont
+            let mgr = CLLocationManager()
+            mgr.delegate = self
+            mgr.desiredAccuracy = kCLLocationAccuracyBest
+            self.manager = mgr
+            mgr.requestLocation()
+        }
+    }
+
+    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        continuation?.resume(returning: locations[0])
+        continuation = nil
+    }
+
+    func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        continuation?.resume(throwing: error)
+        continuation = nil
+    }
+}
+
+func locationStatusString(_ status: CLAuthorizationStatus) -> String {
+    switch status {
+    case .notDetermined: return "not_determined"
+    case .restricted: return "restricted"
+    case .denied: return "denied"
+    case .authorizedAlways: return "authorized_always"
+    @unknown default: return "unknown"
+    }
+}
+
+// MARK: - CoreBluetooth types
+
+struct BluetoothScanInput: Decodable {
+    let duration: Double?
+}
+
+struct BluetoothConnectInput: Decodable {
+    let identifier: String
+}
+
+struct BluetoothStateOutput: Encodable {
+    let state: String
+    let powered: Bool
+}
+
+struct BluetoothDeviceInfo: Encodable {
+    let name: String?
+    let identifier: String
+    let rssi: Int
+}
+
+struct BluetoothScanOutput: Encodable {
+    let total: Int
+    let devices: [BluetoothDeviceInfo]
+}
+
+struct BluetoothConnectOutput: Encodable {
+    let success: Bool
+    let identifier: String
+    let name: String?
+}
+
+class BluetoothManager: NSObject, CBCentralManagerDelegate, @unchecked Sendable {
+    private var stateContinuation: CheckedContinuation<CBManagerState, Never>?
+    private var connectContinuation: CheckedContinuation<Bool, Error>?
+    private var manager: CBCentralManager?
+    private var discovered: [String: BluetoothDeviceInfo] = [:]
+    private let btQueue = DispatchQueue(label: "com.airmcp.bluetooth")
+
+    func initialize() async -> CBManagerState {
+        await withCheckedContinuation { cont in
+            self.stateContinuation = cont
+            self.manager = CBCentralManager(delegate: self, queue: self.btQueue)
+        }
+    }
+
+    func scan(duration: Double) async -> [BluetoothDeviceInfo] {
+        let state = await initialize()
+        guard state == .poweredOn, let mgr = manager else { return [] }
+
+        mgr.scanForPeripherals(withServices: nil, options: [
+            CBCentralManagerScanOptionAllowDuplicatesKey: false,
+        ])
+
+        try? await Task.sleep(for: .seconds(duration))
+
+        mgr.stopScan()
+        // read on btQueue to synchronize with didDiscover callbacks
+        let result: [BluetoothDeviceInfo] = btQueue.sync {
+            Array(self.discovered.values).sorted { $0.rssi > $1.rssi }
+        }
+        return result
+    }
+
+    func connect(identifier: String) async throws -> String? {
+        let state = await initialize()
+        guard state == .poweredOn, let mgr = manager else {
+            throw NSError(domain: "AirMcpBridge", code: 1,
+                userInfo: [NSLocalizedDescriptionKey: "Bluetooth is not powered on"])
+        }
+        guard let uuid = UUID(uuidString: identifier) else {
+            throw NSError(domain: "AirMcpBridge", code: 2,
+                userInfo: [NSLocalizedDescriptionKey: "Invalid UUID: \(identifier)"])
+        }
+        let peripherals = mgr.retrievePeripherals(withIdentifiers: [uuid])
+        guard let peripheral = peripherals.first else {
+            throw NSError(domain: "AirMcpBridge", code: 3,
+                userInfo: [NSLocalizedDescriptionKey: "Peripheral not found: \(identifier). Run scan-bluetooth first."])
+        }
+
+        let _ = try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Bool, Error>) in
+            self.connectContinuation = cont
+            mgr.connect(peripheral, options: nil)
+        }
+        return peripheral.name
+    }
+
+    func disconnect(identifier: String) async throws -> String? {
+        let state = await initialize()
+        guard state == .poweredOn, let mgr = manager else {
+            throw NSError(domain: "AirMcpBridge", code: 1,
+                userInfo: [NSLocalizedDescriptionKey: "Bluetooth is not powered on"])
+        }
+        guard let uuid = UUID(uuidString: identifier) else {
+            throw NSError(domain: "AirMcpBridge", code: 2,
+                userInfo: [NSLocalizedDescriptionKey: "Invalid UUID: \(identifier)"])
+        }
+        let peripherals = mgr.retrievePeripherals(withIdentifiers: [uuid])
+        guard let peripheral = peripherals.first else {
+            throw NSError(domain: "AirMcpBridge", code: 3,
+                userInfo: [NSLocalizedDescriptionKey: "Peripheral not found: \(identifier)"])
+        }
+        mgr.cancelPeripheralConnection(peripheral)
+        return peripheral.name
+    }
+
+    // MARK: CBCentralManagerDelegate
+
+    func centralManagerDidUpdateState(_ central: CBCentralManager) {
+        stateContinuation?.resume(returning: central.state)
+        stateContinuation = nil
+    }
+
+    func centralManager(_ central: CBCentralManager, didDiscover peripheral: CBPeripheral,
+                         advertisementData: [String: Any], rssi RSSI: NSNumber) {
+        let id = peripheral.identifier.uuidString
+        discovered[id] = BluetoothDeviceInfo(name: peripheral.name, identifier: id, rssi: RSSI.intValue)
+    }
+
+    func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
+        connectContinuation?.resume(returning: true)
+        connectContinuation = nil
+    }
+
+    func centralManager(_ central: CBCentralManager, didFailToConnect peripheral: CBPeripheral, error: Error?) {
+        let err = error ?? NSError(domain: "AirMcpBridge", code: 4,
+            userInfo: [NSLocalizedDescriptionKey: "Failed to connect to \(peripheral.identifier)"])
+        connectContinuation?.resume(throwing: err)
+        connectContinuation = nil
+    }
+}
+
+func bluetoothStateString(_ state: CBManagerState) -> String {
+    switch state {
+    case .poweredOn: return "powered_on"
+    case .poweredOff: return "powered_off"
+    case .unauthorized: return "unauthorized"
+    case .unsupported: return "unsupported"
+    case .resetting: return "resetting"
+    case .unknown: return "unknown"
+    @unknown default: return "unknown"
+    }
 }
 
 // MARK: - Main
@@ -709,6 +907,95 @@ case "ai-status":
     FileHandle.standardOutput.write(data)
     FileHandle.standardOutput.write(Data("\n".utf8))
 
+// --- CoreLocation: get current location ---
+case "get-location":
+    let fetcher = LocationFetcher()
+    do {
+        let location = try await fetcher.fetch()
+        let formatter = ISO8601DateFormatter()
+        let output = LocationOutput(
+            latitude: location.coordinate.latitude,
+            longitude: location.coordinate.longitude,
+            altitude: location.altitude,
+            horizontalAccuracy: location.horizontalAccuracy,
+            verticalAccuracy: location.verticalAccuracy,
+            timestamp: formatter.string(from: location.timestamp)
+        )
+        let data = try JSONEncoder().encode(output)
+        FileHandle.standardOutput.write(data)
+        FileHandle.standardOutput.write(Data("\n".utf8))
+    } catch {
+        writeError("Location error: \(error.localizedDescription)")
+    }
+
+// --- CoreLocation: check permission ---
+case "location-permission":
+    let status: CLAuthorizationStatus
+    if #available(macOS 14.0, *) {
+        status = CLLocationManager().authorizationStatus
+    } else {
+        status = CLLocationManager.authorizationStatus()
+    }
+    let authorized = status == .authorizedAlways
+    let output = LocationPermissionOutput(status: locationStatusString(status), authorized: authorized)
+    let data = try JSONEncoder().encode(output)
+    FileHandle.standardOutput.write(data)
+    FileHandle.standardOutput.write(Data("\n".utf8))
+
+// --- CoreBluetooth: state ---
+case "bluetooth-state":
+    let bt = BluetoothManager()
+    let state = await bt.initialize()
+    let output = BluetoothStateOutput(state: bluetoothStateString(state), powered: state == .poweredOn)
+    let data = try JSONEncoder().encode(output)
+    FileHandle.standardOutput.write(data)
+    FileHandle.standardOutput.write(Data("\n".utf8))
+
+// --- CoreBluetooth: scan ---
+case "scan-bluetooth":
+    let scanInput = try? JSONDecoder().decode(BluetoothScanInput.self, from: stdinData)
+    let duration = scanInput?.duration ?? 5.0
+    let bt = BluetoothManager()
+    let devices = await bt.scan(duration: min(max(duration, 1), 30))
+    let output = BluetoothScanOutput(total: devices.count, devices: devices)
+    let data = try JSONEncoder().encode(output)
+    FileHandle.standardOutput.write(data)
+    FileHandle.standardOutput.write(Data("\n".utf8))
+
+// --- CoreBluetooth: connect ---
+case "connect-bluetooth":
+    guard let connInput = try? JSONDecoder().decode(BluetoothConnectInput.self, from: stdinData) else {
+        writeError("Invalid JSON. Expected BluetoothConnectInput.")
+        exit(1)
+    }
+    let bt = BluetoothManager()
+    do {
+        let name = try await bt.connect(identifier: connInput.identifier)
+        let output = BluetoothConnectOutput(success: true, identifier: connInput.identifier, name: name)
+        let data = try JSONEncoder().encode(output)
+        FileHandle.standardOutput.write(data)
+        FileHandle.standardOutput.write(Data("\n".utf8))
+    } catch {
+        writeError("Bluetooth connect error: \(error.localizedDescription)")
+    }
+
+// --- CoreBluetooth: disconnect ---
+case "disconnect-bluetooth":
+    guard let disconnInput = try? JSONDecoder().decode(BluetoothConnectInput.self, from: stdinData) else {
+        writeError("Invalid JSON. Expected BluetoothConnectInput.")
+        exit(1)
+    }
+    let bt = BluetoothManager()
+    do {
+        let name = try await bt.disconnect(identifier: disconnInput.identifier)
+        let output = BluetoothConnectOutput(success: true, identifier: disconnInput.identifier, name: name)
+        let data = try JSONEncoder().encode(output)
+        FileHandle.standardOutput.write(data)
+        FileHandle.standardOutput.write(Data("\n".utf8))
+    } catch {
+        writeError("Bluetooth disconnect error: \(error.localizedDescription)")
+    }
+
 default:
-    writeError("Unknown command: \(command). Use: embed-text, embed-batch, summarize, rewrite, proofread, generate-text, generate-structured, tag-content, ai-chat, ai-status, create-recurring-event, create-recurring-reminder, import-photo, delete-photos")
+    writeError("Unknown command: \(command). Use: embed-text, embed-batch, summarize, rewrite, proofread, generate-text, generate-structured, tag-content, ai-chat, ai-status, create-recurring-event, create-recurring-reminder, import-photo, delete-photos, get-location, location-permission, bluetooth-state, scan-bluetooth, connect-bluetooth, disconnect-bluetooth")
 }

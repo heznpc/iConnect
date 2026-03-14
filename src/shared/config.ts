@@ -56,6 +56,8 @@ export const MODULE_NAMES = [
   "pages",
   "numbers",
   "keynote",
+  "location",
+  "bluetooth",
 ] as const;
 
 /** Core modules enabled by default when no config.json exists */

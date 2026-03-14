@@ -1,6 +1,6 @@
 # AirMCP Skills Guide
 
-A practical guide for AI agents to effectively use AirMCP's 220 tools across 22 modules to orchestrate the Apple ecosystem via MCP.
+A practical guide for AI agents to effectively use AirMCP's 226 tools across 24 modules to orchestrate the Apple ecosystem via MCP.
 
 ## Overview
 
@@ -35,6 +35,8 @@ AirMCP bridges AI agents to native macOS applications through JXA (JavaScript fo
 | **screen** | Screen Capture | `capture_screen`, `capture_window`, `capture_area`, `list_windows`, `record_screen` | 5 |
 | **shortcuts** | Shortcuts | `list_shortcuts`, `run_shortcut`, `get_shortcut_detail`, `search_shortcuts`, `export_shortcut` | 11 |
 | **system** | System | `get_clipboard`, `set_clipboard`, `show_notification`, `capture_screenshot`, `get_battery_status`, `toggle_dark_mode`, `system_sleep`, `prevent_sleep`, `system_power` | 27 |
+| **location** | Location | `get_current_location`, `get_location_status` | 2 |
+| **bluetooth** | Bluetooth | `bluetooth_scan`, `bluetooth_connect`, `bluetooth_disconnect`, `bluetooth_list_devices` | 4 |
 | **tv** | TV | `tv_list_playlists`, `tv_now_playing`, `tv_playback_control`, `tv_search`, `tv_play` | 6 |
 | **ui** | UI Automation | `ui_open_app`, `ui_click`, `ui_type`, `ui_press_key`, `ui_scroll`, `ui_read` | 6 |
 | **weather** | Weather | `get_current_weather`, `get_daily_forecast`, `get_hourly_forecast` | 3 |
