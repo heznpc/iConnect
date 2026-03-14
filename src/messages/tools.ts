@@ -1,8 +1,24 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
+import { execFile } from "child_process";
+import { promisify } from "util";
 import { runJxa } from "../shared/jxa.js";
 import type { AirMcpConfig } from "../shared/config.js";
 import { ok, err } from "../shared/result.js";
+
+const execFileAsync = promisify(execFile);
+
+/** Run a script — if prefixed with "applescript:" use AppleScript, else JXA */
+async function runScript<T>(script: string): Promise<T> {
+  if (script.startsWith("applescript:")) {
+    const as = script.slice("applescript:".length);
+    const { stdout } = await execFileAsync("osascript", ["-e", as], { timeout: 15_000 });
+    // Strip control chars that AppleScript may inject
+    const clean = stdout.trim().replace(/[\x00-\x1f\x7f]/g, (c) => c === "\n" || c === "\r" || c === "\t" ? "" : "");
+    return JSON.parse(clean) as T;
+  }
+  return runJxa<T>(script);
+}
 import {
   listChatsScript,
   readChatScript,
@@ -86,7 +102,7 @@ export function registerMessagesTools(server: McpServer, config: AirMcpConfig): 
     async ({ target, text }) => {
       if (!allowSendMessages) return err("Sending messages is disabled. Set AIRMCP_ALLOW_SEND_MESSAGES=true to enable.");
       try {
-        return ok(await runJxa(sendMessageScript(target, text)));
+        return ok(await runScript(sendMessageScript(target, text)));
       } catch (e) {
         return err(`Failed to send message: ${e instanceof Error ? e.message : String(e)}`);
       }
@@ -107,7 +123,7 @@ export function registerMessagesTools(server: McpServer, config: AirMcpConfig): 
     async ({ target, filePath }) => {
       if (!allowSendMessages) return err("Sending messages is disabled. Set AIRMCP_ALLOW_SEND_MESSAGES=true to enable.");
       try {
-        return ok(await runJxa(sendFileScript(target, filePath)));
+        return ok(await runScript(sendFileScript(target, filePath)));
       } catch (e) {
         return err(`Failed to send file: ${e instanceof Error ? e.message : String(e)}`);
       }

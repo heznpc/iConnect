@@ -2,6 +2,16 @@
 
 import { esc } from "../shared/esc.js";
 
+/** Escape for AppleScript double-quoted strings */
+function escAS(str: string): string {
+  return str
+    .replace(/\\/g, "\\\\")
+    .replace(/"/g, '\\"')
+    .replace(/\n/g, "\\n")
+    .replace(/\r/g, "\\r")
+    .replace(/\t/g, "\\t");
+}
+
 export function listChatsScript(limit: number): string {
   return `
     const Messages = Application('Messages');
@@ -107,31 +117,34 @@ export function sendMessageScript(
   target: string,
   text: string,
 ): string {
-  return `
-    const Messages = Application('Messages');
-    const service = Messages.services().find(s => s.serviceType() === 'iMessage') || Messages.services()[0];
-    if (!service) throw new Error('No messaging service available');
-    const buddy = service.buddies.whose({handle: '${esc(target)}'})();
-    if (buddy.length === 0) throw new Error('Buddy not found for handle: ${esc(target)}');
-    Messages.send('${esc(text)}', {to: buddy[0]});
-    JSON.stringify({sent: true, to: '${esc(target)}', text: '${esc(text)}'.substring(0, 100)});
-  `;
+  // macOS 26: JXA services() throws -1708; use AppleScript fallback.
+  // Prefixed with "applescript:" so tool handler runs via osascript -e.
+  const t = escAS(target);
+  const m = escAS(text);
+  const jsonTarget = target.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  const jsonText = text.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\n").replace(/\r/g, "\\r").substring(0, 80);
+  return `applescript:tell application "Messages"
+set targetService to 1st service whose service type = iMessage
+set targetBuddy to buddy "${t}" of targetService
+send "${m}" to targetBuddy
+end tell
+return "{\\"sent\\":true,\\"to\\":\\"${jsonTarget}\\",\\"text\\":\\"${jsonText}\\"}"`;
 }
 
 export function sendFileScript(
   target: string,
   filePath: string,
 ): string {
-  return `
-    const Messages = Application('Messages');
-    const service = Messages.services().find(s => s.serviceType() === 'iMessage') || Messages.services()[0];
-    if (!service) throw new Error('No messaging service available');
-    const buddy = service.buddies.whose({handle: '${esc(target)}'})();
-    if (buddy.length === 0) throw new Error('Buddy not found for handle: ${esc(target)}');
-    const file = Path('${esc(filePath)}');
-    Messages.send(file, {to: buddy[0]});
-    JSON.stringify({sent: true, to: '${esc(target)}', file: '${esc(filePath)}'});
-  `;
+  const t = escAS(target);
+  const p = escAS(filePath);
+  const jsonTarget = target.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  const jsonPath = filePath.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  return `applescript:tell application "Messages"
+set targetService to 1st service whose service type = iMessage
+set targetBuddy to buddy "${t}" of targetService
+send POSIX file "${p}" to targetBuddy
+end tell
+return "{\\"sent\\":true,\\"to\\":\\"${jsonTarget}\\",\\"file\\":\\"${jsonPath}\\"}"`;
 }
 
 export function listParticipantsScript(chatId: string): string {

@@ -32,16 +32,18 @@ describe('messages script generators', () => {
 
   test('sendMessageScript', () => {
     const script = sendMessageScript('+821012345678', 'Hello');
-    expect(script).toContain("handle: '+821012345678'");
-    expect(script).toContain("'Hello'");
-    expect(script).toContain('Messages.send');
+    expect(script).toContain('+821012345678');
+    expect(script).toContain('Hello');
+    expect(script).toContain('send');
+    expect(script).toContain('buddy');
   });
 
   test('sendFileScript', () => {
     const script = sendFileScript('+821012345678', '/tmp/test.png');
-    expect(script).toContain("handle: '+821012345678'");
-    expect(script).toContain("Path('/tmp/test.png')");
-    expect(script).toContain('Messages.send');
+    expect(script).toContain('+821012345678');
+    expect(script).toContain('/tmp/test.png');
+    expect(script).toContain('send');
+    expect(script).toContain('POSIX file');
   });
 
   test('listParticipantsScript', () => {
@@ -58,9 +60,9 @@ describe('messages esc() injection prevention', () => {
     expect(script).toContain("test\\'inject");
   });
 
-  test('escapes single quotes in message text', () => {
-    const script = sendMessageScript('+8210', "it's a test");
-    expect(script).toContain("it\\'s a test");
+  test('escapes quotes in message text', () => {
+    const script = sendMessageScript('+8210', 'say "hello"');
+    expect(script).toContain('say \\"hello\\"');
   });
 
   test('escapes single quotes in search query', () => {

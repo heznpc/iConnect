@@ -573,7 +573,7 @@ const ORCHESTRATION = [
       {
         label: "Set brightness to 0.6",
         tool: "set_brightness",
-        args: { brightness: 0.6 },
+        args: { level: 0.6 },
       },
       {
         label: "Show notification",
@@ -589,7 +589,7 @@ const ORCHESTRATION = [
       {
         label: "Restore brightness",
         tool: "set_brightness",
-        args: (ctx) => ({ brightness: ctx.origBright ?? 0.5 }),
+        args: (ctx) => ({ level: ctx.origBright ?? 0.5 }),
         cleanup: true,
       },
     ],
