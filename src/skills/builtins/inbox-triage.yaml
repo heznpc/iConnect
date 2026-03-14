@@ -1,0 +1,15 @@
+name: inbox-triage
+title: "Inbox Triage"
+description: "Check unread mail count and list recent messages for triage."
+expose_as: tool
+
+steps:
+  - id: count
+    tool: get_unread_count
+  - id: messages
+    tool: list_messages
+    only_if: "{{count.unread}}"
+    args:
+      mailbox: "INBOX"
+      limit: 15
+      offset: 0

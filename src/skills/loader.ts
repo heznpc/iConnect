@@ -1,0 +1,80 @@
+import { readFileSync, readdirSync, mkdirSync, watch, type FSWatcher } from "node:fs";
+import { join } from "node:path";
+import { parse } from "yaml";
+import { SkillDefinitionSchema, type SkillDefinition } from "./types.js";
+
+const USER_SKILLS_DIR = join(
+  process.env.HOME ?? process.env.USERPROFILE ?? "",
+  ".config",
+  "airmcp",
+  "skills",
+);
+
+export function loadSkillFile(path: string): SkillDefinition | null {
+  try {
+    const raw = readFileSync(path, "utf-8");
+    const parsed = parse(raw);
+    const result = SkillDefinitionSchema.safeParse(parsed);
+    if (!result.success) {
+      console.error(`[AirMCP] Invalid skill ${path}: ${result.error.issues.map((i) => i.message).join(", ")}`);
+      return null;
+    }
+    return result.data;
+  } catch (e) {
+    console.error(`[AirMCP] Failed to load skill ${path}: ${e instanceof Error ? e.message : String(e)}`);
+    return null;
+  }
+}
+
+function scanDirectory(dir: string): SkillDefinition[] {
+  try {
+    const files = readdirSync(dir).filter((f) => f.endsWith(".yaml") || f.endsWith(".yml"));
+    const skills: SkillDefinition[] = [];
+    for (const file of files) {
+      const skill = loadSkillFile(join(dir, file));
+      if (skill) skills.push(skill);
+    }
+    return skills;
+  } catch {
+    return []; // directory doesn't exist or unreadable
+  }
+}
+
+/** Cache for built-in skills — loaded once per process. */
+let builtinsCache: SkillDefinition[] | null = null;
+
+export function loadAllSkills(builtinsDir: string): { builtins: SkillDefinition[]; user: SkillDefinition[] } {
+  if (!builtinsCache) {
+    builtinsCache = scanDirectory(builtinsDir);
+  }
+  const user = scanDirectory(USER_SKILLS_DIR);
+  return { builtins: builtinsCache, user };
+}
+
+export function mergeSkills(builtins: SkillDefinition[], user: SkillDefinition[]): SkillDefinition[] {
+  const map = new Map<string, SkillDefinition>();
+  for (const s of builtins) map.set(s.name, s);
+  for (const s of user) map.set(s.name, s); // user overrides builtin
+  return [...map.values()];
+}
+
+/** Ensure the user skills directory exists (called once per process). */
+let dirEnsured = false;
+function ensureUserDir(): void {
+  if (dirEnsured) return;
+  mkdirSync(USER_SKILLS_DIR, { recursive: true });
+  dirEnsured = true;
+}
+
+export function watchUserSkills(callback: () => void): FSWatcher {
+  ensureUserDir();
+
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  return watch(USER_SKILLS_DIR, () => {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => {
+      timer = null;
+      callback();
+    }, 500);
+  });
+}

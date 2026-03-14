@@ -1,0 +1,18 @@
+name: meeting-action-items
+title: "Meeting Action Items"
+description: "Get today's events and recent notes to extract action items and create reminders."
+expose_as: prompt
+
+steps:
+  - id: events
+    tool: today_events
+  - id: notes
+    tool: scan_notes
+    args:
+      limit: 20
+      previewLength: 200
+  - id: reminders
+    tool: list_reminders
+    args:
+      completed: false
+      limit: 20

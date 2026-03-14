@@ -25,6 +25,7 @@ import { registerCrossTools } from "./cross/tools.js";
 import { registerSemanticTools } from "./semantic/tools.js";
 import { registerResources } from "./shared/resources.js";
 import { registerSetupTools } from "./shared/setup.js";
+import { registerSkillEngine } from "./skills/index.js";
 import { parseConfig, isModuleEnabled, getOsVersion, NPM_PACKAGE_NAME } from "./shared/config.js";
 import { MODULE_REGISTRY } from "./shared/modules.js";
 import { registerDynamicShortcutTools } from "./shortcuts/tools.js";
@@ -115,6 +116,9 @@ async function createServer(): Promise<McpServer> {
 
   // Setup & diagnostics
   registerSetupTools(server, config);
+
+  // Personal Skills Engine (YAML-based workflows)
+  await registerSkillEngine(server);
 
   // get_workflow: expose prompt handlers as a tool for autonomous agents (Cowork, etc.)
   server.registerTool(

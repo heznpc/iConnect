@@ -1,6 +1,6 @@
 {
   "name": "airmcp",
-  "version": "1.6.1",
+  "version": "1.7.0",
   "description": "MCP server for the entire Apple ecosystem — Notes, Reminders, Calendar, Contacts, Mail, Messages, Music, Finder, Safari, System, Photos, Shortcuts, Apple Intelligence, TV, Screen Capture, Maps, and Podcasts. Connect any AI to your Mac.",
   "keywords": [
     "mcp",
@@ -60,7 +60,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && cp -r src/skills/builtins dist/skills/",
     "swift-build": "cd swift && swift build -c release",
     "app-build": "cd app && swift build -c release",
     "clean": "rm -rf dist",
@@ -78,6 +78,7 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.27.1",
     "express": "^5.2.1",
+    "yaml": "^2.8.2",
     "zod": "^3.24.0"
   },
   "devDependencies": {

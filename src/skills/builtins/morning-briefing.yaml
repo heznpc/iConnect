@@ -1,0 +1,15 @@
+name: morning-briefing
+title: "Morning Briefing"
+description: "Today's schedule, unread mail count, and due reminders — your daily overview."
+expose_as: prompt
+
+steps:
+  - id: events
+    tool: today_events
+  - id: mail
+    tool: get_unread_count
+  - id: reminders
+    tool: list_reminders
+    args:
+      completed: false
+      limit: 10
