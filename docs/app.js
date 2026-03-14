@@ -8,7 +8,7 @@ function setTheme(t) {
   themeIcon.textContent = t === 'dark' ? '\u2600' : '\u263E';
   localStorage.setItem(THEME_KEY, t);
 }
-setTheme(localStorage.getItem(THEME_KEY) || 'dark');
+setTheme(localStorage.getItem(THEME_KEY) || 'light');
 themeToggle.addEventListener('click', () => {
   setTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
 });
