@@ -30,8 +30,55 @@ function shouldRequireApproval(
 }
 
 /**
+ * Try MCP Elicitation (form mode) for approval. Returns undefined if
+ * the client does not support elicitation, letting the caller fall back.
+ */
+async function tryElicitApproval(
+  server: McpServer,
+  toolName: string,
+  toolArgs: Record<string, unknown>,
+  destructive: boolean,
+): Promise<boolean | undefined> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const inner = (server as any).server;
+    if (!inner?.elicitInput) return undefined;
+
+    const label = destructive ? `⚠️ Destructive: ${toolName}` : `Approve: ${toolName}`;
+    const argsSummary = JSON.stringify(toolArgs, null, 2).slice(0, 500);
+
+    const result = await inner.elicitInput({
+      message: `${label}\n\nArguments:\n${argsSummary}`,
+      requestedSchema: {
+        type: "object",
+        properties: {
+          approve: {
+            type: "boolean",
+            title: `Allow "${toolName}" to execute?`,
+            default: false,
+          },
+        },
+        required: ["approve"],
+      },
+    });
+
+    if (result.action === "accept" && result.content?.approve === true) {
+      return true;
+    }
+    return false;
+  } catch {
+    // Client doesn't support elicitation — return undefined to signal fallback
+    return undefined;
+  }
+}
+
+/**
  * Monkey-patches server.registerTool so every subsequent registration
  * goes through HITL approval when the policy requires it.
+ *
+ * Approval priority:
+ * 1. MCP Elicitation (form mode) — works with any MCP client that supports it
+ * 2. Socket-based HITL — fallback for clients without elicitation support
  */
 export function installHitlGuard(
   server: McpServer,
@@ -53,10 +100,22 @@ export function installHitlGuard(
 
     const wrapped = async (...args: unknown[]) => {
       const toolArgs = (args[0] ?? {}) as Record<string, unknown>;
+      const destructive = annotations.destructiveHint ?? false;
+
+      // Try MCP Elicitation first (protocol-native, works everywhere)
+      const elicitResult = await tryElicitApproval(server, name, toolArgs, destructive);
+      if (elicitResult !== undefined) {
+        if (!elicitResult) {
+          return err(`Action denied: "${name}" was rejected via MCP elicitation.`);
+        }
+        return (callback as (...a: unknown[]) => unknown)(...args);
+      }
+
+      // Fallback: socket-based HITL
       const approved = await hitlClient.requestApproval(
         name,
         toolArgs,
-        annotations.destructiveHint ?? false,
+        destructive,
         annotations.openWorldHint ?? false,
       );
       if (!approved) {

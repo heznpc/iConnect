@@ -640,6 +640,27 @@ Modules with OS requirements (e.g., Intelligence requires macOS 26+) are automat
 - Requires macOS 26 (Tahoe) + Apple Silicon.
 - Build bridge binary with `npm run swift-build`.
 
+## Roadmap
+
+### v1.6.0 (Current)
+
+- **Progress notifications** — `record_screen`, `semantic_index` report real-time progress via `notifications/progress`
+- **MCP Elicitation** — Protocol-native user confirmation (form mode), falls back to socket HITL for older clients
+- **Server Card** — `GET /.well-known/mcp.json` discovery endpoint for Claude, VS Code Copilot, etc.
+- **Mail pagination** — `list_messages` now supports `offset` parameter, response matches `{total, offset, returned}` pattern
+- **Swift stdin validation** — MAX_STDIN_SIZE (50MB) guard on bridge input
+
+### v1.7 (Planned)
+
+- **OAuth 2.1 + PKCE** — HTTP transport authentication for remote deployments
+- **Async Tasks** — Long-running operations return handles with progress streaming
+- **MCP Registry** — Official registry.modelcontextprotocol.io submission
+
+### Future
+
+- GUI .app distribution (Code Signing + Notarization, Homebrew Cask)
+- iOS / visionOS exploration (v2.0+)
+
 ## License
 
 MIT

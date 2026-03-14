@@ -47,12 +47,13 @@ export function registerMailTools(server: McpServer, config: AirMcpConfig): void
         mailbox: z.string().describe("Mailbox name (e.g. 'INBOX', 'Sent Messages')"),
         account: z.string().optional().describe("Account name. Defaults to first account."),
         limit: z.number().int().min(1).max(200).optional().default(50).describe("Max messages (default: 50)"),
+        offset: z.number().int().min(0).optional().default(0).describe("Pagination offset (default: 0)"),
       },
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
-    async ({ mailbox, account, limit }) => {
+    async ({ mailbox, account, limit, offset }) => {
       try {
-        return ok(await runJxa(listMessagesScript(mailbox, limit, account)));
+        return ok(await runJxa(listMessagesScript(mailbox, limit, offset, account)));
       } catch (e) {
         return err(`Failed to list messages: ${e instanceof Error ? e.message : String(e)}`);
       }

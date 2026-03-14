@@ -18,13 +18,14 @@ describe('mail script generators', () => {
   });
 
   test('listMessagesScript with mailbox', () => {
-    const script = listMessagesScript('INBOX', 50);
+    const script = listMessagesScript('INBOX', 50, 0);
     expect(script).toContain("whose({name: 'INBOX'})");
     expect(script).toContain('50');
+    expect(script).toContain('offset: start');
   });
 
   test('listMessagesScript with account', () => {
-    const script = listMessagesScript('INBOX', 50, 'Work');
+    const script = listMessagesScript('INBOX', 50, 0, 'Work');
     expect(script).toContain("whose({name: 'Work'})");
     expect(script).toContain("whose({name: 'INBOX'})");
   });
@@ -127,7 +128,7 @@ describe('replyMailScript', () => {
 
 describe('mail esc() injection prevention', () => {
   test('escapes single quotes in mailbox name', () => {
-    const script = listMessagesScript("it's a box", 10);
+    const script = listMessagesScript("it's a box", 10, 0);
     expect(script).toContain("it\\'s a box");
   });
 

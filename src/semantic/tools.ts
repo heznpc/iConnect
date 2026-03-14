@@ -30,9 +30,19 @@ export function registerSemanticTools(server: McpServer, config: AirMcpConfig): 
       },
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
-    async ({ sources }) => {
+    async ({ sources }, extra) => {
       try {
-        const { indexed, errors, store } = await service.index(sources);
+        const progressToken = extra._meta?.progressToken;
+        const onProgress = progressToken !== undefined
+          ? async (progress: number, total: number, message: string) => {
+              await extra.sendNotification({
+                method: "notifications/progress",
+                params: { progressToken, progress, total, message },
+              });
+            }
+          : undefined;
+
+        const { indexed, errors, store } = await service.index(sources, onProgress);
         if (indexed === 0) {
           return err(`No items to index.${errors.length > 0 ? " Errors: " + errors.join("; ") : ""}`);
         }

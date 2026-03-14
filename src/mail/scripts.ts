@@ -25,6 +25,7 @@ export function listMailboxesScript(): string {
 export function listMessagesScript(
   mailbox: string,
   limit: number,
+  offset: number,
   account?: string,
 ): string {
   const acctFilter = account
@@ -37,9 +38,10 @@ export function listMessagesScript(
     if (boxes.length === 0) throw new Error('Mailbox not found: ${esc(mailbox)}');
     const box = boxes[0];
     const msgs = box.messages();
-    const count = Math.min(msgs.length, ${limit});
+    const start = Math.min(${offset}, msgs.length);
+    const count = Math.min(msgs.length - start, ${limit});
     const result = [];
-    for (let i = 0; i < count; i++) {
+    for (let i = start; i < start + count; i++) {
       const m = msgs[i];
       result.push({
         id: m.id(),
@@ -50,7 +52,7 @@ export function listMessagesScript(
         flagged: m.flaggedStatus()
       });
     }
-    JSON.stringify({total: msgs.length, returned: count, messages: result});
+    JSON.stringify({total: msgs.length, offset: start, returned: count, messages: result});
   `;
 }
 

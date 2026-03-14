@@ -171,7 +171,10 @@ export class SemanticSearchService {
    * Serialises concurrent calls -- if indexing is already running, the
    * second caller awaits the same promise instead of starting a duplicate.
    */
-  async index(sources?: string[]): Promise<{ indexed: number; errors: string[]; store: Awaited<ReturnType<VectorStore["getStats"]>> }> {
+  async index(
+    sources?: string[],
+    onProgress?: (progress: number, total: number, message: string) => Promise<void>,
+  ): Promise<{ indexed: number; errors: string[]; store: Awaited<ReturnType<VectorStore["getStats"]>> }> {
     if (!(await this.isEmbeddingAvailable())) {
       throw new Error("No embedding backend available. Set GEMINI_API_KEY or run 'npm run swift-build'.");
     }
@@ -180,7 +183,7 @@ export class SemanticSearchService {
       ? (mod: string) => sources.includes(mod) && this.isModuleEnabled(mod)
       : (mod: string) => this.isModuleEnabled(mod);
 
-    const { indexed, errors } = await this.runIndex(enabledFilter);
+    const { indexed, errors } = await this.runIndex(enabledFilter, onProgress);
     const stats = await this.store.getStats();
     return { indexed, errors, store: stats };
   }
@@ -284,17 +287,26 @@ export class SemanticSearchService {
     await this.indexing;
   }
 
-  private async runIndex(enabled: (mod: string) => boolean): Promise<{ indexed: number; errors: string[] }> {
+  private async runIndex(
+    enabled: (mod: string) => boolean,
+    onProgress?: (progress: number, total: number, message: string) => Promise<void>,
+  ): Promise<{ indexed: number; errors: string[] }> {
     const sources = ["notes", "calendar", "reminders", "mail"].filter((m) => enabled(m));
     const entries: VectorEntry[] = [];
     const errors: string[] = [];
+    const totalSteps = sources.length + 1; // +1 for embedding step
+    let step = 0;
 
     for (const source of sources) {
       try {
         const items = await collectItems(source);
         entries.push(...items);
+        step++;
+        if (onProgress) await onProgress(step, totalSteps, `Collected ${source}: ${items.length} items`);
       } catch (e) {
         errors.push(`${source}: ${e instanceof Error ? e.message : String(e)}`);
+        step++;
+        if (onProgress) await onProgress(step, totalSteps, `Failed to collect ${source}`);
       }
     }
 
@@ -306,6 +318,7 @@ export class SemanticSearchService {
         entries[i].vector = vectors[i];
       }
       await this.store.upsertEntries(entries);
+      if (onProgress) await onProgress(totalSteps, totalSteps, `Indexed ${entries.length} items`);
     }
 
     return { indexed: entries.length, errors };

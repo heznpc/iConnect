@@ -182,9 +182,26 @@ export function registerScreenTools(server: McpServer, _config: AirMcpConfig): v
         openWorldHint: true,
       },
     },
-    async ({ duration, display }) => {
+    async ({ duration, display }, extra) => {
       try {
-        const result = await runJxa<{ path: string; duration: number }>(recordScreenScript(duration, display));
+        const progressToken = extra._meta?.progressToken;
+        const recordPromise = runJxa<{ path: string; duration: number }>(recordScreenScript(duration, display));
+
+        // Send progress updates while recording
+        if (progressToken !== undefined) {
+          const start = Date.now();
+          const timer = setInterval(async () => {
+            const elapsed = Math.min(Math.round((Date.now() - start) / 1000), duration);
+            await extra.sendNotification({
+              method: "notifications/progress",
+              params: { progressToken, progress: elapsed, total: duration, message: `Recording: ${elapsed}/${duration}s` },
+            });
+            if (elapsed >= duration) clearInterval(timer);
+          }, 500);
+          recordPromise.finally(() => clearInterval(timer));
+        }
+
+        const result = await recordPromise;
         const { size } = await stat(result.path);
         if (size > MAX_CAPTURE_SIZE) {
           try { await unlink(result.path); } catch { /* ignore */ }

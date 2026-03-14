@@ -69,10 +69,16 @@ struct AiStatusOutput: Encodable {
     let foundationModelsSupported: Bool
 }
 
+let MAX_STDIN_SIZE = 50 * 1024 * 1024 // 50 MB
+
 func readStdin() -> Data {
     var data = Data()
     while let line = readLine(strippingNewline: false) {
         data.append(Data(line.utf8))
+        if data.count > MAX_STDIN_SIZE {
+            writeError("stdin too large (>\(MAX_STDIN_SIZE / 1024 / 1024)MB)")
+            exit(1)
+        }
     }
     return data
 }

@@ -185,6 +185,21 @@ async function main() {
 
     process.on("exit", () => clearInterval(cleanupInterval));
 
+    // MCP Server Card — discovery endpoint for Claude, VS Code Copilot, etc.
+    app.get("/.well-known/mcp.json", (_req, res) => {
+      res.json({
+        name: NPM_PACKAGE_NAME,
+        version: pkg.version,
+        description: "MCP server for the entire Apple ecosystem — 173 tools, 29 prompts across 18 modules. macOS only.",
+        transport: { type: "streamable-http", url: "/mcp" },
+        capabilities: {
+          tools: true,
+          prompts: true,
+          resources: true,
+        },
+      });
+    });
+
     app.post("/mcp", async (req, res) => {
       try {
         const sessionId = req.headers["mcp-session-id"] as string | undefined;
