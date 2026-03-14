@@ -34,7 +34,7 @@ describe('safari script generators', () => {
   test('openUrlScript sets document URL', () => {
     const script = openUrlScript('https://example.com');
     expect(script).toContain('https://example.com');
-    expect(script).toContain('openLocation');
+    expect(script).toContain('Safari.Tab');
     expect(script).toContain('activate()');
   });
 });
