@@ -48,8 +48,8 @@ function clearConfigEnv() {
 /* ================================================================== */
 
 describe('MODULE_NAMES', () => {
-  test('contains exactly 15 modules', () => {
-    expect(MODULE_NAMES).toHaveLength(15);
+  test('contains exactly 17 modules', () => {
+    expect(MODULE_NAMES).toHaveLength(17);
   });
 
   test('includes the "tv" module', () => {
@@ -61,6 +61,7 @@ describe('MODULE_NAMES', () => {
       'notes', 'reminders', 'calendar', 'contacts', 'mail',
       'messages', 'music', 'finder', 'safari', 'system',
       'photos', 'shortcuts', 'intelligence', 'tv', 'ui',
+      'screen', 'maps',
     ];
     for (const name of expected) {
       expect(MODULE_NAMES).toContain(name);

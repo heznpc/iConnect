@@ -1,5 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { runJxa } from "../shared/jxa.js";
 import type { IConnectConfig } from "../shared/config.js";
 import { ok, toolError } from "../shared/result.js";
@@ -15,6 +17,24 @@ import {
   duplicateShortcutScript,
   editShortcutScript,
 } from "./scripts.js";
+
+const execFileAsync = promisify(execFile);
+
+const MAX_DYNAMIC_SHORTCUTS = 50;
+
+/**
+ * Sanitize a shortcut name into a valid MCP tool name.
+ * MCP tool names must be alphanumeric + underscores, no spaces.
+ * Returns empty string if the name sanitizes to nothing meaningful.
+ */
+export function sanitizeToolName(name: string): string {
+  const sanitized = name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_|_$/g, "");
+  if (!sanitized) return "";
+  return `shortcut_${sanitized}`;
+}
 
 export function registerShortcutsTools(server: McpServer, _config: IConnectConfig): void {
   server.registerTool("list_shortcuts", {
@@ -137,4 +157,60 @@ export function registerShortcutsTools(server: McpServer, _config: IConnectConfi
     try { return ok(await runJxa(editShortcutScript(name))); }
     catch (e) { return toolError("open shortcut for editing", e); }
   });
+}
+
+/**
+ * Discover user's Siri Shortcuts at startup and register each as an individual MCP tool.
+ * Returns the number of dynamic tools registered. Gracefully returns 0 on failure.
+ */
+export async function registerDynamicShortcutTools(server: McpServer): Promise<number> {
+  let output: string;
+  try {
+    const result = await execFileAsync("shortcuts", ["list"], { timeout: 10_000 });
+    output = result.stdout;
+  } catch (e) {
+    console.error(`[iConnect] Failed to list shortcuts for dynamic registration: ${e instanceof Error ? e.message : String(e)}`);
+    return 0;
+  }
+
+  const names = output.split("\n").filter((n) => n.trim().length > 0);
+  if (names.length === 0) return 0;
+
+  if (names.length > MAX_DYNAMIC_SHORTCUTS) {
+    console.error(`[iConnect] Found ${names.length} shortcuts, registering first ${MAX_DYNAMIC_SHORTCUTS} (limit reached)`);
+  }
+
+  const toRegister = names.slice(0, MAX_DYNAMIC_SHORTCUTS);
+  const seen = new Set<string>();
+  let count = 0;
+
+  for (const name of toRegister) {
+    const toolName = sanitizeToolName(name);
+    if (!toolName) {
+      console.error(`[iConnect] Skipping shortcut with unsanitizable name: "${name}"`);
+      continue;
+    }
+    if (seen.has(toolName)) {
+      console.error(`[iConnect] Skipping duplicate tool name: ${toolName} (from "${name}")`);
+      continue;
+    }
+    seen.add(toolName);
+
+    server.registerTool(toolName, {
+      title: `Run: ${name}`,
+      description: `Run the "${name}" Siri Shortcut. Optionally provide text input.`,
+      inputSchema: {
+        input: z.string().optional().describe("Optional text input for the shortcut"),
+      },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
+    }, async ({ input }) => {
+      try { return ok(await runJxa(runShortcutScript(name, input))); }
+      catch (e) { return toolError(`run shortcut "${name}"`, e); }
+    });
+
+    console.error(`[iConnect] Registered dynamic shortcut: ${name}`);
+    count++;
+  }
+
+  return count;
 }

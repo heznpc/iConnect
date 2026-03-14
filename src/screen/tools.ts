@@ -1,0 +1,150 @@
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { z } from "zod";
+import { readFile, unlink } from "node:fs/promises";
+import { runJxa } from "../shared/jxa.js";
+import type { IConnectConfig } from "../shared/config.js";
+import { toolError } from "../shared/result.js";
+import {
+  captureScreenScript,
+  captureWindowScript,
+  captureAreaScript,
+  listWindowsScript,
+} from "./scripts.js";
+
+/**
+ * Run a JXA capture script that returns { path: string },
+ * read the resulting PNG as base64, clean up the temp file,
+ * and return MCP image content.
+ */
+async function captureAndReturn(script: string) {
+  const result = await runJxa<{ path: string }>(script);
+  const filePath = result.path;
+  try {
+    const buffer = await readFile(filePath);
+    const base64 = buffer.toString("base64");
+    return {
+      content: [{ type: "image" as const, data: base64, mimeType: "image/png" }],
+    };
+  } finally {
+    try {
+      await unlink(filePath);
+    } catch {
+      // Ignore cleanup errors
+    }
+  }
+}
+
+export function registerScreenTools(server: McpServer, _config: IConnectConfig): void {
+  server.registerTool(
+    "capture_screen",
+    {
+      title: "Capture Screen",
+      description:
+        "Capture a full-screen screenshot as a PNG image. Optionally specify a display number for multi-monitor setups (1 = main display). Requires Screen Recording permission.",
+      inputSchema: {
+        display: z
+          .number()
+          .int()
+          .min(1)
+          .optional()
+          .describe("Display number for multi-monitor setups (1 = main display). Omit for default display."),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async ({ display }) => {
+      try {
+        return await captureAndReturn(captureScreenScript(display));
+      } catch (e) {
+        return toolError("capture screen", e);
+      }
+    },
+  );
+
+  server.registerTool(
+    "capture_window",
+    {
+      title: "Capture Window",
+      description:
+        "Capture a screenshot of the frontmost window. Optionally specify an app name to activate that app first and capture its window. Requires Screen Recording permission.",
+      inputSchema: {
+        appName: z
+          .string()
+          .min(1)
+          .optional()
+          .describe("Application name to activate before capture (e.g. 'Safari', 'Xcode'). If omitted, captures the frontmost window."),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async ({ appName }) => {
+      try {
+        return await captureAndReturn(captureWindowScript(appName));
+      } catch (e) {
+        return toolError("capture window", e);
+      }
+    },
+  );
+
+  server.registerTool(
+    "capture_area",
+    {
+      title: "Capture Screen Area",
+      description:
+        "Capture a screenshot of a specific rectangular region of the screen. Coordinates are in screen pixels with origin at top-left. Requires Screen Recording permission.",
+      inputSchema: {
+        x: z.number().describe("X coordinate of the top-left corner of the capture region"),
+        y: z.number().describe("Y coordinate of the top-left corner of the capture region"),
+        width: z.number().min(1).describe("Width of the capture region in pixels"),
+        height: z.number().min(1).describe("Height of the capture region in pixels"),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async ({ x, y, width, height }) => {
+      try {
+        return await captureAndReturn(captureAreaScript(x, y, width, height));
+      } catch (e) {
+        return toolError("capture area", e);
+      }
+    },
+  );
+
+  server.registerTool(
+    "list_windows",
+    {
+      title: "List Windows",
+      description:
+        "List all visible windows across all running applications. Returns JSON with each window's app name, bundle ID, title, position, and size. Requires Accessibility permissions.",
+      inputSchema: {},
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async () => {
+      try {
+        const windows = await runJxa(listWindowsScript());
+        return {
+          content: [{ type: "text" as const, text: JSON.stringify(windows, null, 2) }],
+        };
+      } catch (e) {
+        return toolError("list windows", e);
+      }
+    },
+  );
+}

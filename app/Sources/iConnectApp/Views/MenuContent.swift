@@ -61,6 +61,10 @@ private let allModules: [ModuleInfo] = [
                description: "AI summarize, rewrite, generate (macOS 26+)", toolCount: 8, minMacosVersion: 26),
     ModuleInfo(id: "tv", name: "TV", icon: "tv",
                description: "Playback, library, search", toolCount: 6),
+    ModuleInfo(id: "screen", name: "Screen", icon: "camera.viewfinder",
+               description: "Screenshot capture, window list", toolCount: 4),
+    ModuleInfo(id: "maps", name: "Maps", icon: "map",
+               description: "Search, directions, pins", toolCount: 6),
 ]
 
 // MARK: - Shared Constants

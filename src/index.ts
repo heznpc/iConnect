@@ -27,6 +27,7 @@ import { registerResources } from "./shared/resources.js";
 import { registerSetupTools } from "./shared/setup.js";
 import { parseConfig, isModuleEnabled, getOsVersion, NPM_PACKAGE_NAME } from "./shared/config.js";
 import { MODULE_REGISTRY } from "./shared/modules.js";
+import { registerDynamicShortcutTools } from "./shortcuts/tools.js";
 import { HitlClient } from "./shared/hitl.js";
 import { installHitlGuard } from "./shared/hitl-guard.js";
 import { setShareGuardHitlClient } from "./shared/share-guard.js";
@@ -59,7 +60,7 @@ process.on("exit", onExit);
 process.on("SIGINT", () => { onExit(); process.exit(0); });
 process.on("SIGTERM", () => { onExit(); process.exit(0); });
 
-function createServer(): McpServer {
+async function createServer(): Promise<McpServer> {
   const server = new McpServer({
     name: NPM_PACKAGE_NAME,
     version: pkg.version,
@@ -73,6 +74,7 @@ function createServer(): McpServer {
   const enabled: string[] = [];
   const disabled: string[] = [];
   const osBlocked: string[] = [];
+  let shortcutsEnabled = false;
   for (const mod of MODULE_REGISTRY) {
     if (mod.minMacosVersion && osVersion > 0 && osVersion < mod.minMacosVersion) {
       osBlocked.push(`${mod.name} (requires macOS ${mod.minMacosVersion}+)`);
@@ -80,6 +82,7 @@ function createServer(): McpServer {
       mod.tools(server, config);
       mod.prompts?.(server);
       enabled.push(mod.name);
+      if (mod.name === "shortcuts") shortcutsEnabled = true;
     } else {
       disabled.push(mod.name);
     }
@@ -91,6 +94,14 @@ function createServer(): McpServer {
     console.error(`iConnect modules disabled: ${disabled.join(", ")}`);
   }
   console.error(`iConnect modules enabled: ${enabled.join(", ")}`);
+
+  // Dynamic shortcut tools: auto-discover and register individual shortcuts
+  if (shortcutsEnabled) {
+    const dynamicCount = await registerDynamicShortcutTools(server);
+    if (dynamicCount > 0) {
+      console.error(`[iConnect] ${dynamicCount} dynamic shortcut tools registered`);
+    }
+  }
 
   // Cross-module workflows
   registerCrossPrompts(server);
@@ -204,7 +215,7 @@ async function main() {
           },
         });
 
-        const server = createServer();
+        const server = await createServer();
         await server.connect(transport);
         await transport.handleRequest(req, res, req.body);
       } catch (err) {
@@ -251,7 +262,7 @@ async function main() {
       console.error(`iConnect server running on http://localhost:${port}/mcp (shared notes: ${config.includeShared ? "on" : "off"}, send messages: ${config.allowSendMessages ? "on" : "off"}, send mail: ${config.allowSendMail ? "on" : "off"})`);
     });
   } else {
-    const server = createServer();
+    const server = await createServer();
     const transport = new StdioServerTransport();
     await server.connect(transport);
     console.error(`iConnect server running on stdio (shared notes: ${config.includeShared ? "on" : "off"}, send messages: ${config.allowSendMessages ? "on" : "off"}, send mail: ${config.allowSendMail ? "on" : "off"})`);
