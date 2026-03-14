@@ -7,8 +7,8 @@ MCP server for the entire Apple ecosystem — Notes, Reminders, Calendar, Contac
 ## Features
 
 - **226 tools** (24 modules) — Apple app CRUD + system control + Apple Intelligence + UI Automation + Screen Capture + Maps + Podcasts + Weather + iWork (Pages/Numbers/Keynote) + dynamic shortcuts
-- **30 prompts** — per-app workflows (notes, calendar, reminders, shortcuts) + cross-module + developer workflows
-- **11 MCP resources** — Notes, Calendar, Reminders live data URIs
+- **31 prompts** — per-app workflows (notes, calendar, reminders, shortcuts) + cross-module + developer workflows + YAML skills
+- **12 MCP resources** — Notes, Calendar, Reminders, Music, Mail, System live data URIs
 - **JXA + Swift bridge** — JXA for basic automation, EventKit/PhotoKit for advanced features
 - **Recurring events/reminders** — EventKit recurrence rules (macOS 26+ Swift bridge)
 - **Photo import/delete** — PhotoKit photo management (macOS 26+ Swift bridge)
@@ -232,7 +232,7 @@ Useful for running a Mac Mini as an "always-on AI hub."
 | `send_mail` | Compose and send an email | write |
 | `reply_mail` | Reply to an email message | write |
 
-### Music (13 tools)
+### Music (17 tools)
 
 | Tool | Description | Type |
 |------|-------------|------|
@@ -249,6 +249,10 @@ Useful for running a Mac Mini as an "always-on AI hub."
 | `add_to_playlist` | Add a track to a playlist | write |
 | `remove_from_playlist` | Remove a track from a playlist | destructive |
 | `delete_playlist` | Delete an existing playlist | destructive |
+| `get_rating` | Get rating, favorited, and disliked status | read |
+| `set_rating` | Set star rating (0-100) for a track | write |
+| `set_favorited` | Mark or unmark a track as favorited | write |
+| `set_disliked` | Mark or unmark a track as disliked | write |
 
 ### Finder (8 tools)
 
@@ -427,9 +431,9 @@ Requires macOS 26+ with Apple Silicon.
 
 | Tool | Description | Type |
 |------|-------------|------|
-| `get_weather` | Get current weather for a location | read |
-| `get_forecast` | Get multi-day forecast for a location | read |
-| `get_weather_alerts` | Get active weather alerts for a location | read |
+| `get_current_weather` | Get current weather by coordinates | read |
+| `get_daily_forecast` | Get multi-day forecast by coordinates | read |
+| `get_hourly_forecast` | Get hourly forecast by coordinates | read |
 
 ### Location (2 tools)
 
@@ -680,10 +684,18 @@ Modules with OS requirements (e.g., Intelligence requires macOS 26+) are automat
 
 ### Safari
 - Reading page content requires "Allow JavaScript from Apple Events" in Safari Developer menu.
+- **macOS 26+:** Bookmark and Reading List tools (`list_bookmarks`, `list_reading_list`, `add_bookmark`) use `Bookmarks.plist` instead of JXA (Apple removed bookmark scripting). Requires **Full Disk Access** for your terminal in System Settings > Privacy & Security. `add_bookmark` is not supported on macOS 26+.
+
+### Podcasts
+- **macOS 26+:** All Podcasts tools are non-functional. Apple removed the Podcasts scripting dictionary in macOS 26 (Tahoe). The circuit breaker will auto-disable the module after 3 failures.
 
 ### Photos
 - JXA: album creation and photo addition only, no import/delete.
 - Swift bridge (macOS 26+): full import/delete via PhotoKit.
+
+### Pages / Numbers / Keynote
+- **macOS 26+:** Apple renamed iWork apps (e.g. "Pages" → "Pages Creator Studio"). AirMCP uses bundle IDs internally so this is handled transparently.
+- Requires the corresponding iWork app to be open for document operations.
 
 ### Apple Intelligence
 - Requires macOS 26 (Tahoe) + Apple Silicon.

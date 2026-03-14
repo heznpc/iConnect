@@ -312,7 +312,7 @@ async function fetchRecentNotes(count: number): Promise<RecentNote[]> {
       return {
         id: ids[i],
         name: names[i],
-        folder: note.container.name(),
+        folder: note.container().name(),
         modificationDate: modDates[i].toISOString(),
         preview: note.plaintext().substring(0, 200)
       };
