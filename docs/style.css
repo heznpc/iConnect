@@ -6,8 +6,8 @@
 }
 [data-theme="light"]{
   --bg:#e8eaef;
-  --nav-bg:rgba(232,234,239,.55);
-  --nav-border:rgba(0,0,0,.06);
+  --nav-bg:rgba(255,255,255,.45);
+  --nav-border:rgba(255,255,255,.5);
 }
 
 /* === Base === */
@@ -24,9 +24,9 @@ button{font:inherit;cursor:pointer;border:0;background:0 0}
 .orb-a{width:800px;height:800px;top:-12%;left:-10%;background:radial-gradient(circle,rgba(14,165,233,.3),transparent 70%)}
 .orb-b{width:600px;height:600px;top:28%;right:-10%;background:radial-gradient(circle,rgba(244,114,182,.25),transparent 70%);animation-delay:-7s}
 .orb-c{width:550px;height:550px;bottom:-5%;left:12%;background:radial-gradient(circle,rgba(45,212,191,.22),transparent 70%);animation-delay:-14s}
-[data-theme="light"] .orb-a{background:radial-gradient(circle,rgba(14,165,233,.2),transparent 70%)}
-[data-theme="light"] .orb-b{background:radial-gradient(circle,rgba(244,114,182,.16),transparent 70%)}
-[data-theme="light"] .orb-c{background:radial-gradient(circle,rgba(45,212,191,.14),transparent 70%)}
+[data-theme="light"] .orb-a{background:radial-gradient(circle,rgba(14,165,233,.32),transparent 70%)}
+[data-theme="light"] .orb-b{background:radial-gradient(circle,rgba(244,114,182,.26),transparent 70%)}
+[data-theme="light"] .orb-c{background:radial-gradient(circle,rgba(45,212,191,.24),transparent 70%)}
 @keyframes drift{to{transform:translate(60px,-40px) scale(1.08)}}
 
 /* === Nav === */
@@ -45,14 +45,18 @@ button{font:inherit;cursor:pointer;border:0;background:0 0}
   padding:5px 14px;border-radius:9999px;font-size:.76rem;font-weight:600;
   opacity:.4;border:1px solid rgba(255,255,255,.08);transition:all .25s;
 }
-[data-theme="light"] .pill-btn{border-color:rgba(0,0,0,.08)}
+[data-theme="light"] .pill-btn{border-color:rgba(255,255,255,.4)}
 .pill-btn:hover{opacity:.7}
 .pill-btn.active{
   opacity:1;
   background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.18);
   backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
 }
-[data-theme="light"] .pill-btn.active{background:rgba(0,0,0,.05);border-color:rgba(0,0,0,.12)}
+[data-theme="light"] .pill-btn.active{
+  background:rgba(255,255,255,.45);
+  border-color:rgba(255,255,255,.6);
+  box-shadow:0 2px 8px rgba(0,0,0,.06),inset 0 .5px 0 rgba(255,255,255,.7);
+}
 
 /* === Hero h1 gradient text === */
 .hero-h1{
@@ -78,8 +82,13 @@ button{font:inherit;cursor:pointer;border:0;background:0 0}
 .lg-btn:hover{transform:translateY(-2px);box-shadow:inset 0 1px 0 rgba(255,255,255,.2),0 8px 24px rgba(0,0,0,.15)}
 .lg-btn--ghost{background:transparent;border-color:rgba(255,255,255,.08);box-shadow:none}
 .lg-btn--ghost:hover{background:rgba(255,255,255,.05)}
-[data-theme="light"] .lg-btn{background:rgba(255,255,255,.35);border-color:rgba(255,255,255,.5);color:#1d1d1f}
-[data-theme="light"] .lg-btn--ghost{background:transparent;border-color:rgba(0,0,0,.1)}
+[data-theme="light"] .lg-btn{
+  background:rgba(255,255,255,.45);
+  border-color:rgba(255,255,255,.65);
+  color:#1d1d1f;
+  box-shadow:0 2px 12px rgba(0,0,0,.06),inset 0 1px 0 rgba(255,255,255,.7);
+}
+[data-theme="light"] .lg-btn--ghost{background:rgba(255,255,255,.15);border-color:rgba(255,255,255,.4)}
 
 /* === Liquid glass card — 4-layer system === */
 .glass-card,.glass-stat{
@@ -91,7 +100,11 @@ button{font:inherit;cursor:pointer;border:0;background:0 0}
 }
 .glass-stat{border-radius:16px}
 [data-theme="light"] .glass-card,[data-theme="light"] .glass-stat{
-  box-shadow:0 4px 16px rgba(0,0,0,.06),0 0 0 .5px rgba(255,255,255,.5),0 0 20px rgba(255,255,255,.15);
+  box-shadow:
+    0 4px 24px rgba(0,0,0,.07),
+    0 0 0 .5px rgba(255,255,255,.7),
+    inset 0 .5px 0 rgba(255,255,255,.6),
+    0 0 24px rgba(255,255,255,.25);
 }
 
 .glass-card{cursor:pointer}
@@ -104,8 +117,8 @@ button{font:inherit;cursor:pointer;border:0;background:0 0}
   -webkit-backdrop-filter:blur(3px) saturate(180%) brightness(1.1);
 }
 [data-theme="light"] .glass-fx{
-  backdrop-filter:blur(3px) saturate(160%) brightness(1.05);
-  -webkit-backdrop-filter:blur(3px) saturate(160%) brightness(1.05);
+  backdrop-filter:blur(16px) saturate(200%) brightness(1.08);
+  -webkit-backdrop-filter:blur(16px) saturate(200%) brightness(1.08);
 }
 
 /* Layer 1: Tint */
@@ -114,7 +127,7 @@ button{font:inherit;cursor:pointer;border:0;background:0 0}
   border-radius:inherit;
   background:rgba(255,255,255,.04);
 }
-[data-theme="light"] .glass-tint{background:rgba(255,255,255,.12)}
+[data-theme="light"] .glass-tint{background:rgba(255,255,255,.35)}
 
 /* Layer 2: Shine */
 .glass-shine{
@@ -128,10 +141,10 @@ button{font:inherit;cursor:pointer;border:0;background:0 0}
 }
 [data-theme="light"] .glass-shine{
   box-shadow:
-    inset 0 1px 12px rgba(255,255,255,.1),
-    inset 0 -1px 8px rgba(255,255,255,.04),
-    inset 0 0 24px rgba(255,255,255,.04);
-  background:linear-gradient(170deg,rgba(255,255,255,.1) 0%,transparent 35%,transparent 85%,rgba(255,255,255,.03) 100%);
+    inset 0 1px 1px rgba(255,255,255,.8),
+    inset 0 -1px 1px rgba(255,255,255,.3),
+    inset 0 0 32px rgba(255,255,255,.12);
+  background:linear-gradient(170deg,rgba(255,255,255,.4) 0%,rgba(255,255,255,.08) 25%,transparent 45%,transparent 80%,rgba(255,255,255,.12) 100%);
 }
 
 /* Layer 3: Content */
@@ -165,7 +178,11 @@ button{font:inherit;cursor:pointer;border:0;background:0 0}
   box-shadow:0 16px 40px rgba(0,0,0,.25),0 0 1px rgba(255,255,255,.25);
 }
 [data-theme="light"] .glass-card:hover{
-  box-shadow:0 16px 40px rgba(0,0,0,.08),0 0 1px rgba(255,255,255,.5);
+  box-shadow:
+    0 20px 48px rgba(0,0,0,.1),
+    0 0 0 .5px rgba(255,255,255,.8),
+    inset 0 .5px 0 rgba(255,255,255,.7),
+    0 0 32px rgba(255,255,255,.3);
 }
 
 /* Module icons */
@@ -181,7 +198,7 @@ button{font:inherit;cursor:pointer;border:0;background:0 0}
 .card-tags{display:block;margin-top:16px;padding-top:12px;border-top:1px solid rgba(255,255,255,.06);font-family:'JetBrains Mono',ui-monospace,monospace;font-size:.7rem;opacity:.25}
 [data-theme="light"] .card-badge{color:rgba(14,120,200,.9)}
 [data-theme="light"] .card-desc{opacity:.55}
-[data-theme="light"] .card-tags{border-color:rgba(0,0,0,.08);opacity:.35}
+[data-theme="light"] .card-tags{border-color:rgba(255,255,255,.4);opacity:.35}
 .glass-card.hidden{display:none}
 
 /* === Section label === */
@@ -202,9 +219,10 @@ button{font:inherit;cursor:pointer;border:0;background:0 0}
   color:rgba(56,189,248,.8);
 }
 [data-theme="light"] .step-num{
-  background:rgba(0,0,0,.04);
-  border-color:rgba(0,0,0,.08);
+  background:rgba(255,255,255,.4);
+  border-color:rgba(255,255,255,.6);
   color:rgba(14,120,200,.8);
+  box-shadow:0 2px 8px rgba(0,0,0,.05),inset 0 .5px 0 rgba(255,255,255,.7);
 }
 
 /* === Config code === */
