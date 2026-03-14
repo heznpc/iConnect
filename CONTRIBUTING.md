@@ -85,7 +85,27 @@ npm test           # Jest tests
 
 All four must pass — CI runs them automatically on every PR.
 
-### 4. Commit
+### 4. Run QA Test
+
+```bash
+node scripts/qa-test.mjs
+```
+
+This starts the MCP server, calls every read-only tool, and prints a Markdown report with PASS/SKIP/FAIL per module. Paste the output into your PR under the **QA Report** section.
+
+- **PASS** — tool returned data successfully
+- **SKIP** — expected skip (app not running, macOS version, permissions)
+- **FAIL** — unexpected error that needs investigation
+
+Write/destructive tools are not covered by the QA script — describe manual testing for those in the PR.
+
+Options:
+```bash
+node scripts/qa-test.mjs --out     # save to qa-report-<date>.md
+node scripts/qa-test.mjs --json    # machine-readable JSON output
+```
+
+### 5. Commit
 
 Write clear, concise commit messages:
 
@@ -96,7 +116,7 @@ docs: update README tool count
 refactor: extract shared pagination logic
 ```
 
-### 5. Open a Pull Request
+### 6. Open a Pull Request
 
 - Target the `main` branch
 - Fill in the PR template

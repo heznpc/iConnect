@@ -25,7 +25,7 @@ export function createDocumentScript(): string {
 
 export function listSheetsScript(documentName: string): string {
   return `
-    const Numbers = Application('Numbers');
+    const Numbers = Application('com.apple.Numbers');
     ${iworkDocLookup("Numbers", documentName)}
     const sheets = docs[0].sheets();
     const result = sheets.map(s => ({
@@ -38,7 +38,7 @@ export function listSheetsScript(documentName: string): string {
 
 export function getCellScript(documentName: string, sheet: string, cell: string): string {
   return `
-    const Numbers = Application('Numbers');
+    const Numbers = Application('com.apple.Numbers');
     ${iworkDocLookup("Numbers", documentName)}
     ${sheetTableLookup(sheet)}
     const c = table.cells['${esc(cell)}'];
@@ -48,7 +48,7 @@ export function getCellScript(documentName: string, sheet: string, cell: string)
 
 export function setCellScript(documentName: string, sheet: string, cell: string, value: string): string {
   return `
-    const Numbers = Application('Numbers');
+    const Numbers = Application('com.apple.Numbers');
     ${iworkDocLookup("Numbers", documentName)}
     ${sheetTableLookup(sheet)}
     table.cells['${esc(cell)}'].value = '${esc(value)}';
@@ -65,7 +65,7 @@ export function readCellsScript(
   endCol: number,
 ): string {
   return `
-    const Numbers = Application('Numbers');
+    const Numbers = Application('com.apple.Numbers');
     ${iworkDocLookup("Numbers", documentName)}
     ${sheetTableLookup(sheet)}
     const colCount = table.columnCount();
@@ -85,7 +85,7 @@ export function readCellsScript(
 
 export function addSheetScript(documentName: string, sheetName: string): string {
   return `
-    const Numbers = Application('Numbers');
+    const Numbers = Application('com.apple.Numbers');
     ${iworkDocLookup("Numbers", documentName)}
     const sheet = Numbers.Sheet({name: '${esc(sheetName)}'});
     docs[0].sheets.push(sheet);

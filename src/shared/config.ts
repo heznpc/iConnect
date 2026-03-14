@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { join } from "node:path";
 import { release } from "node:os";
 
@@ -9,13 +10,25 @@ import { release } from "node:os";
  *   Darwin 24.x → macOS 15 (Sequoia)
  *   Darwin 25.x → macOS 26 (Tahoe)
  *
- * The formula is: macOS_major = Darwin_major - 9  (for macOS 11+).
+ * Apple jumped from macOS 15 → 26, so the old `darwinMajor - 9` formula
+ * no longer works for Darwin 25+.  We now use `sw_vers` as the primary
+ * source and fall back to the Darwin formula for macOS ≤ 15.
  * Returns 0 on non-macOS platforms so version checks always pass.
  */
 export function getOsVersion(): number {
   if (process.platform !== "darwin") return 0;
+  try {
+    const ver = execFileSync("sw_vers", ["-productVersion"], {
+      encoding: "utf8",
+      timeout: 3000,
+    }).trim();
+    const major = parseInt(ver.split(".")[0], 10);
+    if (!isNaN(major)) return major;
+  } catch { /* fall through to Darwin heuristic */ }
   const darwinMajor = parseInt(release().split(".")[0], 10);
   if (isNaN(darwinMajor)) return 0;
+  // Darwin 25+ → macOS 26+ (version jump); Darwin 20-24 → macOS 11-15
+  if (darwinMajor >= 25) return darwinMajor + 1;
   return darwinMajor - 9;
 }
 

@@ -17,7 +17,7 @@ export function createDocumentScript(): string {
 
 export function listSlidesScript(documentName: string): string {
   return `
-    const Keynote = Application('Keynote');
+    const Keynote = Application('com.apple.Keynote');
     ${iworkDocLookup("Keynote", documentName)}
     const slides = docs[0].slides();
     const result = slides.map((s, i) => ({
@@ -34,7 +34,7 @@ export function listSlidesScript(documentName: string): string {
 export function getSlideScript(documentName: string, slideNumber: number): string {
   const idx = slideNumber - 1;
   return `
-    const Keynote = Application('Keynote');
+    const Keynote = Application('com.apple.Keynote');
     ${iworkDocLookup("Keynote", documentName)}
     const slide = docs[0].slides[${idx}];
     if (!slide) throw new Error('Slide ${slideNumber} not found');
@@ -51,7 +51,7 @@ export function getSlideScript(documentName: string, slideNumber: number): strin
 
 export function addSlideScript(documentName: string): string {
   return `
-    const Keynote = Application('Keynote');
+    const Keynote = Application('com.apple.Keynote');
     ${iworkDocLookup("Keynote", documentName)}
     const slide = Keynote.Slide();
     docs[0].slides.push(slide);
@@ -63,7 +63,7 @@ export function addSlideScript(documentName: string): string {
 export function setPresenterNotesScript(documentName: string, slideNumber: number, notes: string): string {
   const idx = slideNumber - 1;
   return `
-    const Keynote = Application('Keynote');
+    const Keynote = Application('com.apple.Keynote');
     ${iworkDocLookup("Keynote", documentName)}
     const slide = docs[0].slides[${idx}];
     if (!slide) throw new Error('Slide ${slideNumber} not found');
@@ -79,7 +79,7 @@ export function exportPdfScript(documentName: string, outputPath: string): strin
 export function startSlideshowScript(documentName: string, fromSlide: number): string {
   const idx = fromSlide - 1;
   return `
-    const Keynote = Application('Keynote');
+    const Keynote = Application('com.apple.Keynote');
     ${iworkDocLookup("Keynote", documentName)}
     Keynote.start(docs[0], {from: docs[0].slides[${idx}]});
     JSON.stringify({started: true, fromSlide: ${fromSlide}});

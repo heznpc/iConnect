@@ -13,7 +13,7 @@ export function listDocumentsScript(): string {
 
 export function openDocumentScript(path: string): string {
   return `
-    const Pages = Application('Pages');
+    const Pages = Application('com.apple.Pages');
     Pages.open(Path('${esc(path)}'));
     const doc = Pages.documents[0];
     JSON.stringify({name: doc.name(), path: doc.file() ? doc.file().toString() : null});
@@ -26,7 +26,7 @@ export function createDocumentScript(): string {
 
 export function getBodyTextScript(documentName: string): string {
   return `
-    const Pages = Application('Pages');
+    const Pages = Application('com.apple.Pages');
     ${iworkDocLookup("Pages", documentName)}
     const text = docs[0].bodyText();
     JSON.stringify({name: docs[0].name(), bodyText: text.substring(0, 10000)});
@@ -35,7 +35,7 @@ export function getBodyTextScript(documentName: string): string {
 
 export function setBodyTextScript(documentName: string, text: string): string {
   return `
-    const Pages = Application('Pages');
+    const Pages = Application('com.apple.Pages');
     ${iworkDocLookup("Pages", documentName)}
     docs[0].bodyText = '${esc(text)}';
     JSON.stringify({updated: true, name: docs[0].name()});

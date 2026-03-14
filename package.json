@@ -70,6 +70,7 @@
     "pretest": "npm run build",
     "start": "node dist/index.js",
     "test": "node --experimental-vm-modules node_modules/.bin/jest",
+    "qa": "node scripts/qa-test.mjs",
     "typecheck": "tsc --noEmit",
     "version:patch": "npm version patch --no-git-tag-version && node -e \"let s=require('./server.json');s.version=s.packages[0].version=require('./package.json').version;require('fs').writeFileSync('server.json',JSON.stringify(s,null,2)+'\\n')\"",
     "version:minor": "npm version minor --no-git-tag-version && node -e \"let s=require('./server.json');s.version=s.packages[0].version=require('./package.json').version;require('fs').writeFileSync('server.json',JSON.stringify(s,null,2)+'\\n')\"",
