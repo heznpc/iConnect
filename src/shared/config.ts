@@ -71,6 +71,7 @@ export const MODULE_NAMES = [
   "keynote",
   "location",
   "bluetooth",
+  "google",
 ] as const;
 
 /** Core modules enabled by default when no config.json exists */
@@ -80,6 +81,8 @@ export const STARTER_MODULES: ReadonlySet<string> = new Set([
   "calendar",
   "shortcuts",
   "system",
+  "finder",
+  "weather",
 ]);
 
 export type ModuleName = (typeof MODULE_NAMES)[number];
