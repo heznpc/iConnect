@@ -57,3 +57,6 @@ jobs:
 
       - name: Verify stats
         run: node scripts/count-stats.mjs --check
+
+      - name: Verify i18n
+        run: node scripts/check-i18n.mjs
