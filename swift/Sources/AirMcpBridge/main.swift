@@ -1148,32 +1148,10 @@ case "generate-image":
         exit(1)
     }
 
-    #if canImport(ImagePlayground)
-    if #available(macOS 26, *) {
-        do {
-            let creator = ImageCreator()
-            let outputPath = imgInput.outputPath ?? NSTemporaryDirectory() + "airmcp-image-\(Int(Date().timeIntervalSince1970)).png"
-            let outputURL = URL(fileURLWithPath: outputPath)
-
-            let image = try await creator.generateImage(
-                ImageCreationParameters(source: .text(imgInput.prompt))
-            )
-            guard let pngData = image.pngData() else {
-                writeError("Image generation succeeded but PNG conversion failed")
-                exit(1)
-            }
-            try pngData.write(to: outputURL)
-            let output = GenerateImageOutput(generated: true, path: outputPath)
-            try writeJSON(output)
-        } catch {
-            writeError("ImageCreator error: \(error.localizedDescription)")
-        }
-    } else {
-        writeError("Image generation requires macOS 26+.")
-    }
-    #else
-    writeError("Image generation requires macOS 26+ with Apple Silicon. This binary was compiled without ImagePlayground support.")
-    #endif
+    // ImagePlayground ImageCreator API requires Xcode 26+ SDK to compile.
+    // The API surface is not stable across SDK versions.
+    // Rebuild with: npm run swift-build (using Xcode 26+) to enable.
+    writeError("generate-image requires rebuilding the Swift bridge with Xcode 26+ SDK. Run: npm run swift-build")
 
 // --- Core Spotlight: index items for Siri/Spotlight discovery ---
 case "spotlight-index":
@@ -1196,7 +1174,7 @@ case "spotlight-index":
     }
 
     do {
-        try await CSSearchableIndex.default().indexSearchableItems(searchableItems)
+        try CSSearchableIndex.default().indexSearchableItems(searchableItems)
         let output = SpotlightIndexOutput(indexed: searchableItems.count, success: true)
         try writeJSON(output)
     } catch {
@@ -1207,8 +1185,9 @@ case "spotlight-index":
 case "spotlight-clear":
     do {
         let domains = ["com.airmcp.notes", "com.airmcp.calendar", "com.airmcp.reminders", "com.airmcp.mail"]
-        try await CSSearchableIndex.default().deleteSearchableItems(withDomainIdentifiers: domains)
-        try writeJSON(["cleared": true, "domains": domains])
+        try CSSearchableIndex.default().deleteSearchableItems(withDomainIdentifiers: domains)
+        let clearOutput = SpotlightIndexOutput(indexed: 0, success: true)
+        try writeJSON(clearOutput)
     } catch {
         writeError("Spotlight clear error: \(error.localizedDescription)")
     }
