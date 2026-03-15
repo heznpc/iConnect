@@ -251,53 +251,57 @@ button{font:inherit;cursor:pointer;border:0;background:0 0}
 .modal-overlay{
   position:fixed;inset:0;z-index:200;
   display:flex;align-items:center;justify-content:center;
-  background:rgba(0,0,0,.45);
-  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  background:rgba(0,0,0,.6);
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
   opacity:0;pointer-events:none;transition:opacity .3s;
 }
 .modal-overlay.open{opacity:1;pointer-events:auto}
 .modal-glass{
   position:relative;max-width:520px;width:calc(100% - 40px);
   border-radius:24px;overflow:hidden;
-  box-shadow:0 32px 80px -16px rgba(0,0,0,.4),0 0 1px rgba(255,255,255,.2);
+  background:rgba(22,27,34,.92);
+  box-shadow:0 32px 80px -16px rgba(0,0,0,.5),0 0 1px rgba(255,255,255,.15);
   transform:translateY(20px) scale(.96);
   transition:transform .35s cubic-bezier(.2,.8,.2,1);
+}
+[data-theme="light"] .modal-glass{
+  background:rgba(255,255,255,.88);
+  box-shadow:0 32px 80px -16px rgba(0,0,0,.15),0 0 0 .5px rgba(255,255,255,.7);
 }
 .modal-overlay.open .modal-glass{transform:none}
 .modal-glass .glass-content{padding:36px}
 .modal-glass--expanded{max-width:640px}
 .modal-scroll{max-height:80vh;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.12) transparent}
 .modal-scroll::-webkit-scrollbar{width:6px}
-.modal-scroll::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:3px}
-[data-theme="light"] .modal-scroll::-webkit-scrollbar-thumb{background:rgba(0,0,0,.12)}
+.modal-scroll::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:3px}
+[data-theme="light"] .modal-scroll::-webkit-scrollbar-thumb{background:rgba(0,0,0,.15)}
 
 /* Modal example prompt */
 .modal-example{margin-bottom:20px}
 .modal-prompt{
-  background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);
-  border-radius:12px;padding:14px 18px;font-size:.9rem;font-style:italic;opacity:.75;line-height:1.6;
+  background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);
+  border-radius:12px;padding:14px 18px;font-size:.9rem;font-style:italic;opacity:.8;line-height:1.6;
 }
-[data-theme="light"] .modal-prompt{background:rgba(0,0,0,.03);border-color:rgba(0,0,0,.06)}
+[data-theme="light"] .modal-prompt{background:rgba(0,0,0,.04);border-color:rgba(0,0,0,.08)}
 
 /* Modal tool grid */
 .modal-tool-grid{display:grid;grid-template-columns:1fr;gap:6px}
 .modal-tool-item{
-  display:flex;align-items:center;gap:10px;padding:8px 12px;
-  border-radius:10px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.04);
+  display:flex;align-items:center;gap:10px;padding:10px 14px;
+  border-radius:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.06);
   transition:background .2s;
 }
-.modal-tool-item:hover{background:rgba(255,255,255,.07)}
-[data-theme="light"] .modal-tool-item{background:rgba(0,0,0,.02);border-color:rgba(0,0,0,.04)}
-[data-theme="light"] .modal-tool-item:hover{background:rgba(0,0,0,.05)}
-.modal-tool-name{font-family:'JetBrains Mono',monospace;font-size:.8rem;opacity:.85;white-space:nowrap}
-.modal-tool-desc{font-size:.78rem;opacity:.55;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.modal-tool-item:hover{background:rgba(255,255,255,.1)}
+[data-theme="light"] .modal-tool-item{background:rgba(0,0,0,.04);border-color:rgba(0,0,0,.06)}
+[data-theme="light"] .modal-tool-item:hover{background:rgba(0,0,0,.08)}
+.modal-tool-name{font-family:'JetBrains Mono',monospace;font-size:.82rem;opacity:.9;white-space:nowrap}
+.modal-tool-desc{font-size:.8rem;opacity:.6;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .modal-tool-badge{
-  font-size:.65rem;padding:2px 7px;border-radius:6px;font-weight:500;white-space:nowrap;
-  opacity:.85;
+  font-size:.68rem;padding:3px 8px;border-radius:6px;font-weight:600;white-space:nowrap;
 }
-.modal-tool-badge--read{background:rgba(45,212,191,.15);color:rgb(45,212,191)}
-.modal-tool-badge--write{background:rgba(251,191,36,.15);color:rgb(251,191,36)}
-.modal-tool-badge--destructive{background:rgba(239,68,68,.15);color:rgb(239,68,68)}
+.modal-tool-badge--read{background:rgba(45,212,191,.2);color:rgb(45,212,191)}
+.modal-tool-badge--write{background:rgba(251,191,36,.2);color:rgb(251,191,36)}
+.modal-tool-badge--destructive{background:rgba(239,68,68,.2);color:rgb(239,68,68)}
 
 /* === Reveal === */
 .reveal{opacity:0;transform:translateY(20px);transition:opacity .8s cubic-bezier(.2,.8,.2,1),transform .8s cubic-bezier(.2,.8,.2,1)}
