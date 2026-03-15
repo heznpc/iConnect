@@ -158,7 +158,7 @@ export async function runInit(): Promise<void> {
   printModules(enabled);
 
   for (;;) {
-    const input = (await ask(rl, `  ${CYAN}>${RESET} `)).trim().toLowerCase();
+    const input = (await ask(rl, `  ${CYAN}>${RESET} ${DIM}(number / all / starter / prod / Enter to save)${RESET} `)).trim().toLowerCase();
 
     if (input === "") break;
 
