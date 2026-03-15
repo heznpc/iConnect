@@ -11,7 +11,7 @@ const GREEN = "\x1b[32m";
 const YELLOW = "\x1b[33m";
 const MAGENTA = "\x1b[35m";
 
-const LOGO_LINES = [
+export const LOGO_LINES = [
   `${CYAN}     ___   _      ${MAGENTA}__  __  ___  ___${RESET}`,
   `${CYAN}    / _ | (_)____${MAGENTA}/  |/  |/ __\\/ _ \\${RESET}`,
   `${CYAN}   / __ |/ / __/${MAGENTA}/ /|_/ / /__/ ___/${RESET}`,
@@ -37,28 +37,28 @@ export interface BannerInfo {
   sendMail: boolean;
 }
 
-// ── Animation helpers ────────────────────────────────────────────────
+// ── Animation helpers (exported for reuse in CLI) ────────────────────
 
-const write = (s: string) => process.stderr.write(s);
-const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+export const write = (s: string) => process.stderr.write(s);
+export const writeOut = (s: string) => process.stdout.write(s);
+export const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 /** Write a line character-by-character with delay. */
-async function typeLine(line: string, charDelay: number): Promise<void> {
+export async function typeLine(line: string, charDelay: number, target: "stderr" | "stdout" = "stderr"): Promise<void> {
+  const w = target === "stdout" ? writeOut : write;
   // Split into ANSI escape sequences and visible characters
   const parts = line.split(/(\x1b\[[0-9;]*m)/);
   for (const part of parts) {
     if (part.startsWith("\x1b[")) {
-      // ANSI escape — write immediately (no delay)
-      write(part);
+      w(part);
     } else {
-      // Visible characters — type one by one
       for (const ch of part) {
-        write(ch);
+        w(ch);
         if (ch !== " " && charDelay > 0) await sleep(charDelay);
       }
     }
   }
-  write("\n");
+  w("\n");
 }
 
 /** Write a line that "fills in" from dim to bright. */

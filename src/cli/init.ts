@@ -10,6 +10,7 @@ import { createInterface } from "node:readline";
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { MODULE_NAMES, STARTER_MODULES, NPM_PACKAGE_NAME } from "../shared/config.js";
+import { LOGO_LINES, typeLine, sleep, writeOut } from "../shared/banner.js";
 
 const HOME = process.env.HOME ?? process.env.USERPROFILE ?? "";
 
@@ -136,10 +137,16 @@ function printModules(enabled: Set<string>): void {
 export async function runInit(): Promise<void> {
   const rl = createInterface({ input: process.stdin, output: process.stdout });
 
-  console.log("");
-  console.log(`${BOLD}${CYAN}  AirMCP Setup Wizard${RESET}`);
-  console.log(`${DIM}  Connect your Mac to any AI via MCP${RESET}`);
-  console.log("");
+  // Animated logo
+  writeOut("\n");
+  for (const line of LOGO_LINES) {
+    await typeLine(line, 3, "stdout");
+  }
+  writeOut("\n");
+  await typeLine(`  ${BOLD}${CYAN}AirMCP Setup Wizard${RESET}`, 10, "stdout");
+  await typeLine(`  ${DIM}Connect your Mac to any AI via MCP${RESET}`, 5, "stdout");
+  writeOut("\n");
+  await sleep(200);
 
   // --- Step 1: Module selection ---
   const enabled = new Set<string>(STARTER_MODULES);
