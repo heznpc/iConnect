@@ -82,6 +82,44 @@ const MODULE_META: Record<string, ModuleMeta> = {
   google:       { label: "Google Workspace", desc: "Gmail, Drive, Sheets, Cal",   category: "cloud" },
 };
 
+// ── CLI i18n ─────────────────────────────────────────────────────────
+
+const LANGUAGES = [
+  { code: "en", label: "English",    flag: "🇺🇸" },
+  { code: "ko", label: "한국어",      flag: "🇰🇷" },
+  { code: "ja", label: "日本語",      flag: "🇯🇵" },
+  { code: "zh-CN", label: "简体中文", flag: "🇨🇳" },
+  { code: "zh-TW", label: "繁體中文", flag: "🇹🇼" },
+  { code: "es", label: "Español",    flag: "🇪🇸" },
+  { code: "fr", label: "Français",   flag: "🇫🇷" },
+  { code: "de", label: "Deutsch",    flag: "🇩🇪" },
+  { code: "pt", label: "Português",  flag: "🇧🇷" },
+] as const;
+
+type LangCode = (typeof LANGUAGES)[number]["code"];
+
+const I18N: Record<string, Record<LangCode, string>> = {
+  wizard_title:   { en: "AirMCP Setup Wizard", ko: "AirMCP 설정 마법사", ja: "AirMCP セットアップ", "zh-CN": "AirMCP 设置向导", "zh-TW": "AirMCP 設定精靈", es: "Asistente de AirMCP", fr: "Assistant AirMCP", de: "AirMCP Einrichtung", pt: "Assistente AirMCP" },
+  wizard_sub:     { en: "Connect your Mac to any AI via MCP", ko: "MCP로 Mac을 AI에 연결하세요", ja: "MCPでMacをAIに接続", "zh-CN": "通过MCP将Mac连接到AI", "zh-TW": "透過MCP將Mac連接到AI", es: "Conecta tu Mac a cualquier IA", fr: "Connectez votre Mac à toute IA", de: "Verbinde deinen Mac mit KI", pt: "Conecte seu Mac a qualquer IA" },
+  choose_lang:    { en: "Choose language", ko: "언어를 선택하세요", ja: "言語を選択", "zh-CN": "选择语言", "zh-TW": "選擇語言", es: "Elige idioma", fr: "Choisir la langue", de: "Sprache wählen", pt: "Escolha o idioma" },
+  choose_modules: { en: "Which modules would you like to enable?", ko: "어떤 모듈을 활성화할까요?", ja: "有効にするモジュールを選んでください", "zh-CN": "要启用哪些模块？", "zh-TW": "要啟用哪些模組？", es: "¿Qué módulos quieres habilitar?", fr: "Quels modules activer ?", de: "Welche Module aktivieren?", pt: "Quais módulos ativar?" },
+  commands:       { en: "Commands", ko: "명령어", ja: "コマンド", "zh-CN": "命令", "zh-TW": "指令", es: "Comandos", fr: "Commandes", de: "Befehle", pt: "Comandos" },
+  toggle_hint:    { en: "Toggle a module (e.g. \"6\" to toggle Messages)", ko: "모듈 전환 (예: \"6\"으로 Messages 전환)", ja: "モジュール切替（例：\"6\"でMessages）", "zh-CN": "切换模块（如 \"6\" 切换 Messages）", "zh-TW": "切換模組（如 \"6\" 切換 Messages）", es: "Alternar módulo (ej. \"6\")", fr: "Basculer un module (ex. \"6\")", de: "Modul umschalten (z.B. \"6\")", pt: "Alternar módulo (ex. \"6\")" },
+  all_modules:    { en: "Enable all 25 modules", ko: "25개 모듈 전부 활성화", ja: "全25モジュール有効化", "zh-CN": "启用全部25个模块", "zh-TW": "啟用全部25個模組", es: "Habilitar los 25 módulos", fr: "Activer les 25 modules", de: "Alle 25 Module aktivieren", pt: "Ativar todos os 25 módulos" },
+  starter_hint:   { en: "Reset to recommended 7 modules ★", ko: "추천 7개 모듈로 초기화 ★", ja: "推奨7モジュールにリセット ★", "zh-CN": "重置为推荐的7个模块 ★", "zh-TW": "重置為推薦的7個模組 ★", es: "Restablecer a 7 módulos recomendados ★", fr: "Réinitialiser aux 7 modules recommandés ★", de: "Auf empfohlene 7 Module zurücksetzen ★", pt: "Redefinir para 7 módulos recomendados ★" },
+  prod_hint:      { en: "Enable all productivity modules", ko: "생산성 모듈 전부 활성화", ja: "生産性モジュール全て有効化", "zh-CN": "启用所有生产力模块", "zh-TW": "啟用所有生產力模組", es: "Habilitar módulos de productividad", fr: "Activer les modules de productivité", de: "Alle Produktivitätsmodule aktivieren", pt: "Ativar módulos de produtividade" },
+  enter_save:     { en: "Done — save and continue", ko: "완료 — 저장 후 계속", ja: "完了 — 保存して続行", "zh-CN": "完成 — 保存并继续", "zh-TW": "完成 — 儲存並繼續", es: "Listo — guardar y continuar", fr: "Terminé — sauvegarder", de: "Fertig — speichern", pt: "Pronto — salvar e continuar" },
+  recommended:    { en: "★ = recommended for new users", ko: "★ = 처음 사용자 추천", ja: "★ = 初心者におすすめ", "zh-CN": "★ = 新用户推荐", "zh-TW": "★ = 新使用者推薦", es: "★ = recomendado para nuevos usuarios", fr: "★ = recommandé pour les débutants", de: "★ = empfohlen für neue Nutzer", pt: "★ = recomendado para novos usuários" },
+  prompt_hint:    { en: "number / all / starter / prod / Enter to save", ko: "번호 / all / starter / prod / Enter 저장", ja: "番号 / all / starter / prod / Enterで保存", "zh-CN": "数字 / all / starter / prod / Enter保存", "zh-TW": "數字 / all / starter / prod / Enter儲存", es: "número / all / starter / prod / Enter guardar", fr: "numéro / all / starter / prod / Entrée sauver", de: "Nummer / all / starter / prod / Enter speichern", pt: "número / all / starter / prod / Enter salvar" },
+  writing_config: { en: "Writing config...", ko: "설정 저장 중...", ja: "設定を保存中...", "zh-CN": "正在保存配置...", "zh-TW": "正在儲存設定...", es: "Guardando configuración...", fr: "Enregistrement...", de: "Konfiguration wird gespeichert...", pt: "Salvando configuração..." },
+  setup_complete: { en: "Setup complete!", ko: "설정 완료!", ja: "セットアップ完了！", "zh-CN": "设置完成！", "zh-TW": "設定完成！", es: "¡Configuración completa!", fr: "Configuration terminée !", de: "Einrichtung abgeschlossen!", pt: "Configuração concluída!" },
+  next_steps:     { en: "Next steps", ko: "다음 단계", ja: "次のステップ", "zh-CN": "下一步", "zh-TW": "下一步", es: "Próximos pasos", fr: "Étapes suivantes", de: "Nächste Schritte", pt: "Próximos passos" },
+};
+
+function t(key: string, lang: LangCode): string {
+  return I18N[key]?.[lang] ?? I18N[key]?.en ?? key;
+}
+
 const PRESETS: Record<string, { desc: string; modules: string[] }> = {
   starter: {
     desc: "Core essentials (7 modules) — Notes, Calendar, Reminders, System, Shortcuts, Finder, Weather",
@@ -144,28 +182,49 @@ export async function runInit(): Promise<void> {
   }
   writeOut("\n");
   await typeLine(`  ${BOLD}${WHITE}AirMCP Setup Wizard${RESET}`, 10, "stdout");
-  await typeLine(`  ${DIM}Connect your Mac to any AI via MCP${RESET}`, 5, "stdout");
   writeOut("\n");
   await sleep(200);
+
+  // --- Step 0: Language selection ---
+  console.log(`  ${BOLD}Choose language:${RESET}\n`);
+  for (let i = 0; i < LANGUAGES.length; i++) {
+    const l = LANGUAGES[i];
+    const num = String(i + 1).padStart(2, " ");
+    const marker = l.code === "en" ? ` ${DIM}(default)${RESET}` : "";
+    console.log(`  [${num}] ${l.flag}  ${l.label}${marker}`);
+  }
+  console.log("");
+
+  const langInput = (await ask(rl, `  ${WHITE}>${RESET} ${DIM}(1-${LANGUAGES.length} / Enter = English)${RESET} `)).trim();
+  let lang: LangCode = "en";
+  const langNum = parseInt(langInput, 10);
+  if (langNum >= 1 && langNum <= LANGUAGES.length) {
+    lang = LANGUAGES[langNum - 1].code;
+  }
+  const picked = LANGUAGES.find((l) => l.code === lang)!;
+  console.log(`  ${GREEN}✓${RESET} ${picked.flag}  ${picked.label}\n`);
+
+  await typeLine(`  ${DIM}${t("wizard_sub", lang)}${RESET}`, 5, "stdout");
+  writeOut("\n");
 
   // --- Step 1: Module selection ---
   const enabled = new Set<string>(STARTER_MODULES);
 
-  console.log(`  ${BOLD}Which modules would you like to enable?${RESET}`);
+  console.log(`  ${BOLD}${t("choose_modules", lang)}${RESET}`);
   console.log("");
-  console.log(`  ${DIM}Commands:${RESET}`);
-  console.log(`    ${BOLD}number${RESET}  ${DIM}Toggle a module (e.g. "6" to toggle Messages)${RESET}`);
-  console.log(`    ${BOLD}all${RESET}     ${DIM}Enable all 25 modules${RESET}`);
-  console.log(`    ${BOLD}starter${RESET} ${DIM}Reset to recommended 7 modules ★${RESET}`);
-  console.log(`    ${BOLD}prod${RESET}    ${DIM}Enable all productivity modules${RESET}`);
-  console.log(`    ${BOLD}Enter${RESET}   ${DIM}Done — save and continue${RESET}`);
+  console.log(`  ${DIM}${t("commands", lang)}:${RESET}`);
+  console.log(`    ${BOLD}number${RESET}  ${DIM}${t("toggle_hint", lang)}${RESET}`);
+  console.log(`    ${BOLD}all${RESET}     ${DIM}${t("all_modules", lang)}${RESET}`);
+  console.log(`    ${BOLD}starter${RESET} ${DIM}${t("starter_hint", lang)}${RESET}`);
+  console.log(`    ${BOLD}prod${RESET}    ${DIM}${t("prod_hint", lang)}${RESET}`);
+  console.log(`    ${BOLD}Enter${RESET}   ${DIM}${t("enter_save", lang)}${RESET}`);
   console.log("");
-  console.log(`  ${DIM}★ = recommended for new users${RESET}`);
+  console.log(`  ${DIM}${t("recommended", lang)}${RESET}`);
 
   printModules(enabled);
 
   for (;;) {
-    const input = (await ask(rl, `  ${WHITE}>${RESET} ${DIM}(number / all / starter / prod / Enter to save)${RESET} `)).trim().toLowerCase();
+    const input = (await ask(rl, `  ${WHITE}>${RESET} ${DIM}(${t("prompt_hint", lang)})${RESET} `)).trim().toLowerCase();
 
     if (input === "") break;
 
@@ -211,10 +270,11 @@ export async function runInit(): Promise<void> {
   const disabledModules = MODULE_NAMES.filter((m) => !enabled.has(m));
 
   console.log("");
-  process.stdout.write("  Writing config...");
+  process.stdout.write(`  ${t("writing_config", lang)}`);
 
   mkdirSync(AIRMCP_CONFIG_DIR, { recursive: true });
   const configPayload = {
+    locale: lang,
     disabledModules,
     includeShared: false,
     allowSendMessages: true,
@@ -270,12 +330,12 @@ export async function runInit(): Promise<void> {
 
   // --- Done ---
   console.log("");
-  console.log(`  ${GREEN}✓${RESET} Setup complete! ${BOLD}${enabled.size} modules${RESET} enabled, ${patchedClients} client(s) configured.`);
+  console.log(`  ${GREEN}✓${RESET} ${t("setup_complete", lang)} ${BOLD}${enabled.size} modules${RESET} enabled, ${patchedClients} client(s) configured.`);
   if (detectedClients.length > 0) {
     console.log(`  ${DIM}Restart ${detectedClients.join(", ")} to connect AirMCP.${RESET}`);
   }
   console.log("");
-  console.log(`  ${DIM}Next steps:${RESET}`);
+  console.log(`  ${DIM}${t("next_steps", lang)}:${RESET}`);
   console.log(`    ${DIM}•${RESET} Run ${BOLD}npx airmcp doctor${RESET} to check everything is working`);
   console.log(`    ${DIM}•${RESET} Re-run ${BOLD}npx airmcp init${RESET} anytime to change modules`);
   console.log(`    ${DIM}•${RESET} Use ${BOLD}npx airmcp --full${RESET} to enable all modules temporarily`);
