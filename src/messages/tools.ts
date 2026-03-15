@@ -2,7 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { execFile } from "child_process";
 import { promisify } from "util";
-import { runJxa } from "../shared/jxa.js";
+import { runJxa, osascriptSemaphore } from "../shared/jxa.js";
 import type { AirMcpConfig } from "../shared/config.js";
 import { ok, err } from "../shared/result.js";
 import { TIMEOUT } from "../shared/constants.js";
@@ -14,7 +14,14 @@ const execFileAsync = promisify(execFile);
 async function runScript<T>(script: string): Promise<T> {
   if (script.startsWith("applescript:")) {
     const as = script.slice("applescript:".length);
-    const { stdout } = await execFileAsync("osascript", ["-e", as], { timeout: TIMEOUT.MESSAGE_SEND });
+    await osascriptSemaphore.acquire();
+    let stdout: string;
+    try {
+      const result = await execFileAsync("osascript", ["-e", as], { timeout: TIMEOUT.MESSAGE_SEND });
+      stdout = result.stdout;
+    } finally {
+      osascriptSemaphore.release();
+    }
     // Strip control chars that AppleScript may inject
     // eslint-disable-next-line no-control-regex
     const clean = stdout.trim().replace(/[\x00-\x1f\x7f]/g, (c) => c === "\n" || c === "\r" || c === "\t" ? "" : "");

@@ -107,8 +107,12 @@ export const BUFFER = {
 // ══════════════════════════════════════════════════════════════════════
 
 export const CONCURRENCY = {
-  /** Max parallel JXA processes */
+  /** Max parallel JXA/osascript processes */
   JXA_SLOTS:        envInt("AIRMCP_JXA_CONCURRENCY", 3),
+  /** Max parallel Swift bridge processes */
+  SWIFT_SLOTS:      2,
+  /** Max parallel GWS CLI processes */
+  GWS_SLOTS:        3,
   /** JXA retry attempts */
   JXA_RETRIES:      2,
   /** JXA retry delays (ms) */

@@ -196,8 +196,8 @@ export function parseConfig(): AirMcpConfig {
 
   // Boolean configs: env var > JSON > default
   const includeShared = envBool("AIRMCP_INCLUDE_SHARED", file.includeShared, false);
-  const allowSendMessages = envBool("AIRMCP_ALLOW_SEND_MESSAGES", file.allowSendMessages, true);
-  const allowSendMail = envBool("AIRMCP_ALLOW_SEND_MAIL", file.allowSendMail, true);
+  const allowSendMessages = envBool("AIRMCP_ALLOW_SEND_MESSAGES", file.allowSendMessages, false);
+  const allowSendMail = envBool("AIRMCP_ALLOW_SEND_MAIL", file.allowSendMail, false);
 
   // HITL config: env var > JSON > default
   const hitlLevelRaw = process.env.AIRMCP_HITL_LEVEL ?? file.hitl?.level ?? "off";

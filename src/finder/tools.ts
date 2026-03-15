@@ -23,7 +23,7 @@ export function registerFinderTools(server: McpServer, _config: AirMcpConfig): v
       description: "Search files using Spotlight (mdfind). Searches file names and content.",
       inputSchema: {
         query: z.string().describe("Search query (Spotlight syntax)"),
-        folder: z.string().min(1).optional().default("~").describe("Folder to search in (default: home)"),
+        folder: zFilePath.optional().default("~").describe("Folder to search in (default: home)"),
         limit: z.number().int().min(1).max(200).optional().default(50).describe("Max results (default: 50)"),
       },
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
@@ -82,7 +82,7 @@ export function registerFinderTools(server: McpServer, _config: AirMcpConfig): v
       title: "Recent Files",
       description: "Find recently modified files in a folder using Spotlight.",
       inputSchema: {
-        folder: z.string().min(1).optional().default("~").describe("Folder to search (default: home)"),
+        folder: zFilePath.optional().default("~").describe("Folder to search (default: home)"),
         days: z.number().int().min(1).max(365).optional().default(7).describe("Modified within N days (default: 7)"),
         limit: z.number().int().min(1).max(200).optional().default(30).describe("Max results (default: 30)"),
       },

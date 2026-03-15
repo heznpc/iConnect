@@ -55,7 +55,7 @@ export function registerShortcutsTools(server: McpServer, _config: AirMcpConfig)
       name: z.string().describe("Shortcut name (exact match)"),
       input: z.string().optional().describe("Optional text input for the shortcut"),
     },
-    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true },
   }, async ({ name, input }) => {
     try { return ok(await runJxa(runShortcutScript(name, input))); }
     catch (e) { return toolError("run shortcut", e); }

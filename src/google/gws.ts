@@ -7,7 +7,10 @@
  */
 import { execFile } from "child_process";
 import { promisify } from "util";
-import { TIMEOUT, BUFFER } from "../shared/constants.js";
+import { TIMEOUT, BUFFER, CONCURRENCY } from "../shared/constants.js";
+import { Semaphore } from "../shared/semaphore.js";
+
+const semaphore = new Semaphore(CONCURRENCY.GWS_SLOTS);
 
 const execFileAsync = promisify(execFile);
 
@@ -82,6 +85,7 @@ export async function runGws<T = unknown>(
 
   const timeout = opts?.timeout ?? GWS_TIMEOUT;
 
+  await semaphore.acquire();
   let stdout: string;
   try {
     const result = await execFileAsync(bin, args, {
@@ -96,6 +100,8 @@ export async function runGws<T = unknown>(
       throw new Error(`Google Workspace CLI timed out after ${timeout / 1000}s`, { cause: e });
     }
     throw new Error(`Google Workspace CLI failed: ${e instanceof Error ? e.message : String(e)}`, { cause: e });
+  } finally {
+    semaphore.release();
   }
 
   // gws may return NDJSON (one JSON per line) with --page-all

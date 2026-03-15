@@ -1,55 +1,79 @@
 # Privacy Policy
 
-**iConnect** — MCP Server for Apple Apps on macOS
-Last updated: 2026-03-13
+**AirMCP** — MCP Server for the Apple Ecosystem on macOS
+Last updated: 2026-03-15
 
 ## Overview
 
-iConnect is an open-source, local-first MCP (Model Context Protocol) server that runs entirely on your Mac. It provides tools for interacting with Apple apps (Notes, Reminders, Calendar, Contacts, Mail, Messages, Music, Finder, Safari, System, Photos, Shortcuts, and Apple Intelligence) through JXA (JavaScript for Automation) and a Swift bridge.
+AirMCP is an open-source MCP (Model Context Protocol) server that bridges AI assistants and macOS applications. It runs locally on your Mac and provides tools for interacting with Apple apps through JXA (JavaScript for Automation) and a native Swift bridge.
 
-This privacy policy explains how iConnect handles your data.
+This privacy policy explains how AirMCP handles your data, including what data leaves your machine.
 
 ## Data Collection
 
-**iConnect does not collect any data.** Specifically:
-
-- No analytics or telemetry
-- No usage tracking
-- No crash reporting to external services
-- No cookies or browser fingerprinting
-- No advertising or marketing data collection
+AirMCP does not collect analytics, telemetry, usage tracking, or crash reports. There is no advertising or marketing data collection.
 
 ## How Your Data Is Handled
 
-iConnect operates as a bridge between an MCP client (such as Claude Desktop) and the Apple apps on your Mac. When you use iConnect:
+### Local Processing
 
-1. **All processing is local.** iConnect runs on your machine and communicates with Apple apps through macOS automation APIs. Your data never leaves your Mac via iConnect.
+Most AirMCP operations run entirely on your Mac:
 
-2. **Data flows only between the MCP client and your local apps.** When you ask the MCP client to read or modify data in an Apple app, iConnect executes that request locally. The data is read from or written to the app on your Mac.
+- **Apple app data** (Notes, Calendar, Reminders, Contacts, Mail, Messages, Music, Finder, Safari, Photos, etc.) is read from and written to local apps via macOS automation APIs.
+- **MCP tool results** (note contents, email text, calendar events, etc.) are returned to the connected MCP client (e.g., Claude Desktop, Cursor). The MCP client's own privacy policy governs how it handles this data.
 
-3. **No external servers.** iConnect does not operate or connect to any remote server, database, or cloud service of its own. It has no backend infrastructure.
+### Data That Leaves Your Mac
+
+AirMCP connects to external services in the following cases:
+
+| Feature | Service | Data Sent | When |
+|---------|---------|-----------|------|
+| **Semantic search (Gemini)** | Google Gemini API (`generativelanguage.googleapis.com`) | Text excerpts from notes (300 chars), email subjects/excerpts (200 chars), calendar event titles, reminder names | Only when `GEMINI_API_KEY` is configured and semantic indexing runs |
+| **Weather** | Open-Meteo API (`api.open-meteo.com`) | Latitude/longitude coordinates | When weather tools are called |
+| **Geocoding** | Open-Meteo Geocoding (`geocoding-api.open-meteo.com`) | Place names/addresses | When maps tools search for locations |
+| **Reverse geocoding** | OpenStreetMap Nominatim (`nominatim.openstreetmap.org`) | GPS coordinates | When maps tools resolve coordinates to addresses |
+| **Google Workspace** | Google APIs (via `gws` CLI) | Gmail, Drive, Sheets, Calendar, Docs data | When Google Workspace tools are used (requires separate Google auth) |
+
+**If you do not configure `GEMINI_API_KEY` and do not use weather, maps, or Google Workspace tools, no data leaves your Mac.**
+
+### Local Data Storage
+
+AirMCP stores the following data on disk:
+
+| File | Content | Purpose |
+|------|---------|---------|
+| `~/.config/airmcp/config.json` | Module preferences, HITL settings | User configuration |
+| `~/.airmcp/vectors.json` | Text excerpts + embedding vectors from notes, email, calendar, reminders | Semantic search index |
+
+The vector store (`vectors.json`) contains text previews of your personal data. It is not encrypted. You can delete it at any time:
+
+```bash
+rm -rf ~/.airmcp
+```
+
+## Safety Controls
+
+- **Sending email/messages** is disabled by default (`allowSendMail: false`, `allowSendMessages: false`). You must explicitly enable these in config or via environment variables.
+- **Human-in-the-loop (HITL)** approval can be enabled to require confirmation before destructive operations (delete, send, move).
+- **Destructive tools** are annotated with `destructiveHint: true` so MCP clients can warn before execution.
 
 ## Transport Modes
 
-- **stdio (default):** Communication happens through standard input/output between the MCP client and iConnect on your local machine. No network traffic is involved.
-- **HTTP/SSE:** When enabled, iConnect listens on a local network interface. This mode is intended for local or LAN use. You are responsible for securing network access if you choose to expose this transport.
-
-## Third-Party Services
-
-iConnect does not integrate with, send data to, or receive data from any third-party service. The MCP client you use (e.g., Claude Desktop) has its own privacy policy, which governs how that client handles data it receives.
+- **stdio (default):** Communication between the MCP client and AirMCP happens via standard input/output on your local machine. No network traffic.
+- **HTTP/SSE (`--http`):** AirMCP listens on a local network port. **This mode has no built-in authentication.** You are responsible for securing access. Do not expose to the public internet.
 
 ## macOS Permissions
 
-iConnect requires macOS automation permissions to interact with Apple apps. These permissions are managed by macOS and are granted by you through system prompts. iConnect uses these permissions solely to execute the actions you request through the MCP client.
+AirMCP requires macOS Automation permissions to interact with Apple apps. These are managed by macOS and granted through system prompts. AirMCP uses these permissions solely to execute actions you request through the MCP client.
 
 ## Open Source
 
-iConnect is open-source software under the MIT License. You can inspect the full source code at [github.com/heznpc/iConnect](https://github.com/heznpc/iConnect) to verify these claims.
+AirMCP is open-source software under the MIT License. You can inspect the full source code at [github.com/heznpc/AirMCP](https://github.com/heznpc/AirMCP).
 
 ## Changes to This Policy
 
-Updates to this policy will be reflected in this file in the repository. The "Last updated" date at the top will be revised accordingly.
+Updates will be reflected in this file. The "Last updated" date at the top will be revised accordingly.
 
 ## Contact
 
-For questions about this privacy policy, open an issue on the [GitHub repository](https://github.com/heznpc/iConnect).
+For questions about this privacy policy, open an issue on the [GitHub repository](https://github.com/heznpc/AirMCP).
