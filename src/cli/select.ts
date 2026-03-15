@@ -130,8 +130,10 @@ export function selectMulti(
           const check = opt.checked ? `${GREEN}✓${RESET}` : " ";
           const star = opt.star ? `${DIM}★${RESET}` : " ";
           const pointer = isCursor ? `${WHITE}❯${RESET}` : " ";
-          const label = isCursor ? `${BOLD}${opt.label}${RESET}` : opt.label;
-          parts.push(`${pointer}[${check}]${star}${label.padEnd(16)}`);
+          // Pad BEFORE applying ANSI color to get correct column width
+          const padded = opt.label.padEnd(18);
+          const label = isCursor ? `${BOLD}${padded}${RESET}` : padded;
+          parts.push(`${pointer}[${check}]${star}${label}`);
         }
         out.write(`${CLEAR_LINE}  ${parts.join("")}\n`);
       }
