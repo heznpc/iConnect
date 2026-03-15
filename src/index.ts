@@ -33,6 +33,7 @@ import { registerDynamicShortcutTools } from "./shortcuts/tools.js";
 import { HitlClient } from "./shared/hitl.js";
 import { installHitlGuard } from "./shared/hitl-guard.js";
 import { setShareGuardHitlClient } from "./shared/share-guard.js";
+import { printBanner, type BannerInfo } from "./shared/banner.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const pkg = JSON.parse(readFileSync(join(__dirname, "..", "package.json"), "utf-8")) as { version: string };
@@ -45,9 +46,6 @@ let hitlClient: HitlClient | null = null;
 if (config.hitl.level !== "off") {
   hitlClient = new HitlClient(config.hitl);
   setShareGuardHitlClient(hitlClient);
-  console.error(`AirMCP HITL enabled: level=${config.hitl.level}, timeout=${config.hitl.timeout}s, socket=${config.hitl.socketPath}`);
-} else {
-  console.error("AirMCP HITL disabled");
 }
 
 // Clean up HITL socket on exit
@@ -62,7 +60,7 @@ process.on("exit", onExit);
 process.on("SIGINT", () => { onExit(); process.exit(0); });
 process.on("SIGTERM", () => { onExit(); process.exit(0); });
 
-async function createServer(): Promise<McpServer> {
+async function createServer(): Promise<{ server: McpServer; bannerInfo: BannerInfo }> {
   const server = new McpServer({
     name: NPM_PACKAGE_NAME,
     version: pkg.version,
@@ -93,20 +91,10 @@ async function createServer(): Promise<McpServer> {
       disabled.push(mod.name);
     }
   }
-  if (osBlocked.length > 0) {
-    console.error(`AirMCP modules unavailable on macOS ${osVersion}: ${osBlocked.join(", ")}`);
-  }
-  if (disabled.length > 0) {
-    console.error(`AirMCP modules disabled: ${disabled.join(", ")}`);
-  }
-  console.error(`AirMCP modules enabled: ${enabled.join(", ")}`);
-
   // Dynamic shortcut tools: auto-discover and register individual shortcuts
+  let dynamicShortcutCount = 0;
   if (shortcutsEnabled) {
-    const dynamicCount = await registerDynamicShortcutTools(server);
-    if (dynamicCount > 0) {
-      console.error(`[AirMCP] ${dynamicCount} dynamic shortcut tools registered`);
-    }
+    dynamicShortcutCount = await registerDynamicShortcutTools(server);
   }
 
   // Cross-module workflows
@@ -167,7 +155,31 @@ async function createServer(): Promise<McpServer> {
     },
   );
 
-  return server;
+  // Collect banner info for startup display
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const toolCount = Object.keys((server as any)._registeredTools ?? {}).length;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const promptCount = Object.keys((server as any)._registeredPrompts ?? {}).length;
+
+  const bannerInfo: BannerInfo = {
+    version: pkg.version,
+    transport: "stdio",
+    modulesEnabled: enabled,
+    modulesDisabled: disabled,
+    modulesOsBlocked: osBlocked,
+    toolCount,
+    promptCount,
+    dynamicShortcuts: dynamicShortcutCount,
+    skillsBuiltin: 3,
+    skillsUser: 0,
+    hitlLevel: config.hitl.level,
+    macosVersion: osVersion,
+    nodeVersion: process.version.slice(1),
+    sendMessages: config.allowSendMessages,
+    sendMail: config.allowSendMail,
+  };
+
+  return { server, bannerInfo };
 }
 
 const args = process.argv.slice(2);
@@ -255,7 +267,7 @@ async function main() {
           },
         });
 
-        const server = await createServer();
+        const { server } = await createServer();
         await server.connect(transport);
         await transport.handleRequest(req, res, req.body);
       } catch (err) {
@@ -298,14 +310,18 @@ async function main() {
       }
     });
 
+    // Create one server just for banner info + initial tool count
+    const { bannerInfo: bi } = await createServer();
     app.listen(port, () => {
-      console.error(`AirMCP server running on http://localhost:${port}/mcp (shared notes: ${config.includeShared ? "on" : "off"}, send messages: ${config.allowSendMessages ? "on" : "off"}, send mail: ${config.allowSendMail ? "on" : "off"})`);
+      bi.transport = "http";
+      bi.port = port;
+      printBanner(bi);
     });
   } else {
-    const server = await createServer();
+    const { server, bannerInfo } = await createServer();
     const transport = new StdioServerTransport();
     await server.connect(transport);
-    console.error(`AirMCP server running on stdio (shared notes: ${config.includeShared ? "on" : "off"}, send messages: ${config.allowSendMessages ? "on" : "off"}, send mail: ${config.allowSendMail ? "on" : "off"})`);
+    printBanner(bannerInfo);
   }
 }
 
