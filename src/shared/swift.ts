@@ -2,7 +2,10 @@ import { spawn } from "node:child_process";
 import { access } from "node:fs/promises";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { TIMEOUT, BUFFER, PATHS } from "./constants.js";
+import { TIMEOUT, BUFFER, PATHS, CONCURRENCY } from "./constants.js";
+import { Semaphore } from "./semaphore.js";
+
+const semaphore = new Semaphore(CONCURRENCY.SWIFT_SLOTS);
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const BINARY_PATH = resolve(__dirname, PATHS.SWIFT_BRIDGE);
@@ -26,7 +29,10 @@ export async function runSwift<T>(command: string, input: string): Promise<T> {
   const missing = await checkSwiftBridge();
   if (missing) throw new Error(missing);
 
+  await semaphore.acquire();
+
   return new Promise<T>((resolve, reject) => {
+    const releaseSemaphore = () => semaphore.release();
     const child = spawn(BINARY_PATH, [command], {
       timeout: TIMEOUT.SWIFT,
     });
@@ -50,6 +56,7 @@ export async function runSwift<T>(command: string, input: string): Promise<T> {
     });
 
     child.on("close", (code, signal) => {
+      releaseSemaphore();
       if (signal === "SIGTERM") {
         reject(new Error(`Swift bridge timed out after ${TIMEOUT.SWIFT / 1000}s`));
         return;
@@ -70,7 +77,7 @@ export async function runSwift<T>(command: string, input: string): Promise<T> {
       }
     });
 
-    child.on("error", reject);
+    child.on("error", (e) => { releaseSemaphore(); reject(e); });
 
     child.stdin.write(input);
     child.stdin.end();

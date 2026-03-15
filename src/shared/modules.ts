@@ -49,29 +49,33 @@ const MANIFEST: Array<{
 export async function loadModuleRegistry(): Promise<ModuleRegistration[]> {
   const registry: ModuleRegistration[] = [];
 
-  for (const def of MANIFEST) {
-    // Dynamic import: module is only loaded when iterated
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const toolsMod: Record<string, any> = await import(`../${def.name}/tools.js`);
-    const toolsFn = findRegisterFn(toolsMod);
-    if (!toolsFn) {
-      console.error(`[AirMCP] Warning: no register function found in ${def.name}/tools.ts`);
-      continue;
-    }
-
-    let promptsFn: ModuleRegistration["prompts"] | undefined;
-    if (def.hasPrompts) {
+  const importPromises = MANIFEST.map(async (def) => {
+    try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const promptsMod: Record<string, any> = await import(`../${def.name}/prompts.js`);
-      promptsFn = findRegisterFn(promptsMod);
-    }
+      const toolsMod: Record<string, any> = await import(`../${def.name}/tools.js`);
+      const toolsFn = findRegisterFn(toolsMod);
+      if (!toolsFn) {
+        console.error(`[AirMCP] Warning: no register function found in ${def.name}/tools.ts`);
+        return null;
+      }
 
-    registry.push({
-      name: def.name,
-      tools: toolsFn,
-      prompts: promptsFn,
-      minMacosVersion: def.minMacosVersion,
-    });
+      let promptsFn: ModuleRegistration["prompts"] | undefined;
+      if (def.hasPrompts) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const promptsMod: Record<string, any> = await import(`../${def.name}/prompts.js`);
+        promptsFn = findRegisterFn(promptsMod);
+      }
+
+      return { name: def.name, tools: toolsFn, prompts: promptsFn, minMacosVersion: def.minMacosVersion } as ModuleRegistration;
+    } catch (e) {
+      console.error(`[AirMCP] Failed to load module ${def.name}: ${e instanceof Error ? e.message : String(e)}`);
+      return null;
+    }
+  });
+
+  const results = await Promise.all(importPromises);
+  for (const mod of results) {
+    if (mod) registry.push(mod);
   }
 
   return registry;

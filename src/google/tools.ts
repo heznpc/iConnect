@@ -10,7 +10,8 @@ import type { AirMcpConfig } from "../shared/config.js";
 import { ok, err } from "../shared/result.js";
 import { runGws, checkGws } from "./gws.js";
 
-export function registerGoogleTools(server: McpServer, _config: AirMcpConfig): void {
+export function registerGoogleTools(server: McpServer, config: AirMcpConfig): void {
+  const { allowSendMail } = config;
   // ── Status ─────────────────────────────────────────────────────────
 
   server.registerTool(
@@ -88,6 +89,7 @@ export function registerGoogleTools(server: McpServer, _config: AirMcpConfig): v
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
     },
     async ({ to, subject, body, cc }) => {
+      if (!allowSendMail) return err("Sending mail is disabled. Set AIRMCP_ALLOW_SEND_MAIL=true or allowSendMail in config.json.");
       try {
         // Build RFC 2822 raw message
         let raw = `To: ${to}\nSubject: ${subject}\nContent-Type: text/plain; charset=utf-8\n`;
@@ -412,9 +414,14 @@ export function registerGoogleTools(server: McpServer, _config: AirMcpConfig): v
         params: z.record(z.unknown()).optional().describe("URL/query parameters as JSON"),
         body: z.record(z.unknown()).optional().describe("Request body as JSON"),
       },
-      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
+      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true },
     },
     async ({ service, resource, method, params, body }) => {
+      if (method === "delete" || (service === "gmail" && method === "send")) {
+        if (!allowSendMail && service === "gmail" && method === "send") {
+          return err("Sending mail is disabled. Set AIRMCP_ALLOW_SEND_MAIL=true.");
+        }
+      }
       try {
         return ok(await runGws(service, resource, method, params, body));
       } catch (e) {

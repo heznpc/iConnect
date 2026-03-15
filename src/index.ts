@@ -95,8 +95,14 @@ async function createServer(): Promise<{ server: McpServer; bannerInfo: BannerIn
     if (mod.minMacosVersion && osVersion > 0 && osVersion < mod.minMacosVersion) {
       osBlocked.push(`${mod.name} (requires macOS ${mod.minMacosVersion}+)`);
     } else if (isModuleEnabled(config, mod.name)) {
-      mod.tools(server, config);
-      mod.prompts?.(server);
+      try {
+        mod.tools(server, config);
+        mod.prompts?.(server);
+      } catch (e) {
+        console.error(`[AirMCP] Failed to register module ${mod.name}: ${e instanceof Error ? e.message : String(e)}`);
+        disabled.push(mod.name);
+        continue;
+      }
       enabled.push(mod.name);
       if (mod.name === "shortcuts") shortcutsEnabled = true;
     } else {

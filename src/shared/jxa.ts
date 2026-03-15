@@ -1,5 +1,6 @@
 import { execFile } from "node:child_process";
 import { TIMEOUT, BUFFER, CONCURRENCY } from "./constants.js";
+import { Semaphore } from "./semaphore.js";
 
 const TRANSIENT_PATTERNS = [
   "Application isn't running",
@@ -38,31 +39,10 @@ function scrubPii(msg: string): string {
 }
 
 // ── Concurrency semaphore ────────────────────────────────────────────
-class Semaphore {
-  private running = 0;
-  private readonly queue: Array<() => void> = [];
+const semaphore = new Semaphore(CONCURRENCY.JXA_SLOTS);
 
-  async acquire(): Promise<void> {
-    if (this.running < CONCURRENCY.JXA_SLOTS) {
-      this.running++;
-      return;
-    }
-    return new Promise<void>((resolve) => {
-      this.queue.push(() => {
-        this.running++;
-        resolve();
-      });
-    });
-  }
-
-  release(): void {
-    this.running--;
-    const next = this.queue.shift();
-    if (next) next();
-  }
-}
-
-const semaphore = new Semaphore();
+/** Shared osascript semaphore — also used by messages/tools.ts AppleScript calls. */
+export { semaphore as osascriptSemaphore };
 
 // ── Circuit breaker ──────────────────────────────────────────────────
 interface CircuitState {
