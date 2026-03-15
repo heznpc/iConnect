@@ -11,10 +11,10 @@ const GREEN = "\x1b[32m";
 const YELLOW = "\x1b[33m";
 
 export const LOGO_LINES = [
-  `${WHITE}${BOLD}     ___   _      __  __  ___  ___${RESET}`,
-  `${WHITE}${BOLD}    / _ | (_)____/  |/  |/ __\\/ _ \\${RESET}`,
-  `${WHITE}${BOLD}   / __ |/ / __// /|_/ / /__/ ___/${RESET}`,
-  `${WHITE}${BOLD}  /_/ |_/_/_/  /_/  /_/\\___/_/${RESET}`,
+  `${WHITE}     ___   _      __  __  ___  ___${RESET}`,
+  `${WHITE}    / _ | (_)____/  |/  |/ __\\/ _ \\${RESET}`,
+  `${WHITE}   / __ |/ / __// /|_/ / /__/ ___/${RESET}`,
+  `${WHITE}  /_/ |_/_/_/  /_/  /_/\\___/_/${RESET}`,
 ];
 
 export interface BannerInfo {
@@ -60,13 +60,10 @@ export async function typeLine(line: string, charDelay: number, target: "stderr"
   w("\n");
 }
 
-/** Write a line that "fills in" from dim to bright. */
+/** Write a stat line with a brief pause. */
 async function fillLine(label: string, value: string, delay: number): Promise<void> {
-  write(`  ${DIM}├${RESET} ${label}: `);
-  // Flash: dim → bold
-  write(`${DIM}${value}${RESET}`);
+  write(`  ${DIM}├${RESET} ${label}: ${WHITE}${value}${RESET}\n`);
   await sleep(delay);
-  write(`\r  ${DIM}├${RESET} ${label}: ${BOLD}${value}${RESET}  \n`);
 }
 
 /** Animate modules appearing one by one. */
