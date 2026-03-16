@@ -25,18 +25,19 @@ export function listPhotosScript(album: string, limit: number, offset: number): 
     const total = a.mediaItems.length;
     const s = Math.min(${offset}, total);
     const e = Math.min(s + ${limit}, total);
+    const mIds = a.mediaItems.id();
+    const mFilenames = a.mediaItems.filename();
+    const mNames = a.mediaItems.name();
+    const mDates = a.mediaItems.date();
+    const mWidths = a.mediaItems.width();
+    const mHeights = a.mediaItems.height();
+    const mFavs = a.mediaItems.favorite();
     const result = [];
     for (let i = s; i < e; i++) {
-      const item = a.mediaItems[i];
-      const d = item.date();
       result.push({
-        id: item.id(),
-        filename: item.filename(),
-        name: item.name(),
-        date: d ? d.toISOString() : null,
-        width: item.width(),
-        height: item.height(),
-        favorite: item.favorite()
+        id: mIds[i], filename: mFilenames[i], name: mNames[i],
+        date: mDates[i] ? mDates[i].toISOString() : null,
+        width: mWidths[i], height: mHeights[i], favorite: mFavs[i]
       });
     }
     JSON.stringify({total: total, offset: s, returned: result.length, photos: result});
@@ -49,28 +50,23 @@ export function searchPhotosScript(query: string, limit: number): string {
     const allNames = Photos.mediaItems.name();
     const allFilenames = Photos.mediaItems.filename();
     const allDescs = Photos.mediaItems.description();
+    const allIds = Photos.mediaItems.id();
+    const allDates = Photos.mediaItems.date();
+    const allFavs = Photos.mediaItems.favorite();
     const q = '${esc(query)}'.toLowerCase();
-    const matches = [];
-    for (let i = 0; i < allNames.length && matches.length < ${limit}; i++) {
+    const result = [];
+    for (let i = 0; i < allNames.length && result.length < ${limit}; i++) {
       const name = allNames[i] || '';
       const filename = allFilenames[i] || '';
       const desc = allDescs[i] || '';
       if (name.toLowerCase().includes(q) || filename.toLowerCase().includes(q) || desc.toLowerCase().includes(q)) {
-        matches.push(i);
+        result.push({
+          id: allIds[i], filename: filename, name: name,
+          date: allDates[i] ? allDates[i].toISOString() : null,
+          favorite: allFavs[i], description: desc
+        });
       }
     }
-    const result = matches.map(i => {
-      const item = Photos.mediaItems[i];
-      const d = item.date();
-      return {
-        id: item.id(),
-        filename: allFilenames[i] || '',
-        name: allNames[i] || '',
-        date: d ? d.toISOString() : null,
-        favorite: item.favorite(),
-        description: allDescs[i] || ''
-      };
-    });
     JSON.stringify({total: result.length, photos: result});
   `;
 }

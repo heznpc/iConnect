@@ -69,12 +69,13 @@ export function readCellsScript(
     ${iworkDocLookup("Numbers", documentName)}
     ${sheetTableLookup(sheet)}
     const colCount = table.columnCount();
+    const allValues = table.cells.value();
     const rows = [];
     for (let r = ${startRow}; r <= ${endRow}; r++) {
       const row = [];
       for (let c = ${startCol}; c <= ${endCol}; c++) {
         try {
-          row.push(table.cells[r * colCount + c].value());
+          row.push(allValues[r * colCount + c]);
         } catch(e) { row.push(null); }
       }
       rows.push(row);

@@ -1,3 +1,4 @@
+import type { FSWatcher } from "node:fs";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -7,7 +8,7 @@ import { registerSkills } from "./register.js";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const BUILTINS_DIR = join(__dirname, "builtins");
 
-let watcherStarted = false;
+let skillsWatcher: FSWatcher | null = null;
 
 export async function registerSkillEngine(server: McpServer): Promise<void> {
   const { builtins, user } = loadAllSkills(BUILTINS_DIR);
@@ -21,10 +22,15 @@ export async function registerSkillEngine(server: McpServer): Promise<void> {
   registerSkills(server, merged);
 
   // Watch user skills directory for changes — only once per process
-  if (!watcherStarted) {
-    watcherStarted = true;
-    watchUserSkills(() => {
+  if (!skillsWatcher) {
+    skillsWatcher = watchUserSkills(() => {
       console.error("[AirMCP] User skills changed. Restart server to apply changes.");
     });
   }
+}
+
+/** Close the file watcher. Called on process exit. */
+export function closeSkillsWatcher(): void {
+  skillsWatcher?.close();
+  skillsWatcher = null;
 }

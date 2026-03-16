@@ -31,47 +31,58 @@ export function searchContactsScript(query: string, limit: number): string {
     const Contacts = Application('Contacts');
     const names = Contacts.people.name();
     const ids = Contacts.people.id();
+    const orgs = Contacts.people.organization();
     const q = '${esc(query)}'.toLowerCase();
     const result = [];
+    // Phase 1: name + org matches (bulk arrays, no per-contact IPC)
+    const nameMatched = new Set();
     for (let i = 0; i < names.length && result.length < ${limit}; i++) {
-      const p = Contacts.people[i];
       const nameMatch = names[i] && names[i].toLowerCase().includes(q);
-      let emailMatch = false;
-      let phoneMatch = false;
-      let orgMatch = false;
-      if (!nameMatch) {
-        try {
-          const org = p.organization() || '';
-          orgMatch = org.toLowerCase().includes(q);
-        } catch(e) {}
+      const orgMatch = !nameMatch && orgs[i] && orgs[i].toLowerCase().includes(q);
+      if (nameMatch || orgMatch) {
+        const p = Contacts.people[i];
+        const emails = p.emails();
+        const phones = p.phones();
+        result.push({
+          id: ids[i], name: names[i], organization: orgs[i] || null,
+          email: emails.length > 0 ? emails[0].value() : null,
+          phone: phones.length > 0 ? phones[0].value() : null,
+          matchedField: nameMatch ? 'name' : 'organization'
+        });
+        nameMatched.add(i);
       }
-      if (!nameMatch && !orgMatch) {
+    }
+    // Phase 2: email/phone matches (per-contact, only if needed)
+    if (result.length < ${limit}) {
+      for (let i = 0; i < names.length && result.length < ${limit}; i++) {
+        if (nameMatched.has(i)) continue;
+        const p = Contacts.people[i];
+        let emailMatch = false;
+        let phoneMatch = false;
         try {
           const emails = p.emails();
           for (let e = 0; e < emails.length; e++) {
             if ((emails[e].value() || '').toLowerCase().includes(q)) { emailMatch = true; break; }
           }
         } catch(e) {}
-      }
-      if (!nameMatch && !orgMatch && !emailMatch) {
-        try {
+        if (!emailMatch) {
+          try {
+            const phones = p.phones();
+            for (let ph = 0; ph < phones.length; ph++) {
+              if ((phones[ph].value() || '').includes(q)) { phoneMatch = true; break; }
+            }
+          } catch(e) {}
+        }
+        if (emailMatch || phoneMatch) {
+          const emails = p.emails();
           const phones = p.phones();
-          for (let ph = 0; ph < phones.length; ph++) {
-            if ((phones[ph].value() || '').includes(q)) { phoneMatch = true; break; }
-          }
-        } catch(e) {}
-      }
-      if (nameMatch || emailMatch || phoneMatch || orgMatch) {
-        const emails = p.emails();
-        const phones = p.phones();
-        result.push({
-          id: ids[i],
-          name: names[i],
-          organization: p.organization() || null,
-          email: emails.length > 0 ? emails[0].value() : null,
-          phone: phones.length > 0 ? phones[0].value() : null,
-          matchedField: nameMatch ? 'name' : orgMatch ? 'organization' : emailMatch ? 'email' : 'phone'
-        });
+          result.push({
+            id: ids[i], name: names[i], organization: orgs[i] || null,
+            email: emails.length > 0 ? emails[0].value() : null,
+            phone: phones.length > 0 ? phones[0].value() : null,
+            matchedField: emailMatch ? 'email' : 'phone'
+          });
+        }
       }
     }
     JSON.stringify({total: names.length, returned: result.length, contacts: result});

@@ -50,23 +50,27 @@ export function listRemindersScript(limit: number, offset: number, list?: string
       JSON.stringify({total: all.length, offset: start, returned: result.length, reminders: result});
     `;
   }
+  const whoseFilter = completed === true ? ".whose({completed: true})" : completed === false ? ".whose({completed: false})" : "";
   return `
     const Reminders = Application('Reminders');
     const lists = Reminders.lists();
     const all = [];
     for (const l of lists) {
-      const reminders = l.reminders();
-      const filtered = reminders${filterExpr};
+      const src = l.reminders${whoseFilter};
+      const count = src.length;
+      if (count === 0) continue;
+      const rIds = src.id();
+      const rNames = src.name();
+      const rCompleted = src.completed();
+      const rDueDates = src.dueDate();
+      const rPriorities = src.priority();
+      const rFlagged = src.flagged();
       const listName = l.name();
-      for (const r of filtered) {
+      for (let i = 0; i < count; i++) {
         all.push({
-          id: r.id(),
-          name: r.name(),
-          completed: r.completed(),
-          dueDate: r.dueDate() ? r.dueDate().toISOString() : null,
-          priority: r.priority(),
-          flagged: r.flagged(),
-          list: listName
+          id: rIds[i], name: rNames[i], completed: rCompleted[i],
+          dueDate: rDueDates[i] ? rDueDates[i].toISOString() : null,
+          priority: rPriorities[i], flagged: rFlagged[i], list: listName
         });
       }
     }
@@ -176,21 +180,24 @@ export function searchRemindersScript(query: string, limit: number): string {
     const result = [];
     for (const l of lists) {
       if (result.length >= ${limit}) break;
-      const reminders = l.reminders();
+      const count = l.reminders.length;
+      if (count === 0) continue;
+      const rNames = l.reminders.name();
+      const rBodies = l.reminders.body();
+      const rIds = l.reminders.id();
+      const rCompleted = l.reminders.completed();
+      const rDueDates = l.reminders.dueDate();
+      const rPriorities = l.reminders.priority();
+      const rFlagged = l.reminders.flagged();
       const listName = l.name();
-      for (const r of reminders) {
-        if (result.length >= ${limit}) break;
-        const name = r.name() || '';
-        const body = r.body() || '';
+      for (let i = 0; i < count && result.length < ${limit}; i++) {
+        const name = rNames[i] || '';
+        const body = rBodies[i] || '';
         if (name.toLowerCase().includes(q) || body.toLowerCase().includes(q)) {
           result.push({
-            id: r.id(),
-            name: name,
-            completed: r.completed(),
-            dueDate: r.dueDate() ? r.dueDate().toISOString() : null,
-            priority: r.priority(),
-            flagged: r.flagged(),
-            list: listName
+            id: rIds[i], name: name, completed: rCompleted[i],
+            dueDate: rDueDates[i] ? rDueDates[i].toISOString() : null,
+            priority: rPriorities[i], flagged: rFlagged[i], list: listName
           });
         }
       }

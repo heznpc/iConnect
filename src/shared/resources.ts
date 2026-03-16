@@ -48,23 +48,65 @@ const DEPTH: Record<string, DepthConfig> = {
 type ReminderRecord = { completed: boolean; dueDate: string | null; [k: string]: unknown };
 
 async function fetchDueReminders(): Promise<ReminderRecord[]> {
-  const { reminders: all } = await runJxa<{ reminders: ReminderRecord[] }>(listRemindersScript(10000, 0, undefined, false));
-  const now = new Date();
-  return all
-    .filter((r) => r.dueDate && new Date(r.dueDate) <= now)
-    .sort((a, b) => new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime());
+  return runJxa<ReminderRecord[]>(`
+    const Reminders = Application('Reminders');
+    const now = new Date();
+    const lists = Reminders.lists();
+    const result = [];
+    for (const l of lists) {
+      const rems = l.reminders.whose({completed: false})();
+      const names = rems.length > 0 ? l.reminders.whose({completed: false}).name() : [];
+      const ids = rems.length > 0 ? l.reminders.whose({completed: false}).id() : [];
+      const dues = rems.length > 0 ? l.reminders.whose({completed: false}).dueDate() : [];
+      const priorities = rems.length > 0 ? l.reminders.whose({completed: false}).priority() : [];
+      const flags = rems.length > 0 ? l.reminders.whose({completed: false}).flagged() : [];
+      const listName = l.name();
+      for (let i = 0; i < names.length; i++) {
+        if (dues[i] && dues[i] <= now) {
+          result.push({
+            id: ids[i], name: names[i], completed: false,
+            dueDate: dues[i].toISOString(), priority: priorities[i],
+            flagged: flags[i], list: listName
+          });
+        }
+      }
+    }
+    result.sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+    JSON.stringify(result);
+  `);
 }
 
 async function fetchTodayReminders(): Promise<ReminderRecord[]> {
-  const { reminders: all } = await runJxa<{ reminders: ReminderRecord[] }>(listRemindersScript(10000, 0, undefined, false));
   const today = new Date();
-  const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
-  const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1).getTime();
-  return all.filter((r) => {
-    if (!r.dueDate) return false;
-    const t = new Date(r.dueDate).getTime();
-    return t >= startOfDay && t < endOfDay;
-  });
+  const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString();
+  const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1).toISOString();
+  return runJxa<ReminderRecord[]>(`
+    const Reminders = Application('Reminders');
+    const dayStart = new Date('${startOfDay}');
+    const dayEnd = new Date('${endOfDay}');
+    const lists = Reminders.lists();
+    const result = [];
+    for (const l of lists) {
+      const rems = l.reminders.whose({completed: false})();
+      if (rems.length === 0) continue;
+      const names = l.reminders.whose({completed: false}).name();
+      const ids = l.reminders.whose({completed: false}).id();
+      const dues = l.reminders.whose({completed: false}).dueDate();
+      const priorities = l.reminders.whose({completed: false}).priority();
+      const flags = l.reminders.whose({completed: false}).flagged();
+      const listName = l.name();
+      for (let i = 0; i < names.length; i++) {
+        if (dues[i] && dues[i] >= dayStart && dues[i] < dayEnd) {
+          result.push({
+            id: ids[i], name: names[i], completed: false,
+            dueDate: dues[i].toISOString(), priority: priorities[i],
+            flagged: flags[i], list: listName
+          });
+        }
+      }
+    }
+    JSON.stringify(result);
+  `);
 }
 
 // ── Calendar fetcher helpers ──
@@ -220,7 +262,7 @@ export async function buildSnapshot(
       key: "reminders",
       promise: (async () => {
         const { reminders: all, total: totalIncomplete } = await runJxa<{ reminders: Array<{ completed: boolean; dueDate: string | null; [k: string]: unknown }>; total: number }>(
-          listRemindersScript(10000, 0, undefined, false),
+          listRemindersScript(500, 0, undefined, false),
         );
         const now = new Date();
         const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
