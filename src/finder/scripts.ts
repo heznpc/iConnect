@@ -10,7 +10,8 @@ export function searchFilesScript(folder: string, query: string, limit: number):
     const paths = results.split(/[\\r\\n]+/).filter(p => p.length > 0);
     const result = paths.map(p => {
       try {
-        const stat = app.doShellScript('stat -f "%z %m" "' + p.replace(/"/g, '\\\\"') + '"');
+        const escaped = p.replace(/\\\\/g, '\\\\\\\\').replace(/"/g, '\\\\"').replace(/\\$/g, '\\\\$').replace(/\`/g, '\\\\\`');
+        const stat = app.doShellScript('stat -f "%z %m" "' + escaped + '"');
         const parts = stat.split(' ');
         const size = parseInt(parts[0], 10);
         const mtime = parseInt(parts[1], 10);
@@ -86,7 +87,8 @@ export function listDirectoryScript(path: string, limit: number): string {
     const result = fileNames.map(name => {
       try {
         const fullPath = '${esc(path)}' + '/' + name;
-        const stat = app.doShellScript('stat -f "%z %m %HT" "' + fullPath.replace(/"/g, '\\\\"') + '"');
+        const escaped = fullPath.replace(/\\\\/g, '\\\\\\\\').replace(/"/g, '\\\\"').replace(/\\$/g, '\\\\$').replace(/\`/g, '\\\\\`');
+        const stat = app.doShellScript('stat -f "%z %m %HT" "' + escaped + '"');
         const parts = stat.split(' ');
         const size = parseInt(parts[0], 10);
         const mtime = parseInt(parts[1], 10);

@@ -1,4 +1,5 @@
 import { AirMcpConfig, isModuleEnabled } from "../shared/config.js";
+import { TIMEOUT } from "../shared/constants.js";
 import { EmbeddingProvider, detectProvider, embedText, embedBatch } from "./embeddings.js";
 import { VectorStore, VectorEntry, SearchResult } from "./store.js";
 import { runJxa } from "../shared/jxa.js";
@@ -284,12 +285,11 @@ export class SemanticSearchService {
    * Serialises concurrent calls so only one indexing run happens at a time.
    */
   private lastIndexFailure = 0;
-  private static readonly INDEX_COOLDOWN_MS = 5 * 60_000; // 5 min cooldown after failure
 
   private async ensureIndex(): Promise<void> {
     if (!(await this.store.isIndexStale())) return;
     if (!(await this.isEmbeddingAvailable())) return;
-    if (Date.now() - this.lastIndexFailure < SemanticSearchService.INDEX_COOLDOWN_MS) return;
+    if (Date.now() - this.lastIndexFailure < TIMEOUT.INDEX_COOLDOWN) return;
 
     if (!this.indexing) {
       this.indexing = this.runIndex((mod) => this.isModuleEnabled(mod))

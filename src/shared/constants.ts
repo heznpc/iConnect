@@ -83,6 +83,8 @@ export const TIMEOUT = {
   SESSION_CLEANUP:  60_000,
   /** Vector store staleness threshold */
   VECTOR_STALE:     30 * 60_000,
+  /** Semantic index cooldown after failure */
+  INDEX_COOLDOWN:   envInt("AIRMCP_INDEX_COOLDOWN", 5 * 60_000),
 } as const;
 
 // ══════════════════════════════════════════════════════════════════════
@@ -117,10 +119,10 @@ export const CONCURRENCY = {
   JXA_RETRIES:      2,
   /** JXA retry delays (ms) */
   JXA_RETRY_DELAYS: [500, 1000] as readonly number[],
-  /** Circuit breaker: failures before open */
-  CB_THRESHOLD:     3,
-  /** Circuit breaker: open duration (ms) */
-  CB_OPEN_MS:       60_000,
+  /** Circuit breaker: failures before open (configurable via performance.circuitBreakerThreshold) */
+  CB_THRESHOLD:     envInt("AIRMCP_CB_THRESHOLD", 3),
+  /** Circuit breaker: open duration ms (configurable via performance.circuitBreakerOpenMs) */
+  CB_OPEN_MS:       envInt("AIRMCP_CB_OPEN_MS", 60_000),
   /** Circuit breaker: max apps tracked */
   CB_CACHE_SIZE:    50,
 } as const;
@@ -142,6 +144,10 @@ export const LIMITS = {
   SEARCH_TOP_K:     10,
   /** Semantic search similarity threshold */
   SEARCH_THRESHOLD: 0.5,
+  /** Max notes for scan_notes bulk operation */
+  NOTES_BULK_SCAN:  500,
+  /** Max reminders for context snapshot */
+  SNAPSHOT_REMINDERS: 500,
 } as const;
 
 // ══════════════════════════════════════════════════════════════════════
@@ -150,7 +156,7 @@ export const LIMITS = {
 
 export const IDENTITY = {
   /** User-Agent for HTTP requests to external APIs */
-  USER_AGENT:       envStr("AIRMCP_USER_AGENT", "AirMCP/2.0 (MCP Server)"),
+  USER_AGENT:       envStr("AIRMCP_USER_AGENT", "AirMCP/2.0 (https://github.com/heznpc/AirMCP)"),
   /** Default HTTP server port */
   HTTP_PORT:        envInt("AIRMCP_HTTP_PORT", 3847),
 } as const;

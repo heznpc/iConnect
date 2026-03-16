@@ -6,6 +6,7 @@ import { nowPlayingScript } from "../music/scripts.js";
 import { getClipboardScript, getFrontmostAppScript } from "../system/scripts.js";
 import { getUnreadCountScript } from "../mail/scripts.js";
 import { AirMcpConfig, isModuleEnabled } from "./config.js";
+import { LIMITS } from "./constants.js";
 
 // ── Resource registration factory ──
 
@@ -54,14 +55,16 @@ async function fetchDueReminders(): Promise<ReminderRecord[]> {
     const lists = Reminders.lists();
     const result = [];
     for (const l of lists) {
-      const rems = l.reminders.whose({completed: false})();
-      const names = rems.length > 0 ? l.reminders.whose({completed: false}).name() : [];
-      const ids = rems.length > 0 ? l.reminders.whose({completed: false}).id() : [];
-      const dues = rems.length > 0 ? l.reminders.whose({completed: false}).dueDate() : [];
-      const priorities = rems.length > 0 ? l.reminders.whose({completed: false}).priority() : [];
-      const flags = rems.length > 0 ? l.reminders.whose({completed: false}).flagged() : [];
+      const src = l.reminders.whose({completed: false});
+      const count = src.length;
+      if (count === 0) continue;
+      const names = src.name();
+      const ids = src.id();
+      const dues = src.dueDate();
+      const priorities = src.priority();
+      const flags = src.flagged();
       const listName = l.name();
-      for (let i = 0; i < names.length; i++) {
+      for (let i = 0; i < count; i++) {
         if (dues[i] && dues[i] <= now) {
           result.push({
             id: ids[i], name: names[i], completed: false,
@@ -87,15 +90,16 @@ async function fetchTodayReminders(): Promise<ReminderRecord[]> {
     const lists = Reminders.lists();
     const result = [];
     for (const l of lists) {
-      const rems = l.reminders.whose({completed: false})();
-      if (rems.length === 0) continue;
-      const names = l.reminders.whose({completed: false}).name();
-      const ids = l.reminders.whose({completed: false}).id();
-      const dues = l.reminders.whose({completed: false}).dueDate();
-      const priorities = l.reminders.whose({completed: false}).priority();
-      const flags = l.reminders.whose({completed: false}).flagged();
+      const src = l.reminders.whose({completed: false});
+      const count = src.length;
+      if (count === 0) continue;
+      const names = src.name();
+      const ids = src.id();
+      const dues = src.dueDate();
+      const priorities = src.priority();
+      const flags = src.flagged();
       const listName = l.name();
-      for (let i = 0; i < names.length; i++) {
+      for (let i = 0; i < count; i++) {
         if (dues[i] && dues[i] >= dayStart && dues[i] < dayEnd) {
           result.push({
             id: ids[i], name: names[i], completed: false,
@@ -262,7 +266,7 @@ export async function buildSnapshot(
       key: "reminders",
       promise: (async () => {
         const { reminders: all, total: totalIncomplete } = await runJxa<{ reminders: Array<{ completed: boolean; dueDate: string | null; [k: string]: unknown }>; total: number }>(
-          listRemindersScript(500, 0, undefined, false),
+          listRemindersScript(LIMITS.SNAPSHOT_REMINDERS, 0, undefined, false),
         );
         const now = new Date();
         const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
