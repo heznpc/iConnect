@@ -24,23 +24,30 @@ export function listTracksScript(playlist: string, limit: number): string {
     const playlists = Music.playlists.whose({name: '${esc(playlist)}'})();
     if (playlists.length === 0) throw new Error('Playlist not found: ${esc(playlist)}');
     const pl = playlists[0];
-    const tracks = pl.tracks();
-    const count = Math.min(tracks.length, ${limit});
+    const total = pl.tracks.length;
+    const count = Math.min(total, ${limit});
+    const tIds = pl.tracks.id();
+    const tNames = pl.tracks.name();
+    const tArtists = pl.tracks.artist();
+    const tAlbums = pl.tracks.album();
+    const tDurations = pl.tracks.duration();
+    const tNumbers = pl.tracks.trackNumber();
+    const tGenres = pl.tracks.genre();
+    const tYears = pl.tracks.year();
     const result = [];
     for (let i = 0; i < count; i++) {
-      const t = tracks[i];
       result.push({
-        id: t.id(),
-        name: t.name(),
-        artist: t.artist(),
-        album: t.album(),
-        duration: t.duration(),
-        trackNumber: t.trackNumber(),
-        genre: t.genre(),
-        year: t.year()
+        id: tIds[i],
+        name: tNames[i],
+        artist: tArtists[i],
+        album: tAlbums[i],
+        duration: tDurations[i],
+        trackNumber: tNumbers[i],
+        genre: tGenres[i],
+        year: tYears[i]
       });
     }
-    JSON.stringify({total: tracks.length, returned: count, tracks: result});
+    JSON.stringify({total: total, returned: count, tracks: result});
   `;
 }
 
@@ -87,24 +94,28 @@ export function searchTracksScript(query: string, limit: number): string {
     if (lib.length === 0) {
       JSON.stringify({total: 0, returned: 0, tracks: []});
     } else {
-      const tracks = lib[0].tracks();
+      const tNames = lib[0].tracks.name();
+      const tArtists = lib[0].tracks.artist();
+      const tAlbums = lib[0].tracks.album();
+      const tIds = lib[0].tracks.id();
+      const tDurations = lib[0].tracks.duration();
       const q = '${esc(query)}'.toLowerCase();
       const result = [];
-      for (let i = 0; i < tracks.length && result.length < ${limit}; i++) {
-        const name = tracks[i].name() || '';
-        const artist = tracks[i].artist() || '';
-        const album = tracks[i].album() || '';
+      for (let i = 0; i < tNames.length && result.length < ${limit}; i++) {
+        const name = tNames[i] || '';
+        const artist = tArtists[i] || '';
+        const album = tAlbums[i] || '';
         if (name.toLowerCase().includes(q) || artist.toLowerCase().includes(q) || album.toLowerCase().includes(q)) {
           result.push({
-            id: tracks[i].id(),
+            id: tIds[i],
             name: name,
             artist: artist,
             album: album,
-            duration: tracks[i].duration()
+            duration: tDurations[i]
           });
         }
       }
-      JSON.stringify({total: tracks.length, returned: result.length, tracks: result});
+      JSON.stringify({total: tNames.length, returned: result.length, tracks: result});
     }
   `;
 }

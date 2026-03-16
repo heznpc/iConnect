@@ -26,7 +26,7 @@ import { z } from "zod";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
-import { randomUUID } from "node:crypto";
+import { randomUUID, timingSafeEqual } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -36,7 +36,8 @@ import { registerCrossTools } from "./cross/tools.js";
 import { registerSemanticTools } from "./semantic/tools.js";
 import { registerResources } from "./shared/resources.js";
 import { registerSetupTools } from "./shared/setup.js";
-import { registerSkillEngine } from "./skills/index.js";
+import { closeSkillsWatcher, registerSkillEngine } from "./skills/index.js";
+import { closeSwiftBridge } from "./shared/swift.js";
 import { registerApps } from "./apps/tools.js";
 import { parseConfig, isModuleEnabled, getOsVersion, NPM_PACKAGE_NAME } from "./shared/config.js";
 import { loadModuleRegistry, setModuleRegistry } from "./shared/modules.js";
@@ -46,6 +47,21 @@ import { installHitlGuard } from "./shared/hitl-guard.js";
 import { setShareGuardHitlClient } from "./shared/share-guard.js";
 import { printBanner, type BannerInfo } from "./shared/banner.js";
 import { LIMITS, TIMEOUT, IDENTITY } from "./shared/constants.js";
+
+// ── SDK internal access ──────────────────────────────────────────────
+// MCP SDK does not expose public APIs for counting registered tools/prompts
+// or invoking prompt callbacks by name. These helpers centralise the
+// `as any` access so breakage from SDK upgrades surfaces in one place.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnyMap = Record<string, any>;
+function getRegisteredPrompts(server: McpServer): AnyMap | undefined {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (server as any)._registeredPrompts as AnyMap | undefined;
+}
+function getRegisteredToolCount(server: McpServer): number {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return Object.keys((server as any)._registeredTools ?? {}).length;
+}
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const pkg = JSON.parse(readFileSync(join(__dirname, "..", "package.json"), "utf-8")) as { version: string };
@@ -60,8 +76,10 @@ if (config.hitl.level !== "off") {
   setShareGuardHitlClient(hitlClient);
 }
 
-// Clean up HITL socket on exit
+// Clean up resources on exit
 function onExit() {
+  closeSkillsWatcher();
+  closeSwiftBridge();
   if (hitlClient) {
     hitlClient.dispose();
     hitlClient = null;
@@ -71,6 +89,16 @@ function onExit() {
 process.on("exit", onExit);
 process.on("SIGINT", () => { onExit(); process.exit(0); });
 process.on("SIGTERM", () => { onExit(); process.exit(0); });
+
+// Catch unhandled errors to prevent silent crashes
+process.on("unhandledRejection", (reason) => {
+  console.error("[AirMCP] Unhandled promise rejection:", reason);
+});
+process.on("uncaughtException", (error) => {
+  console.error("[AirMCP] Uncaught exception:", error);
+  onExit();
+  process.exit(1);
+});
 
 async function createServer(): Promise<{ server: McpServer; bannerInfo: BannerInfo }> {
   const server = new McpServer({
@@ -155,8 +183,7 @@ async function createServer(): Promise<{ server: McpServer; bannerInfo: BannerIn
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
     async ({ name, args }) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const prompts = (server as any)._registeredPrompts as Record<string, { callback: (...a: any[]) => any }> | undefined;
+      const prompts = getRegisteredPrompts(server);
       if (!prompts) return err("Prompt registry not available");
       const prompt = prompts[name];
       if (!prompt) {
@@ -174,10 +201,8 @@ async function createServer(): Promise<{ server: McpServer; bannerInfo: BannerIn
   );
 
   // Collect banner info for startup display
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const toolCount = Object.keys((server as any)._registeredTools ?? {}).length;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const promptCount = Object.keys((server as any)._registeredPrompts ?? {}).length;
+  const toolCount = getRegisteredToolCount(server);
+  const promptCount = Object.keys(getRegisteredPrompts(server) ?? {}).length;
 
   const bannerInfo: BannerInfo = {
     version: pkg.version,
@@ -204,33 +229,71 @@ const args = process.argv.slice(2);
 const httpMode = args.includes("--http");
 const portIdx = args.indexOf("--port");
 const port = portIdx !== -1 && args[portIdx + 1] ? parseInt(args[portIdx + 1], 10) : IDENTITY.HTTP_PORT;
+const bindAll = args.includes("--bind-all");
+const httpToken = process.env.AIRMCP_HTTP_TOKEN ?? "";
 
 async function main() {
   if (httpMode) {
     const express = (await import("express")).default;
     const app = express();
-    app.use(express.json());
+    app.use(express.json({ limit: "1mb" }));
 
-    const transports = new Map<string, StreamableHTTPServerTransport>();
-    const servers = new Map<string, McpServer>();
-    const sessionActivity = new Map<string, number>();
+    // Bearer token auth — required when --bind-all is used, optional otherwise
+    if (httpToken) {
+      app.use((req, res, next) => {
+        // Skip auth for health/discovery endpoints
+        if (req.path === "/health" || req.path === "/.well-known/mcp.json") return next();
+        const auth = req.headers.authorization;
+        const expected = `Bearer ${httpToken}`;
+        const authBuf = Buffer.from(auth ?? "");
+        const expBuf = Buffer.from(expected);
+        if (authBuf.length !== expBuf.length || !timingSafeEqual(authBuf, expBuf)) {
+          res.status(401).json({ error: "Unauthorized: invalid or missing Bearer token" });
+          return;
+        }
+        next();
+      });
+    } else if (bindAll) {
+      console.error("[AirMCP] WARNING: --bind-all without AIRMCP_HTTP_TOKEN is insecure. Set AIRMCP_HTTP_TOKEN for authentication.");
+    }
+
+    interface Session {
+      transport: StreamableHTTPServerTransport;
+      server: McpServer;
+      lastActive: number;
+    }
+    const sessions = new Map<string, Session>();
 
     const cleanupInterval = setInterval(() => {
       const now = Date.now();
-      for (const [id, lastActive] of sessionActivity) {
-        if (now - lastActive > TIMEOUT.SESSION_IDLE) {
-          const transport = transports.get(id);
-          if (transport) transport.close?.();
-          const srv = servers.get(id);
-          if (srv) srv.close?.();
-          transports.delete(id);
-          servers.delete(id);
-          sessionActivity.delete(id);
+      for (const id of [...sessions.keys()]) {
+        const s = sessions.get(id);
+        if (s && now - s.lastActive > TIMEOUT.SESSION_IDLE) {
+          try {
+            s.transport.close?.();
+            s.server.close?.();
+          } catch (e) {
+            console.error(`[AirMCP] Session ${id} cleanup error:`, e);
+          }
+          sessions.delete(id);
         }
       }
     }, TIMEOUT.SESSION_CLEANUP);
 
     process.on("exit", () => clearInterval(cleanupInterval));
+
+    // Health check — for load balancers, monitoring, and readiness probes
+    app.get("/health", (_req, res) => {
+      res.json({
+        status: "ok",
+        version: pkg.version,
+        uptime: Math.floor(process.uptime()),
+        sessions: {
+          active: sessions.size,
+          limit: LIMITS.HTTP_SESSIONS,
+        },
+      });
+    });
 
     // MCP Server Card — discovery endpoint for Claude, VS Code Copilot, etc.
     app.get("/.well-known/mcp.json", (_req, res) => {
@@ -251,9 +314,10 @@ async function main() {
       try {
         const sessionId = req.headers["mcp-session-id"] as string | undefined;
 
-        if (sessionId && transports.has(sessionId)) {
-          sessionActivity.set(sessionId, Date.now());
-          await transports.get(sessionId)!.handleRequest(req, res, req.body);
+        const existing = sessionId ? sessions.get(sessionId) : undefined;
+        if (existing) {
+          existing.lastActive = Date.now();
+          await existing.transport.handleRequest(req, res, req.body);
           return;
         }
 
@@ -266,7 +330,7 @@ async function main() {
           return;
         }
 
-        if (transports.size >= LIMITS.HTTP_SESSIONS) {
+        if (sessions.size >= LIMITS.HTTP_SESSIONS) {
           res.status(503).json({
             jsonrpc: "2.0",
             error: { code: -32000, message: "Too many concurrent sessions. Try again later." },
@@ -275,27 +339,29 @@ async function main() {
           return;
         }
 
+        const { server } = await createServer();
+        let assignedSessionId: string | undefined;
+
         const transport = new StreamableHTTPServerTransport({
           sessionIdGenerator: () => randomUUID(),
           onsessioninitialized: (id) => {
-            transports.set(id, transport);
-            sessionActivity.set(id, Date.now());
+            assignedSessionId = id;
+            sessions.set(id, { transport, server, lastActive: Date.now() });
           },
           onsessionclosed: (id) => {
-            transports.delete(id);
-            const srv = servers.get(id);
-            if (srv) srv.close?.();
-            servers.delete(id);
-            sessionActivity.delete(id);
+            const s = sessions.get(id);
+            if (s) s.server.close?.();
+            sessions.delete(id);
           },
         });
 
-        const { server } = await createServer();
         await server.connect(transport);
-        // Track server for cleanup once session ID is assigned
-        const sid = [...transports.entries()].find(([, t]) => t === transport)?.[0];
-        if (sid) servers.set(sid, server);
         await transport.handleRequest(req, res, req.body);
+
+        // If session was never initialized (transport rejected), clean up
+        if (!assignedSessionId) {
+          server.close?.();
+        }
       } catch (err) {
         console.error("POST /mcp error:", err);
         if (!res.headersSent) {
@@ -308,41 +374,34 @@ async function main() {
       }
     });
 
-    app.get("/mcp", async (req, res) => {
+    // Shared handler for GET/DELETE (SSE streaming + session close)
+    const handleSessionRequest = async (req: import("express").Request, res: import("express").Response, method: string) => {
       try {
         const sessionId = req.headers["mcp-session-id"] as string | undefined;
-        if (!sessionId || !transports.has(sessionId)) {
+        const s = sessionId ? sessions.get(sessionId) : undefined;
+        if (!s) {
           res.status(400).json({ error: "Invalid or missing session ID" });
           return;
         }
-        sessionActivity.set(sessionId, Date.now());
-        await transports.get(sessionId)!.handleRequest(req, res);
+        s.lastActive = Date.now();
+        await s.transport.handleRequest(req, res);
       } catch (err) {
-        console.error("GET /mcp error:", err);
+        console.error(`${method} /mcp error:`, err);
       }
-    });
+    };
 
-    app.delete("/mcp", async (req, res) => {
-      try {
-        const sessionId = req.headers["mcp-session-id"] as string | undefined;
-        if (!sessionId || !transports.has(sessionId)) {
-          res.status(400).json({ error: "Invalid or missing session ID" });
-          return;
-        }
-        sessionActivity.set(sessionId, Date.now());
-        await transports.get(sessionId)!.handleRequest(req, res);
-      } catch (err) {
-        console.error("DELETE /mcp error:", err);
-      }
-    });
+    app.get("/mcp", (req, res) => handleSessionRequest(req, res, "GET"));
+    app.delete("/mcp", (req, res) => handleSessionRequest(req, res, "DELETE"));
 
     // Pre-warm module registry + shortcuts cache (avoids per-session subprocess)
     const { bannerInfo: bi, server: warmupServer } = await createServer();
     warmupServer.close?.();
-    app.listen(port, async () => {
+    const host = bindAll ? "0.0.0.0" : "127.0.0.1";
+    app.listen(port, host, async () => {
       bi.transport = "http";
       bi.port = port;
       await printBanner(bi);
+      if (bindAll) console.error(`[AirMCP] Bound to all interfaces (0.0.0.0:${port})${httpToken ? " with token auth" : " — NO AUTH"}`);
     });
   } else {
     const { server, bannerInfo } = await createServer();

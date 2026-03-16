@@ -37,22 +37,27 @@ export function listMessagesScript(
     const boxes = acct.mailboxes.whose({name: '${esc(mailbox)}'})();
     if (boxes.length === 0) throw new Error('Mailbox not found: ${esc(mailbox)}');
     const box = boxes[0];
-    const msgs = box.messages();
-    const start = Math.min(${offset}, msgs.length);
-    const count = Math.min(msgs.length - start, ${limit});
+    const total = box.messages.length;
+    const start = Math.min(${offset}, total);
+    const count = Math.min(total - start, ${limit});
+    const ids = box.messages.id();
+    const subjects = box.messages.subject();
+    const senders = box.messages.sender();
+    const dates = box.messages.dateReceived();
+    const reads = box.messages.readStatus();
+    const flags = box.messages.flaggedStatus();
     const result = [];
     for (let i = start; i < start + count; i++) {
-      const m = msgs[i];
       result.push({
-        id: m.id(),
-        subject: m.subject(),
-        sender: m.sender(),
-        dateReceived: m.dateReceived().toISOString(),
-        read: m.readStatus(),
-        flagged: m.flaggedStatus()
+        id: ids[i],
+        subject: subjects[i],
+        sender: senders[i],
+        dateReceived: dates[i] ? dates[i].toISOString() : null,
+        read: reads[i],
+        flagged: flags[i]
       });
     }
-    JSON.stringify({total: msgs.length, offset: start, returned: count, messages: result});
+    JSON.stringify({total: total, offset: start, returned: count, messages: result});
   `;
 }
 
@@ -106,17 +111,22 @@ export function searchMessagesScript(
     for (const acct of accounts) {
       const boxes = acct.mailboxes.whose({name: '${esc(mailbox)}'})();
       if (boxes.length === 0) continue;
-      const msgs = boxes[0].messages();
-      for (let i = 0; i < msgs.length && result.length < ${limit}; i++) {
-        const subj = msgs[i].subject() || '';
-        const sender = msgs[i].sender() || '';
+      const box = boxes[0];
+      const subjects = box.messages.subject();
+      const senders = box.messages.sender();
+      const ids = box.messages.id();
+      const dates = box.messages.dateReceived();
+      const reads = box.messages.readStatus();
+      for (let i = 0; i < subjects.length && result.length < ${limit}; i++) {
+        const subj = subjects[i] || '';
+        const sender = senders[i] || '';
         if (subj.toLowerCase().includes(q) || sender.toLowerCase().includes(q)) {
           result.push({
-            id: msgs[i].id(),
+            id: ids[i],
             subject: subj,
             sender: sender,
-            dateReceived: msgs[i].dateReceived().toISOString(),
-            read: msgs[i].readStatus()
+            dateReceived: dates[i] ? dates[i].toISOString() : null,
+            read: reads[i]
           });
         }
       }

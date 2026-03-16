@@ -180,7 +180,8 @@ async function runJxaInner<T>(script: string, app: string | undefined): Promise<
         throw new Error(friendly ? `osascript error: ${friendly}` : `osascript error: ${cleanMsg}`, { cause: e });
       }
       console.error(`[AirMCP] JXA retry attempt ${attempt + 2}/3`);
-      await new Promise((r) => setTimeout(r, CONCURRENCY.JXA_RETRY_DELAYS[attempt]));
+      const jitter = Math.floor(Math.random() * 100);
+      await new Promise((r) => setTimeout(r, CONCURRENCY.JXA_RETRY_DELAYS[attempt] + jitter));
     }
   }
 

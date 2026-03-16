@@ -8,17 +8,15 @@ export function searchFilesScript(folder: string, query: string, limit: number):
     app.includeStandardAdditions = true;
     const results = app.doShellScript('mdfind -onlyin "${escJxaShell(folder)}" "${escJxaShell(query)}" | head -${limit}');
     const paths = results.split(/[\\r\\n]+/).filter(p => p.length > 0);
-    const Finder = Application('Finder');
     const result = paths.map(p => {
       try {
-        const item = Finder.items.whose({url: 'file://' + encodeURI(p)})()[0];
-        if (!item) return {path: p, name: p.split('/').pop()};
+        const stat = app.doShellScript('stat -f "%z %m" "' + p.replace(/"/g, '\\\\"') + '"');
+        const parts = stat.split(' ');
+        const size = parseInt(parts[0], 10);
+        const mtime = parseInt(parts[1], 10);
         return {
-          path: p,
-          name: item.name(),
-          kind: item.kind(),
-          size: item.size(),
-          modificationDate: item.modificationDate().toISOString()
+          path: p, name: p.split('/').pop(),
+          size: size, modificationDate: new Date(mtime * 1000).toISOString()
         };
       } catch(e) {
         return {path: p, name: p.split('/').pop()};
@@ -84,24 +82,24 @@ export function listDirectoryScript(path: string, limit: number): string {
     const app = Application.currentApplication();
     app.includeStandardAdditions = true;
     const output = app.doShellScript('ls -1 "${escJxaShell(path)}" | head -${limit}');
-    const names = output.split(/[\\r\\n]+/).filter(n => n.length > 0);
-    const Finder = Application('Finder');
-    const result = names.map(name => {
+    const fileNames = output.split(/[\\r\\n]+/).filter(n => n.length > 0);
+    const result = fileNames.map(name => {
       try {
         const fullPath = '${esc(path)}' + '/' + name;
-        const posixFile = Path(fullPath);
-        const item = Finder.items[posixFile.toString()];
+        const stat = app.doShellScript('stat -f "%z %m %HT" "' + fullPath.replace(/"/g, '\\\\"') + '"');
+        const parts = stat.split(' ');
+        const size = parseInt(parts[0], 10);
+        const mtime = parseInt(parts[1], 10);
+        const kind = parts.slice(2).join(' ') || 'unknown';
         return {
-          name: name,
-          kind: item.kind(),
-          size: item.size(),
-          modificationDate: item.modificationDate().toISOString()
+          name: name, kind: kind, size: size,
+          modificationDate: new Date(mtime * 1000).toISOString()
         };
       } catch(e) {
         return {name: name, kind: 'unknown'};
       }
     });
-    JSON.stringify({total: names.length, returned: result.length, items: result});
+    JSON.stringify({total: fileNames.length, returned: result.length, items: result});
   `;
 }
 

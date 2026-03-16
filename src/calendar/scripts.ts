@@ -65,18 +65,22 @@ export function listEventsScript(
     const end = new Date('${esc(endDate)}');
     const all = [];
     for (const cal of cals) {
-      const events = cal.events.whose({
+      const filtered = cal.events.whose({
         _and: [{startDate: {_greaterThanEquals: start}}, {startDate: {_lessThanEquals: end}}]
-      })();
+      });
+      const count = filtered.length;
+      if (count === 0) continue;
+      const eUids = filtered.uid();
+      const eSummaries = filtered.summary();
+      const eStarts = filtered.startDate();
+      const eEnds = filtered.endDate();
+      const eAllDay = filtered.alldayEvent();
       const calName = cal.name();
-      for (const ev of events) {
+      for (let i = 0; i < count; i++) {
         all.push({
-          id: ev.uid(),
-          summary: ev.summary(),
-          startDate: ev.startDate().toISOString(),
-          endDate: ev.endDate().toISOString(),
-          allDay: ev.alldayEvent(),
-          calendar: calName
+          id: eUids[i], summary: eSummaries[i],
+          startDate: eStarts[i].toISOString(), endDate: eEnds[i].toISOString(),
+          allDay: eAllDay[i], calendar: calName
         });
       }
     }
@@ -222,21 +226,26 @@ export function searchEventsScript(
     const q = '${esc(query)}'.toLowerCase();
     const all = [];
     for (const cal of cals) {
-      const events = cal.events.whose({
+      const filtered = cal.events.whose({
         _and: [{startDate: {_greaterThanEquals: start}}, {startDate: {_lessThanEquals: end}}]
-      })();
+      });
+      const count = filtered.length;
+      if (count === 0) continue;
+      const eSummaries = filtered.summary();
+      const eDescs = filtered.description();
+      const eUids = filtered.uid();
+      const eStarts = filtered.startDate();
+      const eEnds = filtered.endDate();
+      const eAllDay = filtered.alldayEvent();
       const calName = cal.name();
-      for (const ev of events) {
-        const summary = ev.summary() || '';
-        const desc = ev.description() || '';
+      for (let i = 0; i < count; i++) {
+        const summary = eSummaries[i] || '';
+        const desc = eDescs[i] || '';
         if (summary.toLowerCase().includes(q) || desc.toLowerCase().includes(q)) {
           all.push({
-            id: ev.uid(),
-            summary: summary,
-            startDate: ev.startDate().toISOString(),
-            endDate: ev.endDate().toISOString(),
-            allDay: ev.alldayEvent(),
-            calendar: calName
+            id: eUids[i], summary: summary,
+            startDate: eStarts[i].toISOString(), endDate: eEnds[i].toISOString(),
+            allDay: eAllDay[i], calendar: calName
           });
         }
       }
@@ -255,19 +264,23 @@ export function getUpcomingEventsScript(limit: number): string {
     const end = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
     const all = [];
     for (const cal of cals) {
-      const events = cal.events.whose({
+      const filtered = cal.events.whose({
         _and: [{startDate: {_greaterThanEquals: now}}, {startDate: {_lessThanEquals: end}}]
-      })();
+      });
+      const count = filtered.length;
+      if (count === 0) continue;
+      const eUids = filtered.uid();
+      const eSummaries = filtered.summary();
+      const eStarts = filtered.startDate();
+      const eEnds = filtered.endDate();
+      const eAllDay = filtered.alldayEvent();
+      const eLocs = filtered.location();
       const calName = cal.name();
-      for (const ev of events) {
+      for (let i = 0; i < count; i++) {
         all.push({
-          id: ev.uid(),
-          summary: ev.summary(),
-          startDate: ev.startDate().toISOString(),
-          endDate: ev.endDate().toISOString(),
-          allDay: ev.alldayEvent(),
-          location: ev.location(),
-          calendar: calName
+          id: eUids[i], summary: eSummaries[i],
+          startDate: eStarts[i].toISOString(), endDate: eEnds[i].toISOString(),
+          allDay: eAllDay[i], location: eLocs[i], calendar: calName
         });
       }
     }
@@ -286,19 +299,23 @@ export function todayEventsScript(): string {
     const end = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
     const all = [];
     for (const cal of cals) {
-      const events = cal.events.whose({
+      const filtered = cal.events.whose({
         _and: [{startDate: {_greaterThanEquals: start}}, {startDate: {_lessThanEquals: end}}]
-      })();
+      });
+      const count = filtered.length;
+      if (count === 0) continue;
+      const eUids = filtered.uid();
+      const eSummaries = filtered.summary();
+      const eStarts = filtered.startDate();
+      const eEnds = filtered.endDate();
+      const eAllDay = filtered.alldayEvent();
+      const eLocs = filtered.location();
       const calName = cal.name();
-      for (const ev of events) {
+      for (let i = 0; i < count; i++) {
         all.push({
-          id: ev.uid(),
-          summary: ev.summary(),
-          startDate: ev.startDate().toISOString(),
-          endDate: ev.endDate().toISOString(),
-          allDay: ev.alldayEvent(),
-          location: ev.location(),
-          calendar: calName
+          id: eUids[i], summary: eSummaries[i],
+          startDate: eStarts[i].toISOString(), endDate: eEnds[i].toISOString(),
+          allDay: eAllDay[i], location: eLocs[i], calendar: calName
         });
       }
     }

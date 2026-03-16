@@ -104,6 +104,7 @@ export class HitlClient {
       });
 
       socket.on("error", (error) => {
+        socket.destroy();
         if (this.connecting) {
           this.connecting = false;
           this.connectPromise = null;

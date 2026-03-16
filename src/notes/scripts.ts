@@ -61,24 +61,45 @@ export function searchNotesScript(query: string, limit: number): string {
     const Notes = Application('Notes');
     const names = Notes.notes.name();
     const ids = Notes.notes.id();
-    const plaintexts = Notes.notes.plaintext();
     const creationDates = Notes.notes.creationDate();
     const modificationDates = Notes.notes.modificationDate();
     const containers = Notes.notes.container();
     const shareds = Notes.notes.shared();
     const q = '${esc(query)}'.toLowerCase();
     const result = [];
+    const nameMatched = new Set();
+    // Phase 1: Search by title only (cheap — no plaintext fetch)
     for (let i = 0; i < names.length && result.length < ${limit}; i++) {
-      if (names[i].toLowerCase().includes(q) || plaintexts[i].toLowerCase().includes(q)) {
+      if (names[i].toLowerCase().includes(q)) {
+        const pt = Notes.notes[i].plaintext();
         result.push({
           id: ids[i],
           name: names[i],
           folder: containers[i].name(),
           creationDate: creationDates[i].toISOString(),
           modificationDate: modificationDates[i].toISOString(),
-          preview: plaintexts[i].substring(0, 200),
+          preview: pt.substring(0, 200),
           shared: shareds[i]
         });
+        nameMatched.add(i);
+      }
+    }
+    // Phase 2: Search body content (expensive — per-note plaintext, stops at limit)
+    if (result.length < ${limit}) {
+      for (let i = 0; i < names.length && result.length < ${limit}; i++) {
+        if (nameMatched.has(i)) continue;
+        const pt = Notes.notes[i].plaintext();
+        if (pt.toLowerCase().includes(q)) {
+          result.push({
+            id: ids[i],
+            name: names[i],
+            folder: containers[i].name(),
+            creationDate: creationDates[i].toISOString(),
+            modificationDate: modificationDates[i].toISOString(),
+            preview: pt.substring(0, 200),
+            shared: shareds[i]
+          });
+        }
       }
     }
     JSON.stringify({total: names.length, returned: result.length, notes: result});
