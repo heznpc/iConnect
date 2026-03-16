@@ -59,27 +59,28 @@ export function searchContactsScript(query: string, limit: number): string {
         const p = Contacts.people[i];
         let emailMatch = false;
         let phoneMatch = false;
+        let pEmails = [];
+        let pPhones = [];
         try {
-          const emails = p.emails();
-          for (let e = 0; e < emails.length; e++) {
-            if ((emails[e].value() || '').toLowerCase().includes(q)) { emailMatch = true; break; }
+          pEmails = p.emails();
+          for (let e = 0; e < pEmails.length; e++) {
+            if ((pEmails[e].value() || '').toLowerCase().includes(q)) { emailMatch = true; break; }
           }
         } catch(e) {}
         if (!emailMatch) {
           try {
-            const phones = p.phones();
-            for (let ph = 0; ph < phones.length; ph++) {
-              if ((phones[ph].value() || '').includes(q)) { phoneMatch = true; break; }
+            pPhones = p.phones();
+            for (let ph = 0; ph < pPhones.length; ph++) {
+              if ((pPhones[ph].value() || '').includes(q)) { phoneMatch = true; break; }
             }
           } catch(e) {}
         }
         if (emailMatch || phoneMatch) {
-          const emails = p.emails();
-          const phones = p.phones();
+          if (pPhones.length === 0) try { pPhones = p.phones(); } catch(e) {}
           result.push({
             id: ids[i], name: names[i], organization: orgs[i] || null,
-            email: emails.length > 0 ? emails[0].value() : null,
-            phone: phones.length > 0 ? phones[0].value() : null,
+            email: pEmails.length > 0 ? pEmails[0].value() : null,
+            phone: pPhones.length > 0 ? pPhones[0].value() : null,
             matchedField: emailMatch ? 'email' : 'phone'
           });
         }

@@ -3,7 +3,7 @@ import { access } from "node:fs/promises";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
-import { TIMEOUT, PATHS } from "./constants.js";
+import { TIMEOUT, BUFFER, PATHS } from "./constants.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const BINARY_PATH = resolve(__dirname, PATHS.SWIFT_BRIDGE);
@@ -66,6 +66,7 @@ function ensureProcess(): Promise<void> {
           // Handle readiness signal
           if (!ready && msg.id === "__ready__") {
             ready = true;
+            clearTimeout(readyTimer);
             child = proc;
             launching = null;
             resolve();
@@ -112,7 +113,7 @@ function ensureProcess(): Promise<void> {
     });
 
     // Timeout for initial readiness
-    setTimeout(() => {
+    const readyTimer = setTimeout(() => {
       if (!ready) {
         proc.kill("SIGTERM");
         launching = null;
@@ -164,7 +165,7 @@ export async function runSwift<T>(command: string, input: string): Promise<T> {
   }
 
   const id = randomUUID();
-  const request = JSON.stringify({ id, command, input: JSON.parse(input) });
+  const request = `{"id":${JSON.stringify(id)},"command":${JSON.stringify(command)},"input":${input}}`;
 
   return new Promise<T>((resolve, reject) => {
     const timer = setTimeout(() => {
@@ -201,8 +202,15 @@ function runSwiftSingleShot<T>(command: string, input: string): Promise<T> {
 
     let stdout = "";
     let stderr = "";
+    let size = 0;
 
     proc.stdout.on("data", (chunk: Buffer) => {
+      size += chunk.length;
+      if (size > BUFFER.SWIFT) {
+        proc.kill("SIGTERM");
+        reject(new Error(`Swift bridge output exceeded ${BUFFER.SWIFT} bytes`));
+        return;
+      }
       stdout += chunk.toString();
     });
 

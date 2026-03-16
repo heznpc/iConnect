@@ -112,6 +112,7 @@ function execJxa(
       (error, stdout) => {
         if (settled) return;
         settled = true;
+        clearTimeout(killTimer);
 
         if (error) {
           reject(error);
@@ -123,6 +124,7 @@ function execJxa(
 
     child.on("close", () => {
       settled = true;
+      clearTimeout(killTimer);
     });
 
     const killTimer = setTimeout(() => {

@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { runJxa } from "../shared/jxa.js";
 import type { AirMcpConfig } from "../shared/config.js";
+import { LIMITS } from "../shared/constants.js";
 import { ok, err } from "../shared/result.js";
 import { filterSharedAccess, guardSharedAccess } from "../shared/share-guard.js";
 import {
@@ -352,7 +353,7 @@ export function registerNoteTools(server: McpServer, config: AirMcpConfig): void
         "Bulk scan notes returning metadata and a text preview for each. Supports pagination via offset. Optionally filter by folder. Use this to get an overview before organizing.",
       inputSchema: {
         folder: z.string().optional().describe("Filter by folder name. Omit to scan all notes."),
-        limit: z.number().int().min(1).max(500).optional().default(100).describe("Max number of notes to return (default: 100)"),
+        limit: z.number().int().min(1).max(LIMITS.NOTES_BULK_SCAN).optional().default(100).describe("Max number of notes to return (default: 100)"),
         offset: z.number().int().min(0).optional().default(0).describe("Number of notes to skip for pagination (default: 0)"),
         previewLength: z.number().int().min(1).max(5000).optional().default(300).describe("Preview text length in characters (default: 300)"),
       },
