@@ -652,6 +652,7 @@ Or edit `~/.config/airmcp/config.json` directly:
 | `AIRMCP_EMBEDDING_MODEL` | `text-embedding-004` | Gemini embedding model name |
 | `AIRMCP_EMBEDDING_DIM` | `768` | Embedding dimension (768/1024/2048/3072) |
 | `AIRMCP_EMBEDDING_PROVIDER` | auto | Force provider: `gemini`, `swift`, `hybrid`, `none` |
+| `AIRMCP_HTTP_TOKEN` | — | Bearer token for HTTP mode authentication |
 
 ### Config File
 

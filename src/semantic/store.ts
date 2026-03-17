@@ -62,22 +62,30 @@ export function search(
  */
 export class VectorStore {
   private cache: VectorStoreData | null = null;
+  private loadPromise: Promise<VectorStoreData> | null = null;
 
   private async load(): Promise<VectorStoreData> {
     if (this.cache) return this.cache;
-    try {
-      const data = await readFile(STORE_PATH, "utf-8");
-      this.cache = JSON.parse(data) as VectorStoreData;
-    } catch {
-      this.cache = { version: 1, entries: {} };
+    // Deduplicate concurrent load calls — only the first actually reads disk
+    if (!this.loadPromise) {
+      this.loadPromise = (async () => {
+        try {
+          const data = await readFile(STORE_PATH, "utf-8");
+          this.cache = JSON.parse(data) as VectorStoreData;
+        } catch {
+          this.cache = { version: 1, entries: {} };
+        }
+        return this.cache;
+      })();
     }
-    return this.cache;
+    return this.loadPromise;
   }
 
   private async save(store: VectorStoreData): Promise<void> {
     await mkdir(STORE_DIR, { recursive: true });
     await writeFile(STORE_PATH, JSON.stringify(store), "utf-8");
     this.cache = store;
+    this.loadPromise = null; // Reset so next load reads fresh data if cache is cleared
   }
 
   /** Upsert one or more entries into the vector store. */
@@ -144,14 +152,15 @@ export class VectorStore {
     return store.entries[id] ?? null;
   }
 
-  /** Get all entries (for Spotlight sync). */
+  /** Get all entries (for Spotlight sync). Returns a shallow copy to prevent cache mutation. */
   async getAllEntries(): Promise<Record<string, VectorEntry>> {
     const store = await this.load();
-    return store.entries;
+    return { ...store.entries };
   }
 
   /** Clear entire store (for privacy / fresh re-index). */
   async clear(): Promise<void> {
+    this.loadPromise = null; // Cancel any in-flight load before overwriting cache
     this.cache = { version: 1, entries: {} };
     await this.save(this.cache);
   }

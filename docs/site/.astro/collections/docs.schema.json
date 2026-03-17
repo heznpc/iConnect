@@ -1,0 +1,346 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "editUrl": {
+      "default": true,
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "uri"
+        },
+        {
+          "type": "boolean"
+        }
+      ]
+    },
+    "head": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "tag": {
+            "type": "string",
+            "enum": [
+              "title",
+              "base",
+              "link",
+              "style",
+              "meta",
+              "script",
+              "noscript",
+              "template"
+            ]
+          },
+          "attrs": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "boolean"
+                },
+                {}
+              ]
+            }
+          },
+          "content": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "tag"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "tableOfContents": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "minHeadingLevel": {
+              "default": 2,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 6
+            },
+            "maxHeadingLevel": {
+              "default": 3,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 6
+            }
+          },
+          "required": [
+            "minHeadingLevel",
+            "maxHeadingLevel"
+          ],
+          "additionalProperties": false
+        },
+        {}
+      ]
+    },
+    "template": {
+      "default": "doc",
+      "type": "string",
+      "enum": [
+        "doc",
+        "splash"
+      ]
+    },
+    "hero": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "tagline": {
+          "type": "string"
+        },
+        "image": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "alt": {
+                  "default": "",
+                  "type": "string"
+                },
+                "file": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "alt",
+                "file"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "alt": {
+                  "default": "",
+                  "type": "string"
+                },
+                "dark": {
+                  "type": "string"
+                },
+                "light": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "alt",
+                "dark",
+                "light"
+              ],
+              "additionalProperties": false
+            },
+            {}
+          ]
+        },
+        "actions": {
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "text": {
+                "type": "string"
+              },
+              "link": {
+                "type": "string"
+              },
+              "variant": {
+                "default": "primary",
+                "type": "string",
+                "enum": [
+                  "primary",
+                  "secondary",
+                  "minimal"
+                ]
+              },
+              "icon": {},
+              "attrs": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "boolean"
+                    }
+                  ]
+                }
+              }
+            },
+            "required": [
+              "text",
+              "link",
+              "variant"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "actions"
+      ],
+      "additionalProperties": false
+    },
+    "lastUpdated": {
+      "anyOf": [
+        {
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "type": "boolean"
+        }
+      ]
+    },
+    "prev": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "string"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "link": {
+              "type": "string"
+            },
+            "label": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "next": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "string"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "link": {
+              "type": "string"
+            },
+            "label": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "sidebar": {
+      "type": "object",
+      "properties": {
+        "order": {
+          "type": "number"
+        },
+        "label": {
+          "type": "string"
+        },
+        "hidden": {
+          "default": false,
+          "type": "boolean"
+        },
+        "badge": {},
+        "attrs": {
+          "default": {},
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {},
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "required": [
+        "hidden",
+        "attrs"
+      ],
+      "additionalProperties": false
+    },
+    "banner": {
+      "type": "object",
+      "properties": {
+        "content": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "content"
+      ],
+      "additionalProperties": false
+    },
+    "pagefind": {
+      "default": true,
+      "type": "boolean"
+    },
+    "draft": {
+      "default": false,
+      "type": "boolean"
+    },
+    "$schema": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "title",
+    "editUrl",
+    "head",
+    "template",
+    "sidebar",
+    "pagefind",
+    "draft"
+  ],
+  "additionalProperties": false
+}

@@ -347,3 +347,26 @@ button{font:inherit;cursor:pointer;border:0;background:0 0}
   .nav-mobile{display:flex}
   .lang-dropdown{position:fixed;top:auto;bottom:20px;right:20px;left:20px;min-width:auto}
 }
+
+/* === Terminal Playground === */
+.term-window{border-radius:12px;overflow:hidden;border:1px solid rgba(255,255,255,.08);background:rgba(0,0,0,.65);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
+[data-theme="light"] .term-window{background:rgba(30,30,30,.92)}
+.term-titlebar{display:flex;align-items:center;gap:6px;padding:10px 14px;background:rgba(255,255,255,.04);border-bottom:1px solid rgba(255,255,255,.06)}
+.term-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.term-titlebar-text{font-family:'JetBrains Mono',monospace;font-size:11px;opacity:.35;margin-left:8px}
+.term-body{padding:16px 18px;font-family:'JetBrains Mono',monospace;font-size:13px;line-height:1.7;min-height:220px;max-height:320px;overflow-y:auto;scroll-behavior:smooth}
+.term-line{margin-bottom:2px;white-space:pre-wrap;word-break:break-word}
+.term-prompt{color:#28c840;font-weight:600}
+.term-user{color:#fff;opacity:.9}
+.term-dim{opacity:.3}
+.term-tool{color:#0ea5e9;font-weight:500}
+.term-args{color:#f472b6;opacity:.7;margin-left:2px;font-size:12px}
+.term-result{color:#a8b2c1;opacity:.7;padding-left:18px;display:inline-block}
+.term-summary{color:#2dd4bf;padding-left:18px;display:inline-block;font-weight:500}
+.term-fade-in{animation:termFade .3s ease-out}
+@keyframes termFade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.term-prompt-card{display:flex;flex-direction:column;gap:6px;padding:12px 16px;border-radius:10px;border:1px solid rgba(255,255,255,.06);background:rgba(255,255,255,.03);text-align:left;transition:all .2s;cursor:pointer}
+.term-prompt-card:hover{border-color:rgba(14,165,233,.3);background:rgba(14,165,233,.06);transform:translateY(-1px)}
+[data-theme="light"] .term-prompt-card{background:rgba(0,0,0,.03);border-color:rgba(0,0,0,.08)}
+[data-theme="light"] .term-prompt-card:hover{background:rgba(14,165,233,.08);border-color:rgba(14,165,233,.25)}
+.term-prompt-text{font-size:13px;opacity:.55;font-style:italic;line-height:1.4}
