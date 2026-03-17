@@ -427,68 +427,145 @@
     </div>
   </section>
 
-  <!-- Try It -->
+  <!-- Try It — Interactive Terminal Playground -->
   <section id="tryit" class="relative z-[1] py-10 pb-24">
     <div class="max-w-[1080px] mx-auto px-5">
       <div class="text-center mb-10">
         <p class="section-label reveal" data-i18n="tryit_label">Try It</p>
         <h2 class="text-[clamp(2rem,5vw,3rem)] font-bold tracking-tight mt-2 reveal" data-delay="40" data-i18n="tryit_title">Just ask. In plain language.</h2>
-        <p class="mt-3 text-sm opacity-35 max-w-[48ch] mx-auto reveal" data-delay="80" data-i18n="tryit_sub">No commands to memorize. Just tell your AI what you need.</p>
+        <p class="mt-3 text-sm opacity-35 max-w-[48ch] mx-auto reveal" data-delay="80" data-i18n="tryit_sub">Click a prompt to see AirMCP in action.</p>
       </div>
 
-      <div class="grid grid-cols-2 gap-4 max-md:grid-cols-1">
-        <div class="glass-card reveal">
-          <div class="glass-fx"></div><div class="glass-tint"></div><div class="glass-shine"></div>
-          <div class="glass-content">
-            <div class="flex gap-1.5 mb-3"><span class="wf-tag" data-i18n="tryit_1_cat">Everyday</span></div>
-            <p class="text-base opacity-60 italic leading-relaxed" data-i18n="tryit_1">"Read my latest notes and summarize them"</p>
+      <!-- Terminal simulator -->
+      <div class="reveal" data-delay="40">
+        <div class="term-window">
+          <div class="term-titlebar">
+            <span class="term-dot" style="background:#ff5f57"></span>
+            <span class="term-dot" style="background:#febc2e"></span>
+            <span class="term-dot" style="background:#28c840"></span>
+            <span class="term-titlebar-text">AirMCP — Terminal</span>
           </div>
-        </div>
-
-        <div class="glass-card reveal" data-delay="40">
-          <div class="glass-fx"></div><div class="glass-tint"></div><div class="glass-shine"></div>
-          <div class="glass-content">
-            <div class="flex gap-1.5 mb-3"><span class="wf-tag" data-i18n="tryit_2_cat">Productivity</span></div>
-            <p class="text-base opacity-60 italic leading-relaxed" data-i18n="tryit_2">"What's on my calendar today? Reschedule overdue reminders to tomorrow"</p>
-          </div>
-        </div>
-
-        <div class="glass-card reveal" data-delay="40">
-          <div class="glass-fx"></div><div class="glass-tint"></div><div class="glass-shine"></div>
-          <div class="glass-content">
-            <div class="flex gap-1.5 mb-3"><span class="wf-tag" data-i18n="tryit_3_cat">System</span></div>
-            <p class="text-base opacity-60 italic leading-relaxed" data-i18n="tryit_3">"Turn on dark mode, set volume to 50%, and lower brightness"</p>
-          </div>
-        </div>
-
-        <div class="glass-card reveal" data-delay="80">
-          <div class="glass-fx"></div><div class="glass-tint"></div><div class="glass-shine"></div>
-          <div class="glass-content">
-            <div class="flex gap-1.5 mb-3"><span class="wf-tag" data-i18n="tryit_4_cat">Research</span></div>
-            <p class="text-base opacity-60 italic leading-relaxed" data-i18n="tryit_4">"Open the Apple developer docs in Safari and summarize the page"</p>
-          </div>
-        </div>
-
-        <div class="glass-card reveal" data-delay="80">
-          <div class="glass-fx"></div><div class="glass-tint"></div><div class="glass-shine"></div>
-          <div class="glass-content">
-            <div class="flex gap-1.5 mb-3"><span class="wf-tag" data-i18n="tryit_5_cat">Power User</span></div>
-            <p class="text-base opacity-60 italic leading-relaxed" data-i18n="tryit_5">"Get my current location and show the weather here"</p>
-          </div>
-        </div>
-
-        <div class="glass-card reveal" data-delay="120">
-          <div class="glass-fx"></div><div class="glass-tint"></div><div class="glass-shine"></div>
-          <div class="glass-content">
-            <div class="flex gap-1.5 mb-3"><span class="wf-tag" data-i18n="tryit_6_cat">Cross-App</span></div>
-            <p class="text-base opacity-60 italic leading-relaxed" data-i18n="tryit_6">"Check today's meetings, find related notes, and create a prep checklist in Reminders"</p>
+          <div class="term-body" id="termBody">
+            <div class="term-line"><span class="term-prompt">❯</span> <span class="term-dim">Click a prompt below to start...</span></div>
           </div>
         </div>
       </div>
 
-      <p class="text-center mt-8 text-sm opacity-25 reveal" data-delay="200" data-i18n="tryit_footer">252 tools. Endless combinations.</p>
+      <!-- Prompt cards -->
+      <div class="grid grid-cols-3 gap-3 mt-6 max-md:grid-cols-2 max-sm:grid-cols-1">
+        <button class="term-prompt-card reveal" data-delay="60" onclick="runDemo(0)">
+          <span class="wf-tag">Everyday</span>
+          <span class="term-prompt-text" data-i18n="tryit_1">"Read my latest notes and summarize them"</span>
+        </button>
+        <button class="term-prompt-card reveal" data-delay="80" onclick="runDemo(1)">
+          <span class="wf-tag">Productivity</span>
+          <span class="term-prompt-text" data-i18n="tryit_2">"What's on my calendar today?"</span>
+        </button>
+        <button class="term-prompt-card reveal" data-delay="100" onclick="runDemo(2)">
+          <span class="wf-tag">System</span>
+          <span class="term-prompt-text" data-i18n="tryit_3">"Turn on dark mode, set volume to 50%"</span>
+        </button>
+        <button class="term-prompt-card reveal" data-delay="120" onclick="runDemo(3)">
+          <span class="wf-tag">Research</span>
+          <span class="term-prompt-text" data-i18n="tryit_4">"Summarize the open Safari page"</span>
+        </button>
+        <button class="term-prompt-card reveal" data-delay="140" onclick="runDemo(4)">
+          <span class="wf-tag">Location</span>
+          <span class="term-prompt-text" data-i18n="tryit_5">"Get current location and show weather"</span>
+        </button>
+        <button class="term-prompt-card reveal" data-delay="160" onclick="runDemo(5)">
+          <span class="wf-tag">Cross-App</span>
+          <span class="term-prompt-text" data-i18n="tryit_6">"Today's meetings → related notes → prep checklist"</span>
+        </button>
+      </div>
+      <p class="text-center mt-6 text-sm opacity-25 reveal" data-delay="200" data-i18n="tryit_footer">252 tools. Endless combinations.</p>
     </div>
   </section>
+
+  <script>
+  const demos = [
+    { prompt: "Read my latest notes and summarize them", steps: [
+      { tool: "list_notes", args: "folder: \"All Notes\", limit: 5", delay: 600 },
+      { result: "Found 5 notes: \"Project Ideas\", \"Meeting Notes 3/15\", \"Reading List\", \"Travel Plans\", \"Recipe Collection\"", delay: 400 },
+      { tool: "read_note", args: "name: \"Meeting Notes 3/15\"", delay: 500 },
+      { result: "Content: Sprint review outcomes, Q2 roadmap alignment, design system migration timeline...", delay: 300 },
+      { summary: "Your latest notes cover: a sprint review with 3 action items, Q2 roadmap changes, and a design system migration planned for April.", delay: 200 },
+    ]},
+    { prompt: "What's on my calendar today?", steps: [
+      { tool: "today_events", args: "", delay: 600 },
+      { result: "3 events found for today (March 16, 2026)", delay: 400 },
+      { summary: "📅 Today's schedule:\n  09:00  Team standup (30 min)\n  11:00  Design review with Sarah (1 hr)\n  14:30  1:1 with manager (45 min)\n\nNo conflicts. Next event in 2 hours.", delay: 200 },
+    ]},
+    { prompt: "Turn on dark mode, set volume to 50%", steps: [
+      { tool: "set_appearance", args: "mode: \"dark\"", delay: 500 },
+      { result: "✓ Dark mode enabled", delay: 300 },
+      { tool: "set_volume", args: "level: 50", delay: 400 },
+      { result: "✓ Volume set to 50%", delay: 300 },
+      { summary: "Done. Dark mode is on and volume is at 50%.", delay: 200 },
+    ]},
+    { prompt: "Summarize the open Safari page", steps: [
+      { tool: "get_active_tab", args: "", delay: 600 },
+      { result: "Active tab: \"Apple Developer Documentation — SwiftUI\" (developer.apple.com)", delay: 400 },
+      { tool: "read_page_content", args: "tabIndex: 0", delay: 700 },
+      { result: "Extracted 2,847 words from page content", delay: 300 },
+      { summary: "This Apple Developer page covers SwiftUI's declarative syntax for building UIs across all Apple platforms, with sections on views, state management, and the new Observable macro.", delay: 200 },
+    ]},
+    { prompt: "Get current location and show weather", steps: [
+      { tool: "get_current_location", args: "", delay: 800 },
+      { result: "Location: 37.5665° N, 126.9780° E (Seoul, South Korea)", delay: 400 },
+      { tool: "get_weather", args: "latitude: 37.5665, longitude: 126.978", delay: 600 },
+      { result: "Weather data retrieved for Seoul", delay: 300 },
+      { summary: "📍 Seoul, South Korea\n🌤 Currently 14°C, partly cloudy\n💨 Wind: 12 km/h NW\n🌧 Rain probability: 15%\n📅 High 17° / Low 8°", delay: 200 },
+    ]},
+    { prompt: "Today's meetings → related notes → prep checklist", steps: [
+      { tool: "today_events", args: "", delay: 600 },
+      { result: "Found: \"Design Review\" at 11:00 with Sarah", delay: 400 },
+      { tool: "search_notes", args: "query: \"design review\"", delay: 500 },
+      { result: "Found 2 notes: \"Design System v2 Spec\", \"UI Audit Results\"", delay: 300 },
+      { tool: "create_reminder", args: "title: \"Design Review Prep\", list: \"Work\"", delay: 500 },
+      { result: "✓ Created reminder with 3 sub-items", delay: 300 },
+      { summary: "Prep checklist created in Reminders:\n  □ Review \"Design System v2 Spec\" note\n  □ Check \"UI Audit Results\" for open issues\n  □ Prepare component migration timeline for Sarah", delay: 200 },
+    ]},
+  ];
+  let demoRunning = false;
+  function runDemo(idx) {
+    if (demoRunning) return;
+    demoRunning = true;
+    const d = demos[idx], body = document.getElementById('termBody');
+    body.innerHTML = '';
+    let totalDelay = 0;
+    // Type the user prompt
+    const promptLine = document.createElement('div');
+    promptLine.className = 'term-line';
+    promptLine.innerHTML = '<span class="term-prompt">❯</span> <span class="term-user"></span>';
+    body.appendChild(promptLine);
+    const userSpan = promptLine.querySelector('.term-user');
+    const chars = d.prompt.split('');
+    chars.forEach((ch, i) => {
+      setTimeout(() => { userSpan.textContent += ch; body.scrollTop = body.scrollHeight; }, i * 25);
+    });
+    totalDelay = chars.length * 25 + 400;
+    // Show steps
+    d.steps.forEach(step => {
+      totalDelay += step.delay;
+      setTimeout(() => {
+        const line = document.createElement('div');
+        line.className = 'term-line term-fade-in';
+        if (step.tool) {
+          line.innerHTML = `<span class="term-tool">⚡ ${step.tool}</span><span class="term-args">(${step.args})</span>`;
+        } else if (step.result) {
+          line.innerHTML = `<span class="term-result">${step.result}</span>`;
+        } else if (step.summary) {
+          line.innerHTML = `<span class="term-summary">${step.summary.replace(/\n/g,'<br>')}</span>`;
+        }
+        body.appendChild(line);
+        body.scrollTop = body.scrollHeight;
+      }, totalDelay);
+      totalDelay += 300;
+    });
+    setTimeout(() => { demoRunning = false; }, totalDelay + 500);
+  }
+  </script>
 
   <!-- Workflows -->
   <section id="workflows" class="relative z-[1] py-10 pb-24">

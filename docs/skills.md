@@ -1,6 +1,6 @@
 # AirMCP Skills Guide
 
-A practical guide for AI agents to effectively use AirMCP's 226 tools across 24 modules to orchestrate the Apple ecosystem via MCP.
+A practical guide for AI agents to effectively use AirMCP's 252 tools across 25 modules to orchestrate the Apple ecosystem via MCP.
 
 ## Overview
 
@@ -22,7 +22,7 @@ AirMCP bridges AI agents to native macOS applications through JXA (JavaScript fo
 | **calendar** | Calendar | `list_events`, `create_event`, `search_events`, `today_events`, `get_upcoming_events`, `create_recurring_event` | 10 |
 | **contacts** | Contacts | `list_contacts`, `search_contacts`, `read_contact`, `create_contact`, `add_contact_email` | 10 |
 | **finder** | Finder | `search_files`, `list_directory`, `get_file_info`, `set_file_tags`, `recent_files`, `create_directory` | 8 |
-| **intelligence** | Apple Intelligence | `summarize_text`, `rewrite_text`, `proofread_text`, `generate_text`, `tag_content`, `ai_chat` | 8 |
+| **intelligence** | Apple Intelligence | `summarize_text`, `rewrite_text`, `proofread_text`, `generate_text`, `generate_structured`, `tag_content`, `ai_chat`, `ai_status`, `generate_image`, `scan_document`, `generate_plan` | 11 |
 | **mail** | Mail | `list_messages`, `read_message`, `search_messages`, `send_mail`, `reply_mail`, `flag_message`, `move_message` | 11 |
 | **maps** | Maps | `search_location`, `get_directions`, `drop_pin`, `search_nearby`, `share_location` | 8 |
 | **messages** | Messages | `list_chats`, `read_chat`, `send_message`, `send_file`, `search_chats` | 6 |

@@ -90,6 +90,7 @@ export async function loadModuleRegistry(): Promise<ModuleRegistration[]> {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function findRegisterFn(mod: Record<string, any>): ((...args: any[]) => any) | undefined {
   // Prefer registerXxxTools over registerDynamicXxx (dynamic tools are registered separately)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let fallback: ((...args: any[]) => any) | undefined;
   for (const [key, val] of Object.entries(mod)) {
     if (typeof val === "function" && key.startsWith("register")) {
@@ -98,7 +99,6 @@ function findRegisterFn(mod: Record<string, any>): ((...args: any[]) => any) | u
     }
   }
   return fallback;
-  return undefined;
 }
 
 // Backward compat: synchronous MODULE_REGISTRY for code that reads it after init

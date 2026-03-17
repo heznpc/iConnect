@@ -18,6 +18,7 @@ export function runHelp(): void {
   console.log(`    ${GREEN}$${RESET} npx airmcp ${BOLD}--http${RESET}          ${DIM}Start as HTTP server${RESET}`);
   console.log(`    ${GREEN}$${RESET} npx airmcp ${BOLD}--full${RESET}          ${DIM}Enable all modules${RESET}`);
   console.log(`    ${GREEN}$${RESET} npx airmcp ${BOLD}--http --port${RESET} N  ${DIM}Custom port (default: 3847)${RESET}`);
+  console.log(`    ${GREEN}$${RESET} npx airmcp ${BOLD}--http --bind-all${RESET}      ${DIM}Bind to 0.0.0.0 (default: 127.0.0.1)${RESET}`);
   console.log("");
   console.log(`  ${BOLD}Commands${RESET}`);
   console.log("");
@@ -31,6 +32,7 @@ export function runHelp(): void {
   console.log(`    ${WHITE}GEMINI_API_KEY${RESET}=${DIM}<key>${RESET}          ${DIM}Enable Gemini embeddings${RESET}`);
   console.log(`    ${WHITE}AIRMCP_EMBEDDING_MODEL${RESET}=${DIM}...${RESET}    ${DIM}Embedding model (default: text-embedding-004)${RESET}`);
   console.log(`    ${WHITE}AIRMCP_EMBEDDING_PROVIDER${RESET}=${DIM}...${RESET} ${DIM}auto / gemini / swift / hybrid${RESET}`);
+  console.log(`    ${WHITE}AIRMCP_HTTP_TOKEN${RESET}=${DIM}<secret>${RESET}       ${DIM}Bearer token for HTTP mode auth${RESET}`);
   console.log("");
   console.log(`  ${BOLD}Config${RESET}  ${DIM}~/.config/airmcp/config.json${RESET}`);
   console.log(`  ${BOLD}Docs${RESET}    ${DIM}https://github.com/heznpc/AirMCP${RESET}`);

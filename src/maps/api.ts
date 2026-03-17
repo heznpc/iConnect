@@ -1,9 +1,22 @@
 // Geocoding API clients — Open-Meteo (forward) + Nominatim (reverse).
+// Nominatim usage policy: max 1 request/second, valid User-Agent with contact URL.
+// See https://operations.osmfoundation.org/policies/nominatim/
 
 import { API, TIMEOUT, IDENTITY } from "../shared/constants.js";
 
 const GEOCODE_URL = API.GEOCODING;
 const REVERSE_URL = API.REVERSE_GEOCODE;
+
+// Nominatim rate limiter — enforce max 1 request/second.
+// Uses a promise chain to serialize concurrent calls (avoids TOCTOU race).
+let nominatimGate = Promise.resolve();
+function nominatimThrottle(): Promise<void> {
+  nominatimGate = nominatimGate.then(async () => {
+    await new Promise((r) => setTimeout(r, 1000));
+    nominatimGate = Promise.resolve(); // break chain to avoid unbounded growth
+  });
+  return nominatimGate;
+}
 
 export async function fetchGeocode(query: string, count = 5) {
   const params = new URLSearchParams({ name: query, count: String(count), language: "en", format: "json" });
@@ -26,6 +39,7 @@ export async function fetchGeocode(query: string, count = 5) {
 }
 
 export async function fetchReverseGeocode(latitude: number, longitude: number) {
+  await nominatimThrottle();
   const params = new URLSearchParams({ lat: String(latitude), lon: String(longitude), format: "json" });
   const res = await fetch(`${REVERSE_URL}?${params}`, {
     headers: { "User-Agent": IDENTITY.USER_AGENT },

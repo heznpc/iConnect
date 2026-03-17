@@ -1,7 +1,7 @@
 # Privacy Policy
 
-**AirMCP** — MCP Server for the Apple Ecosystem on macOS
-Last updated: 2026-03-15
+**AirMCP v2.2.0** — MCP Server for the Apple Ecosystem on macOS
+Last updated: 2026-03-16
 
 ## Overview
 
@@ -9,9 +9,24 @@ AirMCP is an open-source MCP (Model Context Protocol) server that bridges AI ass
 
 This privacy policy explains how AirMCP handles your data, including what data leaves your machine.
 
+## Data Controller
+
+AirMCP is an open-source project maintained by **heznpc** under the MIT License. As a locally-run tool, the project maintainer does not process your personal data on any server. However, for the purposes of GDPR Article 13/14 transparency, the data controller contact point is:
+
+- **Contact:** GitHub Issues at [https://github.com/heznpc/AirMCP/issues](https://github.com/heznpc/AirMCP/issues)
+
+When you use third-party APIs (Gemini, Nominatim, Open-Meteo, Google Workspace), the respective API provider acts as an independent data controller for the data you send to them.
+
 ## Data Collection
 
 AirMCP does not collect analytics, telemetry, usage tracking, or crash reports. There is no advertising or marketing data collection.
+
+## Legal Basis for Processing
+
+Under GDPR Article 6, AirMCP relies on the following legal bases:
+
+- **Legitimate interest (Art. 6(1)(f)):** Local automation operations (reading/writing Apple app data, on-device AI processing, local file operations) are performed based on the user's legitimate interest in automating their own macOS workflows. All such processing occurs entirely on the user's machine.
+- **Consent (Art. 6(1)(a)):** External API calls to Google Gemini, OpenStreetMap Nominatim, and Open-Meteo are only made when the user explicitly configures the relevant API keys or invokes the corresponding tools. Users may withdraw consent at any time by removing API keys from the configuration or by not using the relevant tools.
 
 ## How Your Data Is Handled
 
@@ -53,6 +68,18 @@ rm -rf ~/.airmcp
 ```
 
 To also clear Spotlight entries, run the `semantic_clear` tool (which clears both) or `spotlight_clear` (Spotlight only).
+
+## Data Retention
+
+AirMCP does not operate any server-side data storage. All retention is local to your machine:
+
+| Data | Retention | How to Delete |
+|------|-----------|---------------|
+| `~/.airmcp/vectors.json` (semantic index) | Retained until the user deletes it | Use the `semantic_clear` tool or manually run `rm -rf ~/.airmcp` |
+| `~/.config/airmcp/config.json` (configuration) | Retained until the user removes or edits the file | Delete or edit the file manually |
+| macOS Spotlight entries | Retained until the user clears them | Use the `spotlight_clear` or `semantic_clear` tool |
+
+For data sent to external APIs (Gemini, Nominatim, Open-Meteo, Google Workspace), AirMCP does not control the retention period. Refer to each provider's privacy policy for their data retention practices.
 
 ## Apple Intelligence / Foundation Models
 
@@ -97,9 +124,54 @@ All data returned by AirMCP tools is sent to the connected MCP client (AI model)
 
 AirMCP requires macOS Automation permissions to interact with Apple apps. These are managed by macOS and granted through system prompts. AirMCP uses these permissions solely to execute actions you request through the MCP client.
 
+## Data Subject Rights (GDPR Articles 15-22)
+
+Under the GDPR, you have the following rights regarding your personal data:
+
+- **Right to access (Art. 15):** You may request information about what personal data is processed.
+- **Right to rectification (Art. 16):** You may correct inaccurate personal data.
+- **Right to erasure (Art. 17):** You may request deletion of your personal data.
+- **Right to restriction of processing (Art. 18):** You may request that processing be restricted.
+- **Right to data portability (Art. 20):** You may request your data in a portable format.
+- **Right to object (Art. 21):** You may object to processing based on legitimate interest.
+
+**For locally-stored data:** Because AirMCP runs entirely on your machine, you have full filesystem access to all data it stores. You can inspect, modify, export, or delete `vectors.json`, `config.json`, and Spotlight entries at any time without needing to contact anyone.
+
+**For data sent to external APIs:** If you have exercised Gemini, Nominatim, Open-Meteo, or Google Workspace tools, refer to the respective provider's privacy policy to exercise your data subject rights with them:
+
+- Google Gemini: [Google Privacy Policy](https://policies.google.com/privacy)
+- OpenStreetMap Nominatim: [OSMF Privacy Policy](https://wiki.osmfoundation.org/wiki/Privacy_Policy)
+- Open-Meteo: [Open-Meteo Terms](https://open-meteo.com/en/terms)
+
+## International Data Transfers
+
+AirMCP processes data locally on your Mac by default. When external APIs are used, international transfers may occur:
+
+- **Google Gemini API:** Data may be transferred to Google servers in the United States. Google provides safeguards under its data processing terms.
+- **OpenStreetMap Nominatim:** Requests are sent to OSM servers based in the European Union.
+- **Open-Meteo:** Servers are based in the European Union.
+- **Google Workspace (via `gws` CLI):** Data is transferred to Google servers. Refer to Google's data processing terms.
+
+No international transfers occur if you do not use these external services.
+
+## Data Protection Officer
+
+A Data Protection Officer (DPO) is not required for AirMCP, as it involves small-scale processing by an individual open-source developer and does not engage in systematic monitoring or large-scale processing of sensitive data.
+
+For privacy-related questions or concerns, contact the project maintainer via GitHub Issues: [https://github.com/heznpc/AirMCP/issues](https://github.com/heznpc/AirMCP/issues)
+
+## Right to Lodge a Complaint
+
+If you believe your data protection rights have been violated, you have the right to lodge a complaint with your local data protection supervisory authority. A list of EU/EEA supervisory authorities is available at [https://edpb.europa.eu/about-edpb/about-edpb/members_en](https://edpb.europa.eu/about-edpb/about-edpb/members_en).
+
 ## Open Source
 
 AirMCP is open-source software under the MIT License. You can inspect the full source code at [github.com/heznpc/AirMCP](https://github.com/heznpc/AirMCP).
+
+## Third-party Attribution
+
+- Reverse geocoding powered by [Nominatim](https://nominatim.org/) / [OpenStreetMap](https://www.openstreetmap.org/) (© OpenStreetMap contributors, [ODbL](https://opendatacommons.org/licenses/odbl/)).
+- Weather data by [Open-Meteo](https://open-meteo.com/).
 
 ## Changes to This Policy
 

@@ -1,0 +1,44 @@
+---
+title: AirMCP Documentation
+description: MCP server for the entire Apple ecosystem. Connect any AI to your Mac.
+template: splash
+hero:
+  tagline: MCP server for the entire Apple ecosystem — Notes, Reminders, Calendar, Contacts, Mail, Messages, Music, Finder, Safari, System, Photos, Shortcuts, and more. Connect any AI to your Mac.
+  actions:
+    - text: Get Started
+      link: /getting-started/installation/
+      icon: right-arrow
+      variant: primary
+    - text: View on GitHub
+      link: https://github.com/heznpc/AirMCP
+      icon: external
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+## What is AirMCP?
+
+AirMCP is a [Model Context Protocol](https://modelcontextprotocol.io/) server that exposes the entire Apple ecosystem to AI assistants. It bridges LLMs like Claude, GPT, and Gemini to native macOS applications through JXA (JavaScript for Automation), a Swift bridge, and direct system APIs.
+
+<CardGrid stagger>
+  <Card title="25 Modules" icon="puzzle">
+    Notes, Reminders, Calendar, Contacts, Mail, Messages, Music, Finder, Safari, System, Photos, Shortcuts, Intelligence, TV, UI, Screen, Maps, Podcasts, Weather, Pages, Numbers, Keynote, Location, Bluetooth, and Google.
+  </Card>
+  <Card title="250+ Tools" icon="setting">
+    Read, create, update, and delete across every supported app. Full CRUD for Notes, Reminders, Calendar, and Contacts. Read-only access for Photos, Music, and more.
+  </Card>
+  <Card title="Semantic Search" icon="magnifier">
+    On-device vector embeddings via the Swift bridge or Gemini API. Search notes and reminders by meaning, not just keywords.
+  </Card>
+  <Card title="Works Everywhere" icon="laptop">
+    Compatible with Claude Desktop, Claude Code, Cursor, Windsurf, Cline, and any MCP-compliant client. Supports both stdio and HTTP transports.
+  </Card>
+</CardGrid>
+
+## Quick Start
+
+```bash
+npx airmcp init
+```
+
+The interactive setup wizard will guide you through module selection and MCP client configuration. See the [Installation guide](/getting-started/installation/) for detailed instructions.
