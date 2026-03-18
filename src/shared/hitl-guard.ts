@@ -40,8 +40,7 @@ async function tryElicitApproval(
   destructive: boolean,
 ): Promise<boolean | undefined> {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const inner = (server as any).server;
+    const inner = server.server;
     if (!inner?.elicitInput) return undefined;
 
     const label = destructive ? `⚠️ Destructive: ${toolName}` : `Approve: ${toolName}`;
