@@ -167,6 +167,104 @@ func handleCommand(command: String, stdinData: Data) async {
 
 switch command {
 
+// --- EventKit: Calendar CRUD (delegated to AirMCPKit) ---
+case "list-calendars":
+    do {
+        let result = try await EventKitService().listCalendars()
+        try writeJSON(result)
+    } catch {
+        writeError(error.localizedDescription)
+    }
+
+case "list-events":
+    guard let input = try? JSONDecoder().decode(ListEventsInput.self, from: stdinData) else {
+        writeError("Invalid JSON. Expected ListEventsInput.")
+        return
+    }
+    do {
+        let result = try await EventKitService().listEvents(input)
+        try writeJSON(result)
+    } catch {
+        writeError(error.localizedDescription)
+    }
+
+case "read-event":
+    guard let input = try? JSONDecoder().decode(ReadEventInput.self, from: stdinData) else {
+        writeError("Invalid JSON. Expected ReadEventInput.")
+        return
+    }
+    do {
+        let result = try await EventKitService().readEvent(input)
+        try writeJSON(result)
+    } catch {
+        writeError(error.localizedDescription)
+    }
+
+case "create-event":
+    guard let input = try? JSONDecoder().decode(CreateEventInput.self, from: stdinData) else {
+        writeError("Invalid JSON. Expected CreateEventInput.")
+        return
+    }
+    do {
+        let result = try await EventKitService().createEvent(input)
+        try writeJSON(result)
+    } catch {
+        writeError(error.localizedDescription)
+    }
+
+case "update-event":
+    guard let input = try? JSONDecoder().decode(UpdateEventInput.self, from: stdinData) else {
+        writeError("Invalid JSON. Expected UpdateEventInput.")
+        return
+    }
+    do {
+        let result = try await EventKitService().updateEvent(input)
+        try writeJSON(result)
+    } catch {
+        writeError(error.localizedDescription)
+    }
+
+case "delete-event":
+    guard let input = try? JSONDecoder().decode(DeleteEventInput.self, from: stdinData) else {
+        writeError("Invalid JSON. Expected DeleteEventInput.")
+        return
+    }
+    do {
+        let result = try await EventKitService().deleteEvent(input)
+        try writeJSON(result)
+    } catch {
+        writeError(error.localizedDescription)
+    }
+
+case "search-events":
+    guard let input = try? JSONDecoder().decode(SearchEventsInput.self, from: stdinData) else {
+        writeError("Invalid JSON. Expected SearchEventsInput.")
+        return
+    }
+    do {
+        let result = try await EventKitService().searchEvents(input)
+        try writeJSON(result)
+    } catch {
+        writeError(error.localizedDescription)
+    }
+
+case "get-upcoming-events":
+    let input = (try? JSONDecoder().decode(UpcomingEventsInput.self, from: stdinData)) ?? UpcomingEventsInput(limit: nil)
+    do {
+        let result = try await EventKitService().getUpcomingEvents(input)
+        try writeJSON(result)
+    } catch {
+        writeError(error.localizedDescription)
+    }
+
+case "today-events":
+    do {
+        let result = try await EventKitService().todayEvents()
+        try writeJSON(result)
+    } catch {
+        writeError(error.localizedDescription)
+    }
+
 // --- EventKit: Recurring Events (delegated to AirMCPKit) ---
 case "create-recurring-event":
     guard let eventInput = try? JSONDecoder().decode(RecurringEventInput.self, from: stdinData) else {
@@ -646,6 +744,15 @@ case "list-commands":
         "tag-content",
         "ai-chat",
         "ai-status",
+        "list-calendars",
+        "list-events",
+        "read-event",
+        "create-event",
+        "update-event",
+        "delete-event",
+        "search-events",
+        "get-upcoming-events",
+        "today-events",
         "create-recurring-event",
         "create-recurring-reminder",
         "query-photos",

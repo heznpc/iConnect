@@ -178,7 +178,187 @@ public struct AiStatusOutput: Encodable, Sendable {
     }
 }
 
+// MARK: - EventKit (Calendar CRUD)
+
+public struct ListCalendarsInput: Decodable, Sendable {}
+
+public struct CalendarInfo: Encodable, Sendable {
+    public let id: String
+    public let name: String
+    public let color: String?
+    public let writable: Bool
+    public init(id: String, name: String, color: String?, writable: Bool) {
+        self.id = id; self.name = name; self.color = color; self.writable = writable
+    }
+}
+
+public struct ListEventsInput: Decodable, Sendable {
+    public let startDate: String
+    public let endDate: String
+    public let calendar: String?
+    public let limit: Int?
+    public let offset: Int?
+}
+
+public struct EventListItem: Encodable, Sendable {
+    public let id: String
+    public let summary: String
+    public let startDate: String
+    public let endDate: String
+    public let allDay: Bool
+    public let calendar: String
+    public init(id: String, summary: String, startDate: String, endDate: String, allDay: Bool, calendar: String) {
+        self.id = id; self.summary = summary; self.startDate = startDate; self.endDate = endDate
+        self.allDay = allDay; self.calendar = calendar
+    }
+}
+
+public struct EventListOutput: Encodable, Sendable {
+    public let total: Int
+    public let offset: Int
+    public let returned: Int
+    public let events: [EventListItem]
+    public init(total: Int, offset: Int, returned: Int, events: [EventListItem]) {
+        self.total = total; self.offset = offset; self.returned = returned; self.events = events
+    }
+}
+
+public struct ReadEventInput: Decodable, Sendable {
+    public let id: String
+}
+
+public struct AttendeeInfo: Encodable, Sendable {
+    public let name: String
+    public let email: String
+    public let status: String
+    public init(name: String, email: String, status: String) {
+        self.name = name; self.email = email; self.status = status
+    }
+}
+
+public struct EventDetail: Encodable, Sendable {
+    public let id: String
+    public let summary: String
+    public let description: String
+    public let location: String
+    public let startDate: String
+    public let endDate: String
+    public let allDay: Bool
+    public let recurrence: String
+    public let url: String
+    public let calendar: String
+    public let attendees: [AttendeeInfo]
+    public init(id: String, summary: String, description: String, location: String,
+                startDate: String, endDate: String, allDay: Bool, recurrence: String,
+                url: String, calendar: String, attendees: [AttendeeInfo]) {
+        self.id = id; self.summary = summary; self.description = description; self.location = location
+        self.startDate = startDate; self.endDate = endDate; self.allDay = allDay
+        self.recurrence = recurrence; self.url = url; self.calendar = calendar; self.attendees = attendees
+    }
+}
+
+public struct CreateEventInput: Decodable, Sendable {
+    public let title: String
+    public let startDate: String
+    public let endDate: String
+    public let location: String?
+    public let notes: String?
+    public let calendar: String?
+    public let allDay: Bool?
+}
+
+public struct MutationOutput: Encodable, Sendable {
+    public let id: String
+    public let summary: String
+    public init(id: String, summary: String) {
+        self.id = id; self.summary = summary
+    }
+}
+
+public struct UpdateEventInput: Decodable, Sendable {
+    public let id: String
+    public let title: String?
+    public let startDate: String?
+    public let endDate: String?
+    public let location: String?
+    public let notes: String?
+}
+
+public struct DeleteEventInput: Decodable, Sendable {
+    public let id: String
+}
+
+public struct DeleteEventOutput: Encodable, Sendable {
+    public let deleted: Bool
+    public let summary: String
+    public init(deleted: Bool, summary: String) {
+        self.deleted = deleted; self.summary = summary
+    }
+}
+
+public struct SearchEventsInput: Decodable, Sendable {
+    public let query: String
+    public let startDate: String
+    public let endDate: String
+    public let limit: Int?
+}
+
+public struct SearchEventsOutput: Encodable, Sendable {
+    public let total: Int
+    public let returned: Int
+    public let events: [EventListItem]
+    public init(total: Int, returned: Int, events: [EventListItem]) {
+        self.total = total; self.returned = returned; self.events = events
+    }
+}
+
+public struct UpcomingEventsInput: Decodable, Sendable {
+    public let limit: Int?
+    public init(limit: Int? = nil) { self.limit = limit }
+}
+
+public struct UpcomingEventsOutput: Encodable, Sendable {
+    public let total: Int
+    public let returned: Int
+    public let events: [UpcomingEventItem]
+    public init(total: Int, returned: Int, events: [UpcomingEventItem]) {
+        self.total = total; self.returned = returned; self.events = events
+    }
+}
+
+public struct UpcomingEventItem: Encodable, Sendable {
+    public let id: String
+    public let summary: String
+    public let startDate: String
+    public let endDate: String
+    public let allDay: Bool
+    public let location: String
+    public let calendar: String
+    public init(id: String, summary: String, startDate: String, endDate: String,
+                allDay: Bool, location: String, calendar: String) {
+        self.id = id; self.summary = summary; self.startDate = startDate; self.endDate = endDate
+        self.allDay = allDay; self.location = location; self.calendar = calendar
+    }
+}
+
+public struct TodayEventsInput: Decodable, Sendable {}
+
+public struct TodayEventsOutput: Encodable, Sendable {
+    public let total: Int
+    public let returned: Int
+    public let events: [UpcomingEventItem]
+    public init(total: Int, returned: Int, events: [UpcomingEventItem]) {
+        self.total = total; self.returned = returned; self.events = events
+    }
+}
+
 // MARK: - Helpers
+
+public func formatISO8601(_ date: Date) -> String {
+    let formatter = ISO8601DateFormatter()
+    formatter.formatOptions = [.withInternetDateTime]
+    return formatter.string(from: date)
+}
 
 public func parseISO8601(_ string: String) -> Date? {
     let formatter = ISO8601DateFormatter()
