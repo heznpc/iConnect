@@ -1,5 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { SkillDefinition, SkillResult, StepResult } from "./types.js";
+import { toolRegistry } from "../shared/tool-registry.js";
 
 const SINGLE_TEMPLATE_RE = /^\{\{([^}]+)\}\}$/;
 const EMBEDDED_TEMPLATE_RE = /\{\{([^}]+)\}\}/g;
@@ -208,23 +209,14 @@ export function evaluateCondition(expr: string, results: Map<string, unknown>): 
 }
 
 /**
- * Look up a registered tool's handler on the McpServer and invoke it.
+ * Look up a registered tool's handler and invoke it via the ToolRegistry.
  */
 async function callTool(
-  server: McpServer,
+  _server: McpServer,
   toolName: string,
   args: Record<string, unknown>,
 ): Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const tools = (server as any)._registeredTools as
-    | Record<string, { handler: (...a: unknown[]) => unknown; enabled: boolean }>
-    | undefined;
-  if (!tools) throw new Error("Tool registry not available");
-  const tool = tools[toolName];
-  if (!tool) throw new Error(`Tool "${toolName}" not found`);
-  if (!tool.enabled) throw new Error(`Tool "${toolName}" is disabled`);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (await tool.handler(args, {})) as any;
+  return toolRegistry.callTool(toolName, args);
 }
 
 function parseToolResponse(response: { content: Array<{ type: string; text: string }>; isError?: boolean }): unknown {
