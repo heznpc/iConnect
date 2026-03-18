@@ -24,68 +24,94 @@ const rawArgs = process.argv.slice(2);
 const outFlag = rawArgs.includes("--out");
 const filterModules = rawArgs.filter((a) => !a.startsWith("--"));
 
+// ── Step context for chaining results between steps ─────────────────
+class StepContext {
+  #data = new Map();
+  set(k, v) { this.#data.set(k, v); }
+  get(k) { return this.#data.get(k); }
+  has(k) { return this.#data.has(k); }
+}
+
+/** Extract JSON data from MCP tool response (handles UNTRUSTED wrapper). */
+function parseResultData(resp) {
+  if (!resp || resp.error) return null;
+  let text = resp.result?.content?.[0]?.text || "";
+  const m = text.match(/\[UNTRUSTED EXTERNAL CONTENT[^\]]*\]\n([\s\S]*)\n\[END UNTRUSTED/);
+  if (m) text = m[1];
+  try { return JSON.parse(text); }
+  catch { return null; }
+}
+
 // ── Per-module test plan ────────────────────────────────────────────
+// Format: [toolName, argsOrFn, options?]
+//   argsOrFn: static object | (ctx) => object
+//   options:  { extract?: (data, ctx) => void, skip?: (ctx) => boolean }
 // Keys must match module names in config.ts MODULE_NAMES
 const MODULE_TESTS = {
   // ── Notes (12 tools) ──────────────────────────────────────────────
   notes: [
-    // Read-only (7)
-    ["list_notes", { limit: 5 }],
-    ["list_folders", {}],
+    ["list_notes", { limit: 5 }, { extract: (d, ctx) => {
+      const n = (d.notes || []); if (n[0]?.id) ctx.set("noteId", n[0].id); if (n[1]?.id) ctx.set("noteId2", n[1].id);
+    }}],
+    ["list_folders", {}, { extract: (d, ctx) => {
+      const f = Array.isArray(d) ? d : (d.folders || []); if (f[0]?.name) ctx.set("folderName", f[0].name);
+    }}],
     ["search_notes", { query: "test" }],
-    ["read_note", { id: "__PLACEHOLDER__" }],  // will FAIL gracefully (no such ID)
+    ["read_note", (ctx) => ({ id: ctx.get("noteId") || "__skip__" }), { skip: (ctx) => !ctx.has("noteId") }],
     ["scan_notes", { limit: 3 }],
-    ["compare_notes", { ids: ["__A__", "__B__"] }],
-    // Write (2) — create+delete round-trip
-    ["create_note", { body: "<h1>[QA-SEQ] Test</h1><p>auto-cleanup</p>" }],
+    ["compare_notes", (ctx) => ({ ids: [ctx.get("noteId"), ctx.get("noteId2")].filter(Boolean) }),
+      { skip: (ctx) => !ctx.has("noteId") || !ctx.has("noteId2") }],
+    ["create_note", { body: "<h1>[QA-SEQ] Test</h1><p>auto-cleanup</p>" }, { extract: (d, ctx) => { if (d.id) ctx.set("newNoteId", d.id); }}],
     ["create_folder", { name: "[QA-SEQ] TestFolder" }],
-    ["move_note", { id: "__PLACEHOLDER__", folder: "__PLACEHOLDER__" }],
-    ["bulk_move_notes", { ids: ["__PLACEHOLDER__"], folder: "__PLACEHOLDER__" }],
-    // update_note, delete_note: covered by CRUD
+    ["move_note", (ctx) => ({ id: ctx.get("newNoteId"), folder: ctx.get("folderName") || "Notes" }),
+      { skip: (ctx) => !ctx.has("newNoteId") }],
+    ["bulk_move_notes", (ctx) => ({ ids: [ctx.get("newNoteId")], folder: ctx.get("folderName") || "Notes" }),
+      { skip: (ctx) => !ctx.has("newNoteId") }],
   ],
 
   // ── Reminders (11 tools) ──────────────────────────────────────────
   reminders: [
-    // Read-only (4)
     ["list_reminder_lists", {}],
-    ["list_reminders", { limit: 5 }],
-    ["read_reminder", { id: "__PLACEHOLDER__" }],
+    ["list_reminders", { limit: 5 }, { extract: (d, ctx) => {
+      const r = (d.reminders || []); if (r[0]?.id) ctx.set("remId", r[0].id);
+    }}],
+    ["read_reminder", (ctx) => ({ id: ctx.get("remId") }), { skip: (ctx) => !ctx.has("remId") }],
     ["search_reminders", { query: "test" }],
-    // Write (2)
-    ["create_reminder", { title: "[QA-SEQ] Test Reminder" }],
+    ["create_reminder", { title: "[QA-SEQ] Test Reminder" }, { extract: (d, ctx) => { if (d.id) ctx.set("newRemId", d.id); }}],
     ["create_reminder_list", { name: "[QA-SEQ] TestList" }],
-    // Swift-only
     ["create_recurring_reminder", { title: "[QA-SEQ] Recurring", recurrence: { frequency: "daily", interval: 1 } }],
-    ["complete_reminder", { id: "__PLACEHOLDER__" }],
+    ["complete_reminder", (ctx) => ({ id: ctx.get("newRemId") || ctx.get("remId") }),
+      { skip: (ctx) => !ctx.has("newRemId") && !ctx.has("remId") }],
   ],
 
   // ── Calendar (12 tools) ───────────────────────────────────────────
   calendar: [
-    // Read-only (6)
     ["list_calendars", {}],
-    ["list_events", { startDate: new Date().toISOString().slice(0, 10), endDate: new Date().toISOString().slice(0, 10) }],
-    ["read_event", { id: "__PLACEHOLDER__" }],
+    ["list_events", { startDate: new Date().toISOString().slice(0, 10), endDate: new Date().toISOString().slice(0, 10) }, {
+      extract: (d, ctx) => { const e = (d.events || []); if (e[0]?.id) ctx.set("eventId", e[0].id); }
+    }],
+    ["read_event", (ctx) => ({ id: ctx.get("eventId") }), { skip: (ctx) => !ctx.has("eventId") }],
     ["search_events", { query: "test", startDate: "2026-01-01", endDate: "2026-12-31" }],
     ["get_upcoming_events", { limit: 3 }],
     ["today_events", {}],
-    // Write (1)
     ["create_event", { summary: "[QA-SEQ] Test Event", startDate: "2026-12-31T10:00:00Z", endDate: "2026-12-31T11:00:00Z" }],
-    // App view
     ["calendar_week_view", {}],
   ],
 
   // ── Contacts (10 tools) ───────────────────────────────────────────
   contacts: [
-    // Read-only (5)
-    ["list_contacts", { limit: 3 }],
+    ["list_contacts", { limit: 3 }, { extract: (d, ctx) => {
+      const c = (d.contacts || []); if (c[0]?.id) ctx.set("contactId", c[0].id);
+    }}],
     ["search_contacts", { query: "test" }],
-    ["read_contact", { id: "__PLACEHOLDER__" }],
-    ["list_groups", {}],
-    ["list_group_members", { groupName: "__PLACEHOLDER__" }],
-    // Write (3)
-    ["create_contact", { firstName: "[QA-SEQ]", lastName: "TestContact" }],
-    ["add_contact_email", { id: "__PLACEHOLDER__", email: "qa@test.invalid" }],
-    ["add_contact_phone", { id: "__PLACEHOLDER__", phone: "+0000000000" }],
+    ["read_contact", (ctx) => ({ id: ctx.get("contactId") }), { skip: (ctx) => !ctx.has("contactId") }],
+    ["list_groups", {}, { extract: (d, ctx) => {
+      const g = Array.isArray(d) ? d : []; if (g[0]?.name) ctx.set("groupName", g[0].name);
+    }}],
+    ["list_group_members", (ctx) => ({ groupName: ctx.get("groupName") }), { skip: (ctx) => !ctx.has("groupName") }],
+    ["create_contact", { firstName: "[QA-SEQ]", lastName: "TestContact" }, { extract: (d, ctx) => { if (d.id) ctx.set("newContactId", d.id); }}],
+    ["add_contact_email", (ctx) => ({ id: ctx.get("newContactId"), email: "qa@test.invalid" }), { skip: (ctx) => !ctx.has("newContactId") }],
+    ["add_contact_phone", (ctx) => ({ id: ctx.get("newContactId"), phone: "+0000000000" }), { skip: (ctx) => !ctx.has("newContactId") }],
   ],
 
   // ── Mail (4 tools) ────────────────────────────────────────────────
@@ -97,38 +123,43 @@ const MODULE_TESTS = {
     // send_mail / reply_mail: destructive, skip in read QA
   ],
 
-  // ── Messages (6 tools: list_chats, read_chat, search_chats, send_message, send_file, list_participants)
+  // ── Messages (6 tools)
   messages: [
-    ["list_chats", {}],
-    ["read_chat", { chatId: "__PLACEHOLDER__" }],
+    ["list_chats", {}, { extract: (d, ctx) => {
+      const c = (d.chats || []); if (c[0]?.id) ctx.set("chatId", c[0].id);
+    }}],
+    ["read_chat", (ctx) => ({ chatId: ctx.get("chatId") }), { skip: (ctx) => !ctx.has("chatId") }],
     ["search_chats", { query: "test" }],
-    ["list_participants", { chatId: "__PLACEHOLDER__" }],
+    ["list_participants", (ctx) => ({ chatId: ctx.get("chatId") }), { skip: (ctx) => !ctx.has("chatId") }],
     // send_message, send_file: destructive, skip
   ],
 
   // ── Music (18 tools) ──────────────────────────────────────────────
   music: [
-    ["list_playlists", {}],
+    ["list_playlists", {}, { extract: (d, ctx) => {
+      const p = Array.isArray(d) ? d : (d.playlists || []); if (p[0]?.name) ctx.set("playlist", p[0].name);
+    }}],
     ["now_playing", {}],
-    ["list_tracks", { playlist: "__PLACEHOLDER__" }],
+    ["list_tracks", (ctx) => ({ playlist: ctx.get("playlist") }), { skip: (ctx) => !ctx.has("playlist"),
+      extract: (d, ctx) => { const t = (d.tracks || []); if (t[0]?.name) ctx.set("track", t[0].name); }
+    }],
     ["search_tracks", { query: "test" }],
-    ["get_track_info", { trackName: "__PLACEHOLDER__" }],
-    ["get_rating", { trackName: "__PLACEHOLDER__" }],
-    ["set_rating", { trackName: "__PLACEHOLDER__", rating: 0 }],
+    ["get_track_info", (ctx) => ({ trackName: ctx.get("track") }), { skip: (ctx) => !ctx.has("track") }],
+    ["get_rating", (ctx) => ({ trackName: ctx.get("track") }), { skip: (ctx) => !ctx.has("track") }],
+    ["set_rating", (ctx) => ({ trackName: ctx.get("track"), rating: 0 }), { skip: (ctx) => !ctx.has("track") }],
     ["set_shuffle", { enabled: false }],
-    ["set_disliked", { trackName: "__PLACEHOLDER__", disliked: false }],
-    ["play_track", { trackName: "__PLACEHOLDER__" }],
-    ["play_playlist", { name: "__PLACEHOLDER__" }],
+    ["set_disliked", (ctx) => ({ trackName: ctx.get("track"), disliked: false }), { skip: (ctx) => !ctx.has("track") }],
+    ["play_track", (ctx) => ({ trackName: ctx.get("track") }), { skip: (ctx) => !ctx.has("track") }],
+    ["play_playlist", (ctx) => ({ name: ctx.get("playlist") }), { skip: (ctx) => !ctx.has("playlist") }],
     ["playback_control", { action: "pause" }],
     ["music_player", {}],
-    // create_playlist, add_to_playlist, remove_from_playlist, delete_playlist: covered by CRUD
   ],
 
   // ── Finder (9 tools) ──────────────────────────────────────────────
   finder: [
     // Read-only (4)
     ["search_files", { query: "test", limit: 3 }],
-    ["get_file_info", { path: process.env.HOME + "/.zshrc" }],
+    ["get_file_info", { path: process.env.HOME + "/.zshrc" }, { extract: (d, ctx) => { if (d.path) ctx.set("filePath", d.path); }}],
     ["recent_files", { limit: 3 }],
     ["list_directory", { path: process.env.HOME }],
     // Write (1)
@@ -170,13 +201,13 @@ const MODULE_TESTS = {
     ["is_app_running", { name: "Finder" }],
     // Safe write
     ["show_notification", { title: "[QA-SEQ]", message: "test" }],
-    ["launch_app", { name: "Calculator" }],
     ["capture_screenshot", { path: "/tmp/airmcp-qa-screenshot.png" }],
     ["toggle_dark_mode", {}],
     ["toggle_dark_mode", {}],  // toggle back
-    ["set_brightness", { level: 75 }],
-    ["move_window", { appName: "Finder", x: 100, y: 100 }],
-    ["resize_window", { appName: "Finder", width: 800, height: 600 }],
+    ["set_brightness", { level: 0.75 }],
+    ["launch_app", { name: "Calculator" }],
+    ["move_window", { appName: "Calculator", x: 100, y: 100 }],
+    ["resize_window", { appName: "Calculator", width: 400, height: 300 }],
     ["minimize_window", { appName: "Calculator" }],
     ["quit_app", { name: "Calculator" }],
     // system_sleep, system_power, toggle_wifi: dangerous, skip
@@ -185,31 +216,35 @@ const MODULE_TESTS = {
   // ── Photos (12 tools) ─────────────────────────────────────────────
   photos: [
     // Read-only (6)
-    ["list_albums", {}],
-    ["list_photos", { album: "__PLACEHOLDER__" }],
+    ["list_albums", {}, { extract: (d, ctx) => {
+      const a = Array.isArray(d) ? d : []; if (a[0]?.name) ctx.set("albumName", a[0].name);
+    }}],
+    ["list_photos", (ctx) => ({ album: ctx.get("albumName") }), { skip: (ctx) => !ctx.has("albumName"),
+      extract: (d, ctx) => { const p = (d.photos || []); if (p[0]?.id) ctx.set("photoId", p[0].id); }
+    }],
     ["search_photos", { query: "test" }],
-    ["get_photo_info", { id: "__PLACEHOLDER__" }],
+    ["get_photo_info", (ctx) => ({ id: ctx.get("photoId") }), { skip: (ctx) => !ctx.has("photoId") }],
     ["list_favorites", {}],
-    // Swift-only read
     ["query_photos", { limit: 3 }],
     ["classify_image", { imagePath: "/System/Library/Desktop Pictures/Sequoia.heic" }],
-    // Write
-    ["create_album", { name: "[QA-SEQ] TestAlbum" }],
-    ["add_to_album", { photoIds: ["__PLACEHOLDER__"], albumName: "__PLACEHOLDER__" }],
-    // set_favorited is in music module, not photos
-    // import_photo, delete_photos: Swift-only / destructive
+    ["create_album", { name: "[QA-SEQ] TestAlbum" }, { extract: (d, ctx) => { if (d.name) ctx.set("newAlbum", d.name); }}],
+    ["add_to_album", (ctx) => ({ photoIds: [ctx.get("photoId")], albumName: ctx.get("newAlbum") }),
+      { skip: (ctx) => !ctx.has("photoId") || !ctx.has("newAlbum") }],
   ],
 
   // ── Shortcuts (10 tools) ──────────────────────────────────────────
   shortcuts: [
     // Read-only (3)
-    ["list_shortcuts", {}],
+    ["list_shortcuts", {}, { extract: (d, ctx) => {
+      const s = (d.shortcuts || []); if (s[0]?.name || s[0]) ctx.set("shortcut", s[0]?.name || s[0]);
+    }}],
     ["search_shortcuts", { query: "test" }],
-    ["get_shortcut_detail", { name: "__PLACEHOLDER__" }],
-    ["run_shortcut", { name: "__PLACEHOLDER__" }],
-    ["export_shortcut", { name: "__PLACEHOLDER__", outputPath: "/tmp/airmcp-qa-shortcut" }],
-    ["duplicate_shortcut", { name: "__PLACEHOLDER__", newName: "[QA-SEQ] Copy" }],
-    // create_shortcut, import_shortcut, edit_shortcut, delete_shortcut: complex lifecycle
+    ["get_shortcut_detail", (ctx) => ({ name: ctx.get("shortcut") }), { skip: (ctx) => !ctx.has("shortcut") }],
+    ["export_shortcut", (ctx) => ({ name: ctx.get("shortcut"), outputPath: "/tmp/airmcp-qa-shortcut" }),
+      { skip: (ctx) => !ctx.has("shortcut") }],
+    ["duplicate_shortcut", (ctx) => ({ name: ctx.get("shortcut"), newName: "[QA-SEQ] Copy" }),
+      { skip: (ctx) => !ctx.has("shortcut") }],
+    // run_shortcut: unknown side effects, skip in auto QA
   ],
 
   // ── Intelligence (8 tools) ────────────────────────────────────────
@@ -224,21 +259,28 @@ const MODULE_TESTS = {
 
   // ── TV (6 tools) ──────────────────────────────────────────────────
   tv: [
-    ["tv_list_playlists", {}],
-    ["tv_list_tracks", { playlist: "__PLACEHOLDER__" }],
+    ["tv_list_playlists", {}, { extract: (d, ctx) => {
+      const p = Array.isArray(d) ? d : []; if (p[0]?.name) ctx.set("tvPlaylist", p[0].name);
+    }}],
+    ["tv_list_tracks", (ctx) => ({ playlist: ctx.get("tvPlaylist") }), { skip: (ctx) => !ctx.has("tvPlaylist"),
+      extract: (d, ctx) => { const t = (d.tracks || []); if (t[0]?.name) ctx.set("tvTrack", t[0].name); }
+    }],
     ["tv_now_playing", {}],
     ["tv_search", { query: "test" }],
     ["tv_playback_control", { action: "pause" }],
-    ["tv_play", { name: "__PLACEHOLDER__" }],
+    ["tv_play", (ctx) => ({ name: ctx.get("tvTrack") }), { skip: (ctx) => !ctx.has("tvTrack") }],
   ],
 
   // ── UI (10 tools) ─────────────────────────────────────────────────
   ui: [
     // Read-only (4)
-    ["ui_read", { app: "Finder" }],
+    ["ui_read", { app: "Finder" }, { extract: (d, ctx) => {
+      // Store the full result as snapshot for ui_diff
+      if (d) ctx.set("uiSnapshot", JSON.stringify(d));
+    }}],
     ["ui_accessibility_query", { app: "Finder", role: "AXWindow" }],
     ["ui_traverse", { app: "Finder" }],
-    ["ui_diff", { beforeSnapshot: "__PLACEHOLDER__", app: "Finder" }],
+    ["ui_diff", (ctx) => ({ beforeSnapshot: ctx.get("uiSnapshot"), app: "Finder" }), { skip: (ctx) => !ctx.has("uiSnapshot") }],
     ["ui_open_app", { appName: "Finder" }],
     ["ui_scroll", { app: "Finder", direction: "down", amount: 1 }],
     // ui_click, ui_type, ui_press_key, ui_perform_action: destructive, skip
@@ -268,12 +310,17 @@ const MODULE_TESTS = {
 
   // ── Podcasts (3 tools) ────────────────────────────────────────────
   podcasts: [
-    ["list_podcast_shows", {}],
+    ["list_podcast_shows", {}, { extract: (d, ctx) => {
+      const s = Array.isArray(d) ? d : (d.shows || []); if (s[0]?.name) ctx.set("showName", s[0].name);
+    }}],
     ["podcast_now_playing", {}],
-    ["list_podcast_episodes", { showName: "__PLACEHOLDER__" }],
+    ["list_podcast_episodes", (ctx) => ({ showName: ctx.get("showName") }), { skip: (ctx) => !ctx.has("showName"),
+      extract: (d, ctx) => { const e = Array.isArray(d) ? d : (d.episodes || []); if (e[0]?.title) ctx.set("episodeName", e[0].title); }
+    }],
     ["search_podcast_episodes", { query: "test" }],
     ["podcast_playback_control", { action: "pause" }],
-    ["play_podcast_episode", { showName: "__PLACEHOLDER__", episodeName: "__PLACEHOLDER__" }],
+    ["play_podcast_episode", (ctx) => ({ showName: ctx.get("showName"), episodeName: ctx.get("episodeName") }),
+      { skip: (ctx) => !ctx.has("showName") || !ctx.has("episodeName") }],
   ],
 
   // ── Weather (3 tools — all read-only) ─────────────────────────────
@@ -285,30 +332,37 @@ const MODULE_TESTS = {
 
   // ── Pages (7 tools) ───────────────────────────────────────────────
   pages: [
-    ["pages_list_documents", {}],
-    ["pages_get_body_text", { document: "__PLACEHOLDER__" }],
-    ["pages_open_document", { path: "/tmp/nonexistent-qa.pages" }],
-    ["pages_export_pdf", { document: "__PLACEHOLDER__", outputPath: "/tmp/airmcp-qa-pages.pdf" }],
-    // pages_create_document, pages_set_body_text, pages_close_document: covered by CRUD
+    ["pages_list_documents", {}, { extract: (d, ctx) => {
+      const docs = Array.isArray(d) ? d : (d.documents || []); if (docs[0]?.name) ctx.set("pagesDoc", docs[0].name);
+    }}],
+    ["pages_get_body_text", (ctx) => ({ document: ctx.get("pagesDoc") }), { skip: (ctx) => !ctx.has("pagesDoc") }],
+    ["pages_export_pdf", (ctx) => ({ document: ctx.get("pagesDoc"), outputPath: "/tmp/airmcp-qa-pages.pdf" }),
+      { skip: (ctx) => !ctx.has("pagesDoc") }],
   ],
 
   // ── Numbers (9 tools) ─────────────────────────────────────────────
   numbers: [
-    ["numbers_list_documents", {}],
-    ["numbers_list_sheets", { document: "__PLACEHOLDER__" }],
-    ["numbers_read_cells", { document: "__PLACEHOLDER__", sheet: "__PLACEHOLDER__", startRow: 1, startCol: 1, endRow: 2, endCol: 2 }],
-    ["numbers_add_sheet", { document: "__PLACEHOLDER__", sheetName: "[QA-SEQ]" }],
-    ["numbers_export_pdf", { document: "__PLACEHOLDER__", outputPath: "/tmp/airmcp-qa-numbers.pdf" }],
-    // numbers_create_document, numbers_set_cell, numbers_get_cell, numbers_close_document: covered by CRUD
+    ["numbers_list_documents", {}, { extract: (d, ctx) => {
+      const docs = Array.isArray(d) ? d : (d.documents || []); if (docs[0]?.name) ctx.set("numDoc", docs[0].name);
+    }}],
+    ["numbers_list_sheets", (ctx) => ({ document: ctx.get("numDoc") }), { skip: (ctx) => !ctx.has("numDoc"),
+      extract: (d, ctx) => { const s = Array.isArray(d) ? d : (d.sheets || []); if (s[0]?.name) ctx.set("numSheet", s[0].name); }
+    }],
+    ["numbers_read_cells", (ctx) => ({ document: ctx.get("numDoc"), sheet: ctx.get("numSheet"), startRow: 1, startCol: 1, endRow: 2, endCol: 2 }),
+      { skip: (ctx) => !ctx.has("numDoc") || !ctx.has("numSheet") }],
+    ["numbers_add_sheet", (ctx) => ({ document: ctx.get("numDoc"), sheetName: "[QA-SEQ]" }), { skip: (ctx) => !ctx.has("numDoc") }],
+    ["numbers_export_pdf", (ctx) => ({ document: ctx.get("numDoc"), outputPath: "/tmp/airmcp-qa-numbers.pdf" }), { skip: (ctx) => !ctx.has("numDoc") }],
   ],
 
   // ── Keynote (9 tools) ─────────────────────────────────────────────
   keynote: [
-    ["keynote_list_documents", {}],
-    ["keynote_list_slides", { document: "__PLACEHOLDER__" }],
-    ["keynote_export_pdf", { document: "__PLACEHOLDER__", outputPath: "/tmp/airmcp-qa-keynote.pdf" }],
-    ["keynote_start_slideshow", { document: "__PLACEHOLDER__" }],
-    // keynote_create_document, keynote_add_slide, keynote_get_slide, keynote_set_presenter_notes, keynote_close_document: covered by CRUD
+    ["keynote_list_documents", {}, { extract: (d, ctx) => {
+      const docs = Array.isArray(d) ? d : (d.documents || []); if (docs[0]?.name) ctx.set("keyDoc", docs[0].name);
+    }}],
+    ["keynote_list_slides", (ctx) => ({ document: ctx.get("keyDoc") }), { skip: (ctx) => !ctx.has("keyDoc") }],
+    ["keynote_export_pdf", (ctx) => ({ document: ctx.get("keyDoc"), outputPath: "/tmp/airmcp-qa-keynote.pdf" }),
+      { skip: (ctx) => !ctx.has("keyDoc") }],
+    ["keynote_start_slideshow", (ctx) => ({ document: ctx.get("keyDoc") }), { skip: (ctx) => !ctx.has("keyDoc") }],
   ],
 
   // ── Location (1 read-only tool, rest in maps) ────────────────────
@@ -320,9 +374,11 @@ const MODULE_TESTS = {
   // ── Bluetooth (4 tools) ───────────────────────────────────────────
   bluetooth: [
     ["get_bluetooth_state", {}],
-    ["scan_bluetooth", {}],
-    ["connect_bluetooth", { identifier: "__PLACEHOLDER__" }],
-    ["disconnect_bluetooth", { identifier: "__PLACEHOLDER__" }],
+    ["scan_bluetooth", {}, { extract: (d, ctx) => {
+      const devs = (d.devices || []); if (devs[0]?.identifier) ctx.set("btId", devs[0].identifier);
+    }}],
+    ["connect_bluetooth", (ctx) => ({ identifier: ctx.get("btId") }), { skip: (ctx) => !ctx.has("btId") }],
+    ["disconnect_bluetooth", (ctx) => ({ identifier: ctx.get("btId") }), { skip: (ctx) => !ctx.has("btId") }],
   ],
 
   // ── Google Workspace (16 tools) ───────────────────────────────────
@@ -565,9 +621,29 @@ async function main() {
     }
 
     if (serverOk) {
-      for (const [tool, args] of tests) {
+      const ctx = new StepContext();
+      for (const entry of tests) {
+        const [tool, argsOrFn, opts] = entry;
+
+        // Skip if prerequisite missing
+        if (opts?.skip?.(ctx)) {
+          allResults.push({ module: mod, tool, status: "SKIP", note: "Prereq missing" });
+          process.stderr.write(`  ${ICONS.SKIP} ${tool}: SKIP — prereq missing\n`);
+          continue;
+        }
+
+        // Resolve args: static object or function of context
+        const args = typeof argsOrFn === "function" ? argsOrFn(ctx) : argsOrFn;
+
         const resp = await client.callTool(tool, args);
         const { status, note } = classify(resp);
+
+        // Extract data on success for chaining
+        if (status === "PASS" && opts?.extract) {
+          const data = parseResultData(resp);
+          if (data) opts.extract(data, ctx);
+        }
+
         allResults.push({ module: mod, tool, status, note });
         process.stderr.write(`  ${ICONS[status]} ${tool}: ${status}${note ? ` — ${note}` : ""}\n`);
       }
