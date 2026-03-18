@@ -1,6 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { runJxa } from "../shared/jxa.js";
+import { runAutomation } from "../shared/automation.js";
 import { runSwift } from "../shared/swift.js";
 import type { AirMcpConfig } from "../shared/config.js";
 import { ok, okUntrusted, err } from "../shared/result.js";
@@ -105,7 +105,10 @@ export function registerCalendarTools(server: McpServer, _config: AirMcpConfig):
     },
     async () => {
       try {
-        const result = await runJxa<CalendarItem[]>(listCalendarsScript());
+        const result = await runAutomation<CalendarItem[]>({
+          swift: { command: "list-calendars" },
+          jxa: () => listCalendarsScript(),
+        });
         return ok(result);
       } catch (e) {
         return err(`Failed to list calendars: ${e instanceof Error ? e.message : String(e)}`);
@@ -135,9 +138,13 @@ export function registerCalendarTools(server: McpServer, _config: AirMcpConfig):
     },
     async ({ startDate, endDate, calendar, limit, offset }) => {
       try {
-        const result = await runJxa<EventListResult>(
-          listEventsScript(startDate, endDate, limit, offset, calendar),
-        );
+        const result = await runAutomation<EventListResult>({
+          swift: {
+            command: "list-events",
+            input: { startDate, endDate, calendar, limit, offset },
+          },
+          jxa: () => listEventsScript(startDate, endDate, limit, offset, calendar),
+        });
         return ok(result);
       } catch (e) {
         return err(`Failed to list events: ${e instanceof Error ? e.message : String(e)}`);
@@ -163,7 +170,10 @@ export function registerCalendarTools(server: McpServer, _config: AirMcpConfig):
     },
     async ({ id }) => {
       try {
-        const result = await runJxa<EventDetail>(readEventScript(id));
+        const result = await runAutomation<EventDetail>({
+          swift: { command: "read-event", input: { id } },
+          jxa: () => readEventScript(id),
+        });
         return okUntrusted(result);
       } catch (e) {
         return err(`Failed to read event: ${e instanceof Error ? e.message : String(e)}`);
@@ -195,9 +205,13 @@ export function registerCalendarTools(server: McpServer, _config: AirMcpConfig):
     },
     async ({ summary, startDate, endDate, location, description, calendar, allDay }) => {
       try {
-        const result = await runJxa<MutationResult>(
-          createEventScript(summary, startDate, endDate, { location, description, calendar, allDay }),
-        );
+        const result = await runAutomation<MutationResult>({
+          swift: {
+            command: "create-event",
+            input: { title: summary, startDate, endDate, location, notes: description, calendar, allDay },
+          },
+          jxa: () => createEventScript(summary, startDate, endDate, { location, description, calendar, allDay }),
+        });
         return ok(result);
       } catch (e) {
         return err(`Failed to create event: ${e instanceof Error ? e.message : String(e)}`);
@@ -228,9 +242,13 @@ export function registerCalendarTools(server: McpServer, _config: AirMcpConfig):
     },
     async ({ id, summary, startDate, endDate, location, description }) => {
       try {
-        const result = await runJxa<MutationResult>(
-          updateEventScript(id, { summary, startDate, endDate, location, description }),
-        );
+        const result = await runAutomation<MutationResult>({
+          swift: {
+            command: "update-event",
+            input: { id, title: summary, startDate, endDate, location, notes: description },
+          },
+          jxa: () => updateEventScript(id, { summary, startDate, endDate, location, description }),
+        });
         return ok(result);
       } catch (e) {
         return err(`Failed to update event: ${e instanceof Error ? e.message : String(e)}`);
@@ -255,7 +273,10 @@ export function registerCalendarTools(server: McpServer, _config: AirMcpConfig):
     },
     async ({ id }) => {
       try {
-        const result = await runJxa<DeleteResult>(deleteEventScript(id));
+        const result = await runAutomation<DeleteResult>({
+          swift: { command: "delete-event", input: { id } },
+          jxa: () => deleteEventScript(id),
+        });
         return ok(result);
       } catch (e) {
         return err(`Failed to delete event: ${e instanceof Error ? e.message : String(e)}`);
@@ -284,9 +305,13 @@ export function registerCalendarTools(server: McpServer, _config: AirMcpConfig):
     },
     async ({ query, startDate, endDate, limit }) => {
       try {
-        const result = await runJxa<SearchResult>(
-          searchEventsScript(query, startDate, endDate, limit),
-        );
+        const result = await runAutomation<SearchResult>({
+          swift: {
+            command: "search-events",
+            input: { query, startDate, endDate, limit },
+          },
+          jxa: () => searchEventsScript(query, startDate, endDate, limit),
+        });
         return ok(result);
       } catch (e) {
         return err(`Failed to search events: ${e instanceof Error ? e.message : String(e)}`);
@@ -312,7 +337,10 @@ export function registerCalendarTools(server: McpServer, _config: AirMcpConfig):
     },
     async ({ limit }) => {
       try {
-        const result = await runJxa<UpcomingEventsResult>(getUpcomingEventsScript(limit));
+        const result = await runAutomation<UpcomingEventsResult>({
+          swift: { command: "get-upcoming-events", input: { limit } },
+          jxa: () => getUpcomingEventsScript(limit),
+        });
         return ok(result);
       } catch (e) {
         return err(`Failed to get upcoming events: ${e instanceof Error ? e.message : String(e)}`);
@@ -335,7 +363,10 @@ export function registerCalendarTools(server: McpServer, _config: AirMcpConfig):
     },
     async () => {
       try {
-        const result = await runJxa<TodayEventsResult>(todayEventsScript());
+        const result = await runAutomation<TodayEventsResult>({
+          swift: { command: "today-events" },
+          jxa: () => todayEventsScript(),
+        });
         return ok(result);
       } catch (e) {
         return err(`Failed to get today's events: ${e instanceof Error ? e.message : String(e)}`);
