@@ -121,7 +121,7 @@ public class BluetoothManager: NSObject, CBCentralManagerDelegate, @unchecked Se
         btQueue.asyncAfter(deadline: .now() + 10, execute: timeoutItem)
 
         let _ = try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Bool, Error>) in
-            self.connectContinuation = cont
+            self.btQueue.sync { self.connectContinuation = cont }
             mgr.connect(peripheral, options: nil)
         }
         timeoutItem.cancel()
@@ -137,8 +137,9 @@ public class BluetoothManager: NSObject, CBCentralManagerDelegate, @unchecked Se
     // MARK: CBCentralManagerDelegate
 
     public func centralManagerDidUpdateState(_ central: CBCentralManager) {
-        stateContinuation?.resume(returning: central.state)
+        guard let cont = stateContinuation else { return }
         stateContinuation = nil
+        cont.resume(returning: central.state)
     }
 
     public func centralManager(_ central: CBCentralManager, didDiscover peripheral: CBPeripheral,

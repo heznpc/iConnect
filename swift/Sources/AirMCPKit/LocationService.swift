@@ -30,6 +30,9 @@ public class LocationFetcher: NSObject, CLLocationManagerDelegate, @unchecked Se
                 throw AirMCPKitError.unsupported("Location request failed")
             }
             group.cancelAll()
+            // Stop delegate callbacks to prevent stale resume attempts
+            self.manager?.delegate = nil
+            self.manager = nil
             return result
         }
     }
