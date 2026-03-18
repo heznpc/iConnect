@@ -109,13 +109,14 @@ function getWeekMonday(dateStr?: string): string {
 
 export function registerApps(server: McpServer, opts: { calendar: boolean; music: boolean }): void {
   if (!opts.calendar && !opts.music) return;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- ext-apps SDK expects full McpServer generics
+  const s = server as any;
 
   if (opts.calendar) {
   // Calendar Week View
   // @ts-expect-error ext-apps SDK generics trigger excessive type instantiation depth
   registerAppTool(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    server as any,
+    s,
     "calendar_week_view",
     {
       title: "Calendar Week View",
@@ -143,8 +144,7 @@ export function registerApps(server: McpServer, opts: { calendar: boolean; music
   );
 
   registerAppResource(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    server as any,
+    s,
     "Calendar Week View",
     "ui://airmcp/calendar-week",
     { description: "Interactive calendar week grid" },
@@ -162,8 +162,7 @@ export function registerApps(server: McpServer, opts: { calendar: boolean; music
   if (opts.music) {
   // Music Player
   registerAppTool(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    server as any,
+    s,
     "music_player",
     {
       title: "Music Player",
@@ -184,8 +183,7 @@ export function registerApps(server: McpServer, opts: { calendar: boolean; music
   );
 
   registerAppResource(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    server as any,
+    s,
     "Music Player",
     "ui://airmcp/music-player",
     { description: "Interactive music player view" },
