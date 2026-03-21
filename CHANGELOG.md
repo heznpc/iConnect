@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.1] - 2026-03-21
+
+### Fixed
+- Deduplicated `runAppleScript`/`runJxaInner` — extracted shared `handleOsascriptError` and `parseOsascriptOutput` helpers
+- JXA semaphore now lazy-initialized (created on first use after config parse, not at import time)
+- CONCURRENCY lazy getters use `??=` (read env once, not on every access)
+- Stale `applescript:` prefix comment removed from messages/scripts
+- Simplified unnecessary cast in `evaluateCondition`
+
+### Changed
+- Stats synced across all docs, locales (9 languages), landing page, server.json, llms.txt: 253 tools, 32 prompts, 25 modules
+- Privacy policy version updated to v2.3.0, bug report placeholder to 2.3.0
+- Hero h1 restyled: Air (light) + MCP (bold)
+- Removed TODO.md from tracking and git history (contained internal roadmap and security notes)
+- Added `coverage/` and `qa-sequential-report-*.md` to .gitignore
+
 ## [2.3.0] - 2026-03-19
 
 ### Added
