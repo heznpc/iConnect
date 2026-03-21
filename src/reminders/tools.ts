@@ -4,6 +4,7 @@ import { runAutomation } from "../shared/automation.js";
 import { runSwift } from "../shared/swift.js";
 import type { AirMcpConfig } from "../shared/config.js";
 import { ok, okUntrusted, toolError } from "../shared/result.js";
+import type { MutationResult, DeleteResult } from "../shared/types.js";
 import {
   listReminderListsScript,
   listRemindersScript,
@@ -40,28 +41,13 @@ interface ReminderDetail extends ReminderItem {
   modificationDate: string;
 }
 
-interface MutationResult {
-  id: string;
-  name: string;
-}
-
 interface CompleteResult extends MutationResult {
   completed: boolean;
-}
-
-interface DeleteResult {
-  deleted: boolean;
-  name: string;
 }
 
 interface SearchRemindersResult {
   returned: number;
   reminders: ReminderItem[];
-}
-
-interface ListMutationResult {
-  id: string;
-  name: string;
 }
 
 interface RecurringReminderResult {
@@ -351,7 +337,7 @@ export function registerReminderTools(server: McpServer, _config: AirMcpConfig):
     },
     async ({ name }) => {
       try {
-        const result = await runAutomation<ListMutationResult>({
+        const result = await runAutomation<MutationResult>({
           swift: {
             command: "create-reminder-list",
             input: { name },

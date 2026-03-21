@@ -41,9 +41,6 @@ function scrubPii(msg: string): string {
 // ── Concurrency semaphore ────────────────────────────────────────────
 const semaphore = new Semaphore(CONCURRENCY.JXA_SLOTS);
 
-/** Shared osascript semaphore — also used by messages/tools.ts AppleScript calls. */
-export { semaphore as osascriptSemaphore };
-
 // ── Circuit breaker ──────────────────────────────────────────────────
 interface CircuitState {
   failures: number;
@@ -55,14 +52,18 @@ const circuits = new Map<string, CircuitState>();
 
 function getCircuit(app: string): CircuitState {
   let c = circuits.get(app);
-  if (!c) {
-    if (circuits.size >= CONCURRENCY.CB_CACHE_SIZE) {
-      const oldest = circuits.keys().next().value!;
-      circuits.delete(oldest);
-    }
-    c = { failures: 0, state: "closed", openedAt: 0 };
+  if (c) {
+    // Move to end for LRU eviction — frequently used apps stay in cache
+    circuits.delete(app);
     circuits.set(app, c);
+    return c;
   }
+  if (circuits.size >= CONCURRENCY.CB_CACHE_SIZE) {
+    const lru = circuits.keys().next().value!;
+    circuits.delete(lru);
+  }
+  c = { failures: 0, state: "closed", openedAt: 0 };
+  circuits.set(app, c);
   return c;
 }
 
@@ -99,15 +100,17 @@ function extractAppName(script: string): string | undefined {
 }
 
 // ── SIGKILL fallback helper ──────────────────────────────────────────
-function execJxa(
+function execOsascript(
   script: string,
   timeout: number,
+  language?: "JavaScript",
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     let settled = false;
+    const args = language ? ["-l", language, "-e", script] : ["-e", script];
     const child = execFile(
       "osascript",
-      ["-l", "JavaScript", "-e", script],
+      args,
       { timeout, maxBuffer: BUFFER.JXA },
       (error, stdout) => {
         if (settled) return;
@@ -164,7 +167,7 @@ async function runJxaInner<T>(script: string, app: string | undefined): Promise<
 
   for (let attempt = 0; attempt <= CONCURRENCY.JXA_RETRIES; attempt++) {
     try {
-      stdout = await execJxa(script, TIMEOUT.JXA);
+      stdout = await execOsascript(script, TIMEOUT.JXA, "JavaScript");
       break;
     } catch (e: unknown) {
       if (!isTransient(e) || attempt === CONCURRENCY.JXA_RETRIES) {
@@ -183,7 +186,7 @@ async function runJxaInner<T>(script: string, app: string | undefined): Promise<
       }
       console.error(`[AirMCP] JXA retry attempt ${attempt + 2}/3`);
       const jitter = Math.floor(Math.random() * 100);
-      await new Promise((r) => setTimeout(r, CONCURRENCY.JXA_RETRY_DELAYS[attempt] + jitter));
+      await new Promise((r) => setTimeout(r, CONCURRENCY.JXA_RETRY_DELAYS[attempt]! + jitter));
     }
   }
 
@@ -205,4 +208,57 @@ async function runJxaInner<T>(script: string, app: string | undefined): Promise<
   if (app) recordSuccess(app);
 
   return parsed as T;
+}
+
+/**
+ * Run an AppleScript via osascript with the same protections as runJxa
+ * (semaphore, circuit breaker, PII scrubbing, SIGKILL fallback).
+ */
+export async function runAppleScript<T>(
+  script: string,
+  options?: { app?: string; timeout?: number },
+): Promise<T> {
+  const app = options?.app;
+  const timeout = options?.timeout ?? TIMEOUT.JXA;
+
+  if (app) checkCircuit(app);
+
+  await semaphore.acquire();
+  try {
+    let stdout: string;
+    try {
+      stdout = await execOsascript(script, timeout);
+    } catch (e: unknown) {
+      if (app) recordFailure(app);
+      const error = e as { killed?: boolean; signal?: string; stderr?: string; message?: string };
+      if (error.killed || error.signal === "SIGTERM" || error.signal === "SIGKILL") {
+        throw new Error(`osascript timed out after ${timeout / 1000}s`, { cause: e });
+      }
+      const rawMsg = `${error.stderr ?? ""} ${error.message ?? ""}`.trim();
+      const cleanMsg = scrubPii(rawMsg);
+      const friendly = describeJxaError(rawMsg);
+      throw new Error(friendly ? `osascript error: ${friendly}` : `osascript error: ${cleanMsg}`, { cause: e });
+    }
+
+    // Strip control chars that AppleScript may inject
+    // eslint-disable-next-line no-control-regex
+    const clean = stdout.trim().replace(/[\x00-\x1f\x7f]/g, (c) => c === "\n" || c === "\r" || c === "\t" ? "" : "");
+    if (!clean) throw new Error("osascript returned empty output");
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(clean);
+    } catch {
+      throw new Error(`osascript returned invalid JSON: ${scrubPii(clean)}`);
+    }
+
+    if (parsed === null || parsed === undefined || typeof parsed !== "object") {
+      parsed = { value: parsed };
+    }
+
+    if (app) recordSuccess(app);
+    return parsed as T;
+  } finally {
+    semaphore.release();
+  }
 }

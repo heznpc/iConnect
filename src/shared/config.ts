@@ -23,10 +23,10 @@ export function getOsVersion(): number {
       encoding: "utf8",
       timeout: 3000,
     }).trim();
-    const major = parseInt(ver.split(".")[0], 10);
+    const major = parseInt(ver.split(".")[0]!, 10);
     if (!isNaN(major)) return major;
   } catch { /* fall through to Darwin heuristic */ }
-  const darwinMajor = parseInt(release().split(".")[0], 10);
+  const darwinMajor = parseInt(release().split(".")[0]!, 10);
   if (isNaN(darwinMajor)) return 0;
   // Darwin 25+ → macOS 26+ (version jump); Darwin 20-24 → macOS 11-15
   if (darwinMajor >= 25) return darwinMajor + 1;
@@ -219,7 +219,9 @@ export function parseConfig(): AirMcpConfig {
   // parseConfig runs), so JSON config values for jxaConcurrency / CB thresholds
   // only take effect if set as env vars BEFORE the process starts. The JSON
   // config path works for embeddingProvider (read lazily) but not for values
-  // baked into the CONCURRENCY object. TODO: refactor to lazy accessors.
+  // CONCURRENCY getters now read env vars lazily, so JSON config values work
+  // for CB_THRESHOLD, CB_OPEN_MS, and JXA_SLOTS. Note: the Semaphore in
+  // jxa.ts is still created once at import time with the initial JXA_SLOTS value.
   const perf = file.performance;
   if (perf) {
     if (perf.embeddingProvider && !process.env.AIRMCP_EMBEDDING_PROVIDER) {

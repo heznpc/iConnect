@@ -145,7 +145,7 @@ export async function runInit(): Promise<void> {
   const presetMap = {
     all: [...MODULE_NAMES],
     starter: [...STARTER_MODULES],
-    productivity: PRESETS.productivity.modules,
+    productivity: PRESETS.productivity!.modules,
   };
 
   const selectedModules = await selectMulti(t("choose_modules", lang), moduleOptions, presetMap);

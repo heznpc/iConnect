@@ -1,7 +1,7 @@
 import type { McpServer } from "../shared/mcp.js";
 import { z } from "zod";
 import { ok, err, toolError } from "../shared/result.js";
-import { AirMcpConfig } from "../shared/config.js";
+import type { AirMcpConfig } from "../shared/config.js";
 import { SemanticSearchService } from "./service.js";
 import { runSwift, checkSwiftBridge } from "../shared/swift.js";
 
@@ -221,7 +221,7 @@ export function registerSemanticTools(server: McpServer, config: AirMcpConfig): 
         const status = await service.status();
         return ok(status);
       } catch (e) {
-        return toolError("semantic search", e);
+        return toolError("check semantic status", e);
       }
     },
   );

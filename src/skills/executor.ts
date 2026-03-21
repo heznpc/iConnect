@@ -17,7 +17,7 @@ export function resolveTemplates(value: unknown, results: Map<string, unknown>):
     // Entire string is a single template → return raw value
     const singleMatch = SINGLE_TEMPLATE_RE.exec(value);
     if (singleMatch) {
-      return resolvePath(singleMatch[1].trim(), results);
+      return resolvePath(singleMatch[1]!.trim(), results);
     }
     // Mixed string with embedded templates
     return value.replace(EMBEDDED_TEMPLATE_RE, (_match, path: string) => {
@@ -40,10 +40,10 @@ export function resolveTemplates(value: unknown, results: Map<string, unknown>):
 
 function resolvePath(path: string, results: Map<string, unknown>): unknown {
   const parts = path.split(".");
-  const stepId = parts[0];
+  const stepId = parts[0]!;
   let current: unknown = results.get(stepId);
   for (let i = 1; i < parts.length && current != null; i++) {
-    current = (current as Record<string, unknown>)[parts[i]];
+    current = (current as Record<string, unknown>)[parts[i]!];
   }
   return current;
 }
@@ -135,7 +135,7 @@ function parseExpr(tokens: Token[]): unknown {
   }
 
   function advance(): Token {
-    return tokens[pos++];
+    return tokens[pos++]!;
   }
 
   function peekOp(): string | undefined {
@@ -204,7 +204,7 @@ function parseExpr(tokens: Token[]): unknown {
 export function evaluateCondition(expr: string, results: Map<string, unknown>): boolean {
   const tokens = tokenize(expr, results);
   if (tokens.length === 0) return false;
-  if (tokens.length === 1 && tokens[0].kind === "value") return !!tokens[0].value;
+  if (tokens.length === 1 && tokens[0]!.kind === "value") return !!(tokens[0] as { kind: "value"; value: unknown }).value;
   return !!parseExpr(tokens);
 }
 

@@ -2,7 +2,7 @@ import type { McpServer } from "../shared/mcp.js";
 import { z } from "zod";
 import { runJxa } from "../shared/jxa.js";
 import type { AirMcpConfig } from "../shared/config.js";
-import { ok, okUntrusted, err } from "../shared/result.js";
+import { ok, okUntrusted, err, toolError } from "../shared/result.js";
 import {
   listMailboxesScript,
   listMessagesScript,
@@ -32,7 +32,7 @@ export function registerMailTools(server: McpServer, config: AirMcpConfig): void
       try {
         return ok(await runJxa(listMailboxesScript()));
       } catch (e) {
-        return err(`Failed to list mailboxes: ${e instanceof Error ? e.message : String(e)}`);
+        return toolError("list mailboxes", e);
       }
     },
   );
@@ -54,7 +54,7 @@ export function registerMailTools(server: McpServer, config: AirMcpConfig): void
       try {
         return ok(await runJxa(listMessagesScript(mailbox, limit, offset, account)));
       } catch (e) {
-        return err(`Failed to list messages: ${e instanceof Error ? e.message : String(e)}`);
+        return toolError("list messages", e);
       }
     },
   );
@@ -74,7 +74,7 @@ export function registerMailTools(server: McpServer, config: AirMcpConfig): void
       try {
         return okUntrusted(await runJxa(readMessageScript(id, maxLength)));
       } catch (e) {
-        return err(`Failed to read message: ${e instanceof Error ? e.message : String(e)}`);
+        return toolError("read message", e);
       }
     },
   );
@@ -95,7 +95,7 @@ export function registerMailTools(server: McpServer, config: AirMcpConfig): void
       try {
         return okUntrusted(await runJxa(searchMessagesScript(query, mailbox, limit)));
       } catch (e) {
-        return err(`Failed to search messages: ${e instanceof Error ? e.message : String(e)}`);
+        return toolError("search messages", e);
       }
     },
   );
@@ -115,7 +115,7 @@ export function registerMailTools(server: McpServer, config: AirMcpConfig): void
       try {
         return ok(await runJxa(markReadScript(id, read)));
       } catch (e) {
-        return err(`Failed to mark message: ${e instanceof Error ? e.message : String(e)}`);
+        return toolError("mark message", e);
       }
     },
   );
@@ -135,7 +135,7 @@ export function registerMailTools(server: McpServer, config: AirMcpConfig): void
       try {
         return ok(await runJxa(flagMessageScript(id, flagged)));
       } catch (e) {
-        return err(`Failed to flag message: ${e instanceof Error ? e.message : String(e)}`);
+        return toolError("flag message", e);
       }
     },
   );
@@ -152,7 +152,7 @@ export function registerMailTools(server: McpServer, config: AirMcpConfig): void
       try {
         return ok(await runJxa(getUnreadCountScript()));
       } catch (e) {
-        return err(`Failed to get unread count: ${e instanceof Error ? e.message : String(e)}`);
+        return toolError("get unread count", e);
       }
     },
   );
@@ -173,7 +173,7 @@ export function registerMailTools(server: McpServer, config: AirMcpConfig): void
       try {
         return ok(await runJxa(moveMessageScript(id, targetMailbox, targetAccount)));
       } catch (e) {
-        return err(`Failed to move message: ${e instanceof Error ? e.message : String(e)}`);
+        return toolError("move message", e);
       }
     },
   );
@@ -190,7 +190,7 @@ export function registerMailTools(server: McpServer, config: AirMcpConfig): void
       try {
         return ok(await runJxa(listAccountsScript()));
       } catch (e) {
-        return err(`Failed to list accounts: ${e instanceof Error ? e.message : String(e)}`);
+        return toolError("list accounts", e);
       }
     },
   );
@@ -217,7 +217,7 @@ export function registerMailTools(server: McpServer, config: AirMcpConfig): void
       try {
         return ok(await runJxa(sendMailScript(to, subject, body, cc, bcc, account)));
       } catch (e) {
-        return err(`Failed to send mail: ${e instanceof Error ? e.message : String(e)}`);
+        return toolError("send mail", e);
       }
     },
   );
@@ -239,7 +239,7 @@ export function registerMailTools(server: McpServer, config: AirMcpConfig): void
       try {
         return ok(await runJxa(replyMailScript(id, body, replyAll)));
       } catch (e) {
-        return err(`Failed to reply: ${e instanceof Error ? e.message : String(e)}`);
+        return toolError("reply", e);
       }
     },
   );

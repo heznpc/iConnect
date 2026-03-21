@@ -92,6 +92,12 @@ function ensureProcess(): Promise<void> {
     proc.stdout!.setEncoding("utf-8");
     proc.stdout!.on("data", (chunk: string) => {
       buffer += chunk;
+      if (buffer.length > BUFFER.SWIFT) {
+        buffer = "";
+        rejectAll(`Swift bridge persistent buffer exceeded ${BUFFER.SWIFT} bytes`);
+        proc.kill("SIGTERM");
+        return;
+      }
       const lines = buffer.split("\n");
       buffer = lines.pop() ?? "";
 

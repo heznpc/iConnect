@@ -7,7 +7,7 @@ import { ok, err } from "../shared/result.js";
 function generatePromptText(skill: SkillDefinition): string {
   const lines = [`Execute the following workflow "${skill.title}" using AirMCP tools:`];
   for (let i = 0; i < skill.steps.length; i++) {
-    const step = skill.steps[i];
+    const step = skill.steps[i]!;
     let line = `${i + 1}. [${step.id}] Call \`${step.tool}\``;
     if (step.args && Object.keys(step.args).length > 0) {
       line += ` with args: ${JSON.stringify(step.args)}`;

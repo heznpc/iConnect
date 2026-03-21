@@ -127,7 +127,7 @@ export function sendMessageScript(
   // multi-layer escaping issues (AS→JSON). The tool handler has the input.
   const t = escAS(target);
   const m = escAS(text);
-  return `applescript:tell application "Messages"
+  return `tell application "Messages"
 try
 set targetService to 1st service whose service type = iMessage
 on error
@@ -145,7 +145,7 @@ export function sendFileScript(
 ): string {
   const t = escAS(target);
   const p = escAS(filePath);
-  return `applescript:tell application "Messages"
+  return `tell application "Messages"
 try
 set targetService to 1st service whose service type = iMessage
 on error

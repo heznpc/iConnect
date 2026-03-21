@@ -3,8 +3,9 @@ import { z } from "zod";
 import { runJxa } from "../shared/jxa.js";
 import type { AirMcpConfig } from "../shared/config.js";
 import { LIMITS } from "../shared/constants.js";
-import { ok, okUntrusted, err } from "../shared/result.js";
+import { ok, okUntrusted, err, toolError } from "../shared/result.js";
 import { filterSharedAccess, guardSharedAccess } from "../shared/share-guard.js";
+import type { Shareable, MutationResult, DeleteResult } from "../shared/types.js";
 import {
   listNotesScript,
   searchNotesScript,
@@ -23,10 +24,6 @@ import {
   bulkMoveNotesScript,
 } from "./scripts.js";
 
-interface Shareable {
-  shared: boolean;
-}
-
 interface NoteListItem extends Shareable {
   id: string;
   name: string;
@@ -43,16 +40,6 @@ interface NoteDetail extends NoteListItem {
   body: string;
   plaintext: string;
   passwordProtected: boolean;
-}
-
-interface MutationResult {
-  id: string;
-  name: string;
-}
-
-interface DeleteResult {
-  deleted: boolean;
-  name: string;
 }
 
 interface FolderItem extends Shareable {
@@ -118,7 +105,7 @@ export function registerNoteTools(server: McpServer, config: AirMcpConfig): void
         result.returned = result.notes.length;
         return ok(result);
       } catch (e) {
-        return err(`Failed to list notes: ${e instanceof Error ? e.message : String(e)}`);
+        return toolError("list notes", e);
       }
     },
   );
@@ -146,7 +133,7 @@ export function registerNoteTools(server: McpServer, config: AirMcpConfig): void
         result.returned = result.notes.length;
         return okUntrusted(result);
       } catch (e) {
-        return err(`Failed to search notes: ${e instanceof Error ? e.message : String(e)}`);
+        return toolError("search notes", e);
       }
     },
   );
@@ -173,7 +160,7 @@ export function registerNoteTools(server: McpServer, config: AirMcpConfig): void
         if (blocked) return err(blocked);
         return okUntrusted(result);
       } catch (e) {
-        return err(`Failed to read note: ${e instanceof Error ? e.message : String(e)}`);
+        return toolError("read note", e);
       }
     },
   );
@@ -203,7 +190,7 @@ export function registerNoteTools(server: McpServer, config: AirMcpConfig): void
         const result = await runJxa<MutationResult>(script);
         return ok(result);
       } catch (e) {
-        return err(`Failed to create note: ${e instanceof Error ? e.message : String(e)}`);
+        return toolError("create note", e);
       }
     },
   );
@@ -232,7 +219,7 @@ export function registerNoteTools(server: McpServer, config: AirMcpConfig): void
         const result = await runJxa<MutationResult>(updateNoteScript(id, body));
         return ok(result);
       } catch (e) {
-        return err(`Failed to update note: ${e instanceof Error ? e.message : String(e)}`);
+        return toolError("update note", e);
       }
     },
   );
@@ -260,7 +247,7 @@ export function registerNoteTools(server: McpServer, config: AirMcpConfig): void
         const result = await runJxa<DeleteResult>(deleteNoteScript(id));
         return ok(result);
       } catch (e) {
-        return err(`Failed to delete note: ${e instanceof Error ? e.message : String(e)}`);
+        return toolError("delete note", e);
       }
     },
   );
@@ -283,7 +270,7 @@ export function registerNoteTools(server: McpServer, config: AirMcpConfig): void
         const result = await runJxa<FolderItem[]>(listFoldersScript());
         return ok(filterSharedAccess(result, config, "notes"));
       } catch (e) {
-        return err(`Failed to list folders: ${e instanceof Error ? e.message : String(e)}`);
+        return toolError("list folders", e);
       }
     },
   );
@@ -309,7 +296,7 @@ export function registerNoteTools(server: McpServer, config: AirMcpConfig): void
         const result = await runJxa<MutationResult>(createFolderScript(name, account));
         return ok(result);
       } catch (e) {
-        return err(`Failed to create folder: ${e instanceof Error ? e.message : String(e)}`);
+        return toolError("create folder", e);
       }
     },
   );
@@ -338,7 +325,7 @@ export function registerNoteTools(server: McpServer, config: AirMcpConfig): void
         const result = await runJxa<MutationResult>(moveNoteScript(id, folder));
         return ok(result);
       } catch (e) {
-        return err(`Failed to move note: ${e instanceof Error ? e.message : String(e)}`);
+        return toolError("move note", e);
       }
     },
   );
@@ -371,7 +358,7 @@ export function registerNoteTools(server: McpServer, config: AirMcpConfig): void
         result.returned = result.notes.length;
         return okUntrusted(result);
       } catch (e) {
-        return err(`Failed to scan notes: ${e instanceof Error ? e.message : String(e)}`);
+        return toolError("scan notes", e);
       }
     },
   );
@@ -407,7 +394,7 @@ export function registerNoteTools(server: McpServer, config: AirMcpConfig): void
         }
         return okUntrusted(result);
       } catch (e) {
-        return err(`Failed to compare notes: ${e instanceof Error ? e.message : String(e)}`);
+        return toolError("compare notes", e);
       }
     },
   );
@@ -441,7 +428,7 @@ export function registerNoteTools(server: McpServer, config: AirMcpConfig): void
         const result = await runJxa<unknown>(bulkMoveNotesScript(ids, folder));
         return ok(result);
       } catch (e) {
-        return err(`Failed to bulk move notes: ${e instanceof Error ? e.message : String(e)}`);
+        return toolError("bulk move notes", e);
       }
     },
   );

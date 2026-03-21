@@ -1,10 +1,7 @@
 import type { AirMcpConfig } from "./config.js";
 import { needsShareApproval } from "./config.js";
 import type { HitlClient } from "./hitl.js";
-
-interface Shareable {
-  shared: boolean;
-}
+import type { Shareable } from "./types.js";
 
 /**
  * Shared HITL client reference — set once at startup from index.ts.

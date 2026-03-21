@@ -31,7 +31,7 @@ export function selectOne(
         out.write(MOVE_UP(options.length));
       }
       for (let i = 0; i < options.length; i++) {
-        const opt = options[i];
+        const opt = options[i]!;
         const selected = i === cursor;
         const pointer = selected ? `${WHITE}❯${RESET}` : " ";
         const label = selected ? `${BOLD}${opt.label}${RESET}` : `${DIM}${opt.label}${RESET}`;
@@ -71,8 +71,8 @@ export function selectOne(
         cleanup();
         // Clear hint line and show selection
         out.write(`\r${CLEAR_LINE}`);
-        out.write(`  ${GREEN}✓${RESET} ${options[cursor].label}\n\n`);
-        resolve(options[cursor].value);
+        out.write(`  ${GREEN}✓${RESET} ${options[cursor]!.label}\n\n`);
+        resolve(options[cursor]!.value);
       }
     };
 
@@ -119,7 +119,7 @@ export function selectMulti(
         for (let c = 0; c < cols; c++) {
           const idx = r + c * rows;
           if (idx >= options.length) break;
-          const opt = options[idx];
+          const opt = options[idx]!;
           const isCursor = idx === cursor;
           const check = opt.checked ? `${GREEN}✓${RESET}` : " ";
           const star = opt.star ? `${DIM}★${RESET}` : " ";
@@ -170,7 +170,7 @@ export function selectMulti(
         cursor = Math.min(options.length - 1, cursor + rows);
         needRender = true;
       } else if (key.name === "space") {
-        options[cursor].checked = !options[cursor].checked;
+        options[cursor]!.checked = !options[cursor]!.checked;
         needRender = true;
       } else if (key.name === "a" && presets?.all) {
         for (const o of options) o.checked = true;

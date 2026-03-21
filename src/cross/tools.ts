@@ -2,7 +2,8 @@ import type { McpServer } from "../shared/mcp.js";
 import { z } from "zod";
 import { ok, err } from "../shared/result.js";
 import { buildSnapshot } from "../shared/resources.js";
-import { AirMcpConfig, isModuleEnabled } from "../shared/config.js";
+import type { AirMcpConfig } from "../shared/config.js";
+import { isModuleEnabled } from "../shared/config.js";
 import { runSwift, checkSwiftBridge } from "../shared/swift.js";
 
 /**

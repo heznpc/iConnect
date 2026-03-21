@@ -33,7 +33,7 @@ const ctx = initializeServer();
 const args = process.argv.slice(2);
 const httpMode = args.includes("--http");
 const portIdx = args.indexOf("--port");
-const port = portIdx !== -1 && args[portIdx + 1] ? parseInt(args[portIdx + 1], 10) : IDENTITY.HTTP_PORT;
+const port = portIdx !== -1 && args[portIdx + 1] ? parseInt(args[portIdx + 1]!, 10) : IDENTITY.HTTP_PORT;
 const bindAll = args.includes("--bind-all");
 const httpToken = process.env.AIRMCP_HTTP_TOKEN ?? "";
 

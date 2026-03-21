@@ -327,7 +327,7 @@ export class SemanticSearchService {
       const texts = entries.map((e) => e.text);
       const vectors = await embedBatch(texts, provider);
       for (let i = 0; i < entries.length; i++) {
-        entries[i].vector = vectors[i];
+        entries[i]!.vector = vectors[i]!;
       }
       await this.store.upsertEntries(entries);
       if (onProgress) await onProgress(totalSteps, totalSteps, `Indexed ${entries.length} items`);

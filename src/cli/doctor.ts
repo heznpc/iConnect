@@ -151,7 +151,7 @@ export async function runDoctor(): Promise<void> {
     for (let c = 0; c < cols; c++) {
       const idx = r + c * rows;
       if (idx >= MODULE_NAMES.length) break;
-      const mod = MODULE_NAMES[idx];
+      const mod = MODULE_NAMES[idx]!;
       const on = enabledMods.includes(mod);
       const icon = on ? SYM.ok : `${DIM}·${RESET}`;
       const label = on ? mod : `${DIM}${mod}${RESET}`;

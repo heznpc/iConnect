@@ -201,7 +201,7 @@ export function registerResources(server: McpServer, config?: AirMcpConfig): voi
   // ── Context Snapshot ──
   jsonResource(server, "context-snapshot", "context://snapshot",
     "Unified context from all enabled Apple apps — calendar, reminders, notes, mail, music, system — in a single read. Default depth: standard.",
-    async () => JSON.parse(await buildSnapshot(enabled, DEPTH.standard)));
+    async () => JSON.parse(await buildSnapshot(enabled, DEPTH.standard!)));
 
   server.registerResource(
     "context-snapshot-depth",
@@ -213,7 +213,7 @@ export function registerResources(server: McpServer, config?: AirMcpConfig): voi
     },
     async (uri, variables) => {
       const raw = (Array.isArray(variables.depth) ? variables.depth[0] : variables.depth) as string;
-      const dc = DEPTH[raw] ?? DEPTH.standard;
+      const dc = (DEPTH[raw] ?? DEPTH.standard)!;
       return {
         contents: [{ uri: uri.href, mimeType: "application/json", text: await buildSnapshot(enabled, dc) }],
       };
@@ -243,7 +243,7 @@ export async function buildSnapshot(
   enabled: (mod: string) => boolean,
   depth: DepthConfig | string,
 ): Promise<string> {
-  const dc: DepthConfig = typeof depth === "string" ? (DEPTH[depth] ?? DEPTH.standard) : depth;
+  const dc: DepthConfig = typeof depth === "string" ? (DEPTH[depth] ?? DEPTH.standard!) : depth;
   const depthName = dc === DEPTH.brief ? "brief" : dc === DEPTH.full ? "full" : "standard";
 
   // Build parallel fetchers for each enabled module
@@ -338,8 +338,8 @@ export async function buildSnapshot(
   };
 
   for (let i = 0; i < tasks.length; i++) {
-    const r = results[i];
-    snapshot[tasks[i].key] = r.status === "fulfilled" ? r.value : { error: "unavailable" };
+    const r = results[i]!;
+    snapshot[tasks[i]!.key] = r.status === "fulfilled" ? r.value : { error: "unavailable" };
   }
 
   return JSON.stringify(snapshot, null, 2);
