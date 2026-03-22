@@ -3,7 +3,7 @@ import { z } from "zod";
 import { runAutomation } from "../shared/automation.js";
 import { runSwift } from "../shared/swift.js";
 import type { AirMcpConfig } from "../shared/config.js";
-import { ok, okUntrusted, toolError } from "../shared/result.js";
+import { ok, okLinked, okUntrusted, toolError } from "../shared/result.js";
 import type { MutationResult, DeleteResult } from "../shared/types.js";
 import {
   listReminderListsScript,
@@ -111,7 +111,7 @@ export function registerReminderTools(server: McpServer, _config: AirMcpConfig):
           },
           jxa: () => listRemindersScript(limit, offset, list, completed),
         });
-        return ok(result);
+        return okLinked("list_reminders", result);
       } catch (e) {
         return toolError("list reminders", e);
       }
@@ -175,7 +175,7 @@ export function registerReminderTools(server: McpServer, _config: AirMcpConfig):
           },
           jxa: () => createReminderScript(title, { body, dueDate, priority, list }),
         });
-        return ok(result);
+        return okLinked("create_reminder", result);
       } catch (e) {
         return toolError("create reminder", e);
       }

@@ -2,7 +2,7 @@ import type { McpServer } from "../shared/mcp.js";
 import { z } from "zod";
 import { runJxa } from "../shared/jxa.js";
 import type { AirMcpConfig } from "../shared/config.js";
-import { ok, toolError } from "../shared/result.js";
+import { ok, okLinked, toolError } from "../shared/result.js";
 import { zFilePath } from "../shared/validate.js";
 import {
   searchFilesScript,
@@ -30,7 +30,7 @@ export function registerFinderTools(server: McpServer, _config: AirMcpConfig): v
     },
     async ({ query, folder, limit }) => {
       try {
-        return ok(await runJxa(searchFilesScript(folder, query, limit)));
+        return okLinked("search_files", await runJxa(searchFilesScript(folder, query, limit)));
       } catch (e) {
         return toolError("search files", e);
       }

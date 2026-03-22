@@ -3,7 +3,7 @@ import { z } from "zod";
 import { runAutomation } from "../shared/automation.js";
 import { runSwift } from "../shared/swift.js";
 import type { AirMcpConfig } from "../shared/config.js";
-import { ok, okUntrusted, toolError } from "../shared/result.js";
+import { ok, okLinked, okUntrusted, toolError } from "../shared/result.js";
 import {
   listCalendarsScript,
   listEventsScript,
@@ -367,7 +367,7 @@ export function registerCalendarTools(server: McpServer, _config: AirMcpConfig):
           swift: { command: "today-events" },
           jxa: () => todayEventsScript(),
         });
-        return ok(result);
+        return okLinked("today_events", result);
       } catch (e) {
         return toolError("get today's events", e);
       }

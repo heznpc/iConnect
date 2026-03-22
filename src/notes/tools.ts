@@ -3,7 +3,7 @@ import { z } from "zod";
 import { runJxa } from "../shared/jxa.js";
 import type { AirMcpConfig } from "../shared/config.js";
 import { LIMITS } from "../shared/constants.js";
-import { ok, okUntrusted, err, toolError } from "../shared/result.js";
+import { ok, okLinked, okUntrusted, err, toolError } from "../shared/result.js";
 import { filterSharedAccess, guardSharedAccess } from "../shared/share-guard.js";
 import type { Shareable, MutationResult, DeleteResult } from "../shared/types.js";
 import {
@@ -103,7 +103,7 @@ export function registerNoteTools(server: McpServer, config: AirMcpConfig): void
         const result = await runJxa<{ total: number; offset: number; returned: number; notes: NoteListItem[] }>(listNotesScript(limit, offset, folder));
         result.notes = filterSharedAccess(result.notes, config, "notes");
         result.returned = result.notes.length;
-        return ok(result);
+        return okLinked("list_notes", result);
       } catch (e) {
         return toolError("list notes", e);
       }
@@ -188,7 +188,7 @@ export function registerNoteTools(server: McpServer, config: AirMcpConfig): void
           ? createNoteSharedScript(body, folder)
           : createNoteScript(body, folder);
         const result = await runJxa<MutationResult>(script);
-        return ok(result);
+        return okLinked("create_note", result);
       } catch (e) {
         return toolError("create note", e);
       }

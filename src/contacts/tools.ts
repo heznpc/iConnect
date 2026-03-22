@@ -2,7 +2,7 @@ import type { McpServer } from "../shared/mcp.js";
 import { z } from "zod";
 import { runAutomation } from "../shared/automation.js";
 import type { AirMcpConfig } from "../shared/config.js";
-import { ok, okUntrusted, toolError } from "../shared/result.js";
+import { ok, okLinked, okUntrusted, toolError } from "../shared/result.js";
 import {
   listContactsScript,
   searchContactsScript,
@@ -111,7 +111,7 @@ export function registerContactTools(server: McpServer, _config: AirMcpConfig): 
           swift: { command: "list-contacts", input: { limit, offset } },
           jxa: () => listContactsScript(limit, offset),
         });
-        return ok(result);
+        return okLinked("list_contacts", result);
       } catch (e) {
         return toolError("list contacts", e);
       }

@@ -2,7 +2,7 @@ import type { McpServer } from "../shared/mcp.js";
 import { z } from "zod";
 import { runJxa } from "../shared/jxa.js";
 import type { AirMcpConfig } from "../shared/config.js";
-import { ok, okUntrusted, err, toolError } from "../shared/result.js";
+import { ok, okLinked, okUntrusted, err, toolError } from "../shared/result.js";
 import {
   listTabsScript,
   readPageContentScript,
@@ -29,7 +29,7 @@ export function registerSafariTools(server: McpServer, config: AirMcpConfig): vo
     },
     async () => {
       try {
-        return ok(await runJxa(listTabsScript()));
+        return okLinked("list_tabs", await runJxa(listTabsScript()));
       } catch (e) {
         return toolError("list tabs", e);
       }

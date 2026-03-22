@@ -1,6 +1,6 @@
 import type { McpServer } from "../shared/mcp.js";
 import { z } from "zod";
-import { ok, err, toolError } from "../shared/result.js";
+import { ok, okLinked, err, toolError } from "../shared/result.js";
 import type { AirMcpConfig } from "../shared/config.js";
 import { SemanticSearchService } from "./service.js";
 import { runSwift, checkSwiftBridge } from "../shared/swift.js";
@@ -81,7 +81,7 @@ export function registerSemanticTools(server: McpServer, config: AirMcpConfig): 
     async ({ query, sources, limit, threshold }) => {
       try {
         const result = await service.search(query, { sources, limit, threshold });
-        return ok(result);
+        return okLinked("semantic_search", result);
       } catch (e) {
         return toolError("semantic search", e);
       }
