@@ -130,14 +130,18 @@ class ToolRegistry {
 
     const wrapHandler = (name: string, handler: AnyFn): AnyFn => {
       return (async (...args: unknown[]) => {
-        usageTracker.record(name);
+        if (process.env.AIRMCP_USAGE_TRACKING !== "false") usageTracker.record(name);
         const start = Date.now();
         try {
           const result = await handler(...args);
-          auditLog({ timestamp: new Date(start).toISOString(), tool: name, args: args[0] as Record<string, unknown>, status: "ok", durationMs: Date.now() - start });
+          if (process.env.AIRMCP_AUDIT_LOG !== "false") {
+            auditLog({ timestamp: new Date(start).toISOString(), tool: name, args: args[0] as Record<string, unknown>, status: "ok", durationMs: Date.now() - start });
+          }
           return result;
         } catch (e) {
-          auditLog({ timestamp: new Date(start).toISOString(), tool: name, args: args[0] as Record<string, unknown>, status: "error", durationMs: Date.now() - start });
+          if (process.env.AIRMCP_AUDIT_LOG !== "false") {
+            auditLog({ timestamp: new Date(start).toISOString(), tool: name, args: args[0] as Record<string, unknown>, status: "error", durationMs: Date.now() - start });
+          }
           throw e;
         }
       }) as AnyFn;

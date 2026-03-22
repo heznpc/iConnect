@@ -170,8 +170,8 @@ export async function createServer(
     },
   );
 
-  // suggest_next_tools: usage-pattern-based tool recommendations
-  lServer.registerTool(
+  // suggest_next_tools: usage-pattern-based tool recommendations (requires usageTracking)
+  if (config.features.usageTracking) lServer.registerTool(
     "suggest_next_tools",
     {
       title: "Suggest Next Tools",
@@ -210,8 +210,8 @@ export async function createServer(
     },
   );
 
-  // proactive_context: time/pattern-aware context suggestions
-  lServer.registerTool(
+  // proactive_context: time/pattern-aware context suggestions (requires proactiveContext)
+  if (config.features.proactiveContext) lServer.registerTool(
     "proactive_context",
     {
       title: "Proactive Context",
@@ -377,10 +377,12 @@ export async function createServer(
     },
   );
 
-  // Index tool descriptions for semantic search (non-blocking)
-  indexToolDescriptions().catch((e) => {
-    console.error(`[AirMCP] Semantic tool index failed: ${e instanceof Error ? e.message : String(e)}`);
-  });
+  // Index tool descriptions for semantic search (non-blocking, if enabled)
+  if (config.features.semanticToolSearch) {
+    indexToolDescriptions().catch((e) => {
+      console.error(`[AirMCP] Semantic tool index failed: ${e instanceof Error ? e.message : String(e)}`);
+    });
+  }
 
   // Collect banner info for startup display
   const toolCount = toolRegistry.getToolCount();

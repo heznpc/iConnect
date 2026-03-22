@@ -101,6 +101,17 @@ export const MCP_CLIENTS: McpClient[] = [
   { name: "Windsurf", configPath: join(HOME, ".codeium", "windsurf", "mcp_config.json"), serversKey: "mcpServers" },
 ];
 
+export interface FeaturesConfig {
+  /** Enable audit log (~/.airmcp/audit.jsonl). Default: true */
+  auditLog: boolean;
+  /** Enable usage pattern tracking (~/.airmcp/profile.json). Default: true */
+  usageTracking: boolean;
+  /** Enable semantic tool search (requires embedding provider). Default: true */
+  semanticToolSearch: boolean;
+  /** Enable proactive context suggestions. Default: true */
+  proactiveContext: boolean;
+}
+
 export interface AirMcpConfig {
   /** Include shared notes/folders in results. Default: false */
   includeShared: boolean;
@@ -116,6 +127,8 @@ export interface AirMcpConfig {
   allowRunJavascript: boolean;
   /** Human-in-the-loop confirmation config */
   hitl: HitlConfig;
+  /** Feature toggles for intelligence layer */
+  features: FeaturesConfig;
 }
 
 interface FileConfig {
@@ -126,6 +139,13 @@ interface FileConfig {
   disabledModules?: string[];
   shareApproval?: string[];
   hitl?: { level?: string; whitelist?: string[]; timeout?: number };
+  /** Feature toggles — disable individual intelligence features */
+  features?: {
+    auditLog?: boolean;
+    usageTracking?: boolean;
+    semanticToolSearch?: boolean;
+    proactiveContext?: boolean;
+  };
   /** Performance tuning — all fields optional, env vars take precedence */
   performance?: {
     /** Embedding provider: "gemini" | "swift" | "hybrid" | "none" */
@@ -254,6 +274,14 @@ export function parseConfig(): AirMcpConfig {
     socketPath: hitlSocketPath,
   };
 
+  // Feature toggles: env var > JSON > default (all on by default)
+  const features: FeaturesConfig = {
+    auditLog: envBool("AIRMCP_AUDIT_LOG", file.features?.auditLog, true),
+    usageTracking: envBool("AIRMCP_USAGE_TRACKING", file.features?.usageTracking, true),
+    semanticToolSearch: envBool("AIRMCP_SEMANTIC_SEARCH", file.features?.semanticToolSearch, true),
+    proactiveContext: envBool("AIRMCP_PROACTIVE_CONTEXT", file.features?.proactiveContext, true),
+  };
+
   return {
     includeShared,
     disabledModules,
@@ -262,6 +290,7 @@ export function parseConfig(): AirMcpConfig {
     allowSendMail,
     allowRunJavascript,
     hitl,
+    features,
   };
 }
 
