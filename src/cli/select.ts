@@ -138,8 +138,8 @@ export function selectMulti(
     render(true);
     let confirmed = false;
     const hintText = presets
-      ? `↑↓←→ move · Space ✓/✗ · a=all · s=starter · p=prod · Enter done`
-      : `↑↓←→ move · Space ✓/✗ · Enter done`;
+      ? `↑↓←→ move · Enter/Space toggle · a=all · s=starter · p=prod · d=done`
+      : `↑↓←→ move · Enter/Space toggle · d=done`;
     out.write(`\n${CLEAR_LINE}  ${DIM}${hintText}${RESET}`);
 
     const stdin = process.stdin;
@@ -169,9 +169,28 @@ export function selectMulti(
       } else if (key.name === "right") {
         cursor = Math.min(options.length - 1, cursor + rows);
         needRender = true;
-      } else if (key.name === "space") {
+      } else if (key.name === "space" || key.name === "return") {
+        if (key.name === "return" && confirmed) {
+          // Second Enter after 'd' → save
+          cleanup();
+          const selected = options.filter((o) => o.checked);
+          const count = selected.length;
+          out.write(`\r${CLEAR_LINE}`);
+          out.write(`\n${CLEAR_LINE}  ${GREEN}✓${RESET} ${BOLD}${count} selected${RESET}\n`);
+          resolve(selected.map((o) => o.value));
+          return;
+        }
+        confirmed = false; // reset confirmed on any toggle
         options[cursor]!.checked = !options[cursor]!.checked;
         needRender = true;
+      } else if (key.name === "d") {
+        // 'd' = done — show confirmation, next Enter saves
+        confirmed = true;
+        const count = options.filter((o) => o.checked).length;
+        out.write(MOVE_UP(1));
+        render();
+        out.write(`\n${CLEAR_LINE}  ${WHITE}${count} selected — Enter to confirm, or keep editing${RESET}`);
+        return;
       } else if (key.name === "a" && presets?.all) {
         for (const o of options) o.checked = true;
         needRender = true;
@@ -183,26 +202,9 @@ export function selectMulti(
         const set = new Set(presets.productivity);
         for (const o of options) o.checked = o.checked || set.has(o.value);
         needRender = true;
-      } else if (key.name === "return") {
-        if (!confirmed) {
-          // First Enter: show confirmation hint
-          confirmed = true;
-          const count = options.filter((o) => o.checked).length;
-          out.write(MOVE_UP(1));
-          render();
-          out.write(`\n${CLEAR_LINE}  ${WHITE}${count} modules selected — Enter again to confirm${RESET}`);
-          return;
-        }
-        // Second Enter: done
-        cleanup();
-        const selected = options.filter((o) => o.checked);
-        out.write(`\r${CLEAR_LINE}`);
-        out.write(`  ${GREEN}✓${RESET} ${selected.length} modules selected\n\n`);
-        resolve(selected.map((o) => o.value));
       }
 
       if (needRender) {
-        confirmed = false; // reset confirmation on any change
         out.write(MOVE_UP(1)); // above hint
         render();
         out.write(`\n${CLEAR_LINE}  ${DIM}${hintText}${RESET}`);
