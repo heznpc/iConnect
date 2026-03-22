@@ -11,6 +11,8 @@
 
 import type { McpServer, AnyFn } from "./mcp.js";
 import { usageTracker } from "./usage-tracker.js";
+import { auditLog } from "./audit.js";
+import { compactDescription } from "./tool-filter.js";
 
 interface RegisteredToolEntry {
   handler: AnyFn;
@@ -129,7 +131,15 @@ class ToolRegistry {
     const wrapHandler = (name: string, handler: AnyFn): AnyFn => {
       return (async (...args: unknown[]) => {
         usageTracker.record(name);
-        return handler(...args);
+        const start = Date.now();
+        try {
+          const result = await handler(...args);
+          auditLog({ timestamp: new Date(start).toISOString(), tool: name, args: args[0] as Record<string, unknown>, status: "ok", durationMs: Date.now() - start });
+          return result;
+        } catch (e) {
+          auditLog({ timestamp: new Date(start).toISOString(), tool: name, args: args[0] as Record<string, unknown>, status: "error", durationMs: Date.now() - start });
+          throw e;
+        }
       }) as AnyFn;
     };
 
@@ -137,15 +147,20 @@ class ToolRegistry {
       const callback = rest[rest.length - 1] as AnyFn;
       const wrapped = wrapHandler(name, callback);
       rest[rest.length - 1] = wrapped;
-      const result = (origRegisterTool as AnyFn)(name, ...rest);
       const config = rest.length >= 2 ? (rest[0] as Record<string, unknown>) : {};
       const title = config.title as string | undefined;
-      const description = config.description as string | undefined;
+      const fullDescription = config.description as string | undefined;
+      // Compact mode: shorten descriptions sent to clients via SDK
+      if (fullDescription) {
+        config.description = compactDescription(fullDescription);
+      }
+      const result = (origRegisterTool as AnyFn)(name, ...rest);
+      // Store FULL description in registry for discover_tools / semantic search
       tools.set(name, {
         handler: wrapped, enabled: true,
-        title, description,
+        title, description: fullDescription,
         titleLower: title?.toLowerCase(),
-        descriptionLower: description?.toLowerCase(),
+        descriptionLower: fullDescription?.toLowerCase(),
       });
       return result;
     }) as typeof server.registerTool;
@@ -155,10 +170,15 @@ class ToolRegistry {
       const callback = rest[rest.length - 1] as AnyFn;
       const wrapped = wrapHandler(name, callback);
       rest[rest.length - 1] = wrapped;
-      const result = (origTool as AnyFn)(name, ...rest);
       // Legacy tool() — description is the 2nd arg if it's a string
-      const desc = typeof rest[0] === "string" ? rest[0] : undefined;
-      tools.set(name, { handler: wrapped, enabled: true, description: desc, descriptionLower: desc?.toLowerCase() });
+      const fullDesc = typeof rest[0] === "string" ? rest[0] : undefined;
+      // Compact mode: shorten description sent to clients via SDK
+      if (fullDesc) {
+        rest[0] = compactDescription(fullDesc);
+      }
+      const result = (origTool as AnyFn)(name, ...rest);
+      // Store FULL description in registry for discover_tools / semantic search
+      tools.set(name, { handler: wrapped, enabled: true, description: fullDesc, descriptionLower: fullDesc?.toLowerCase() });
       return result;
     }) as typeof server.tool;
   }

@@ -33,6 +33,7 @@ export interface BannerInfo {
   nodeVersion: string;
   sendMessages: boolean;
   sendMail: boolean;
+  compactTools: boolean;
 }
 
 // ── Animation helpers (exported for reuse in CLI) ────────────────────
@@ -115,6 +116,9 @@ export async function printBanner(info: BannerInfo): Promise<void> {
   await fillLine("Skills", `${info.skillsBuiltin} built-in${info.skillsUser > 0 ? `, ${info.skillsUser} user` : ""}`, 60);
   const hitlVal = info.hitlLevel === "off" ? `${DIM}off${RESET}` : `${YELLOW}${info.hitlLevel}${RESET}`;
   write(`  ${DIM}├${RESET} HITL: ${hitlVal}\n`);
+  if (info.compactTools) {
+    write(`  ${DIM}├${RESET} Compact tools: ${WHITE}on${RESET} ${DIM}(AIRMCP_COMPACT_TOOLS)${RESET}\n`);
+  }
 
   write("\n");
 

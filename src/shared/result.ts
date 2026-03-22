@@ -30,6 +30,21 @@ export function okUntrusted(data: unknown) {
   };
 }
 
+/** Return a successful MCP tool response with both text and structured content. */
+export function okStructured(data: unknown) {
+  return {
+    content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }],
+    structuredContent: data,
+  };
+}
+
+/** Return a successful MCP tool response with _links and structured content. */
+export function okLinkedStructured(toolName: string, data: unknown) {
+  const usageNext = usageTracker.getNextTools(toolName);
+  const linked = withLinks(toolName, data, usageNext);
+  return { ...ok(linked), structuredContent: data };
+}
+
 /** Return an MCP tool error response. */
 export function err(message: string) {
   return {
