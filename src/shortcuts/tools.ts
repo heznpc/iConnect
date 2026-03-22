@@ -4,7 +4,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { runJxa } from "../shared/jxa.js";
 import type { AirMcpConfig } from "../shared/config.js";
-import { ok, toolError } from "../shared/result.js";
+import { ok, okLinked, toolError } from "../shared/result.js";
 import { TIMEOUT } from "../shared/constants.js";
 import { zFilePath } from "../shared/validate.js";
 import {
@@ -44,7 +44,7 @@ export function registerShortcutsTools(server: McpServer, _config: AirMcpConfig)
     inputSchema: {},
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   }, async () => {
-    try { return ok(await runJxa(listShortcutsScript())); }
+    try { return okLinked("list_shortcuts", await runJxa(listShortcutsScript())); }
     catch (e) { return toolError("list shortcuts", e); }
   });
 
@@ -57,7 +57,7 @@ export function registerShortcutsTools(server: McpServer, _config: AirMcpConfig)
     },
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true },
   }, async ({ name, input }) => {
-    try { return ok(await runJxa(runShortcutScript(name, input))); }
+    try { return okLinked("run_shortcut", await runJxa(runShortcutScript(name, input))); }
     catch (e) { return toolError("run shortcut", e); }
   });
 

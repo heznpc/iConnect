@@ -1,0 +1,11 @@
+name: calendar-alert
+title: "Calendar Change Alert"
+description: "Automatically fetches today's events when the calendar is modified."
+expose_as: tool
+trigger:
+  event: calendar_changed
+  debounce_ms: 10000
+
+steps:
+  - id: events
+    tool: today_events

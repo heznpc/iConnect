@@ -128,6 +128,69 @@ const LINK_MAP: Record<string, ToolLink[]> = {
     { tool: "close_tab", description: "Close a tab", args: { tabIndex: "{{index}}" } },
     { tool: "create_note", description: "Save page as note" },
   ],
+
+  // Photos
+  list_albums: [
+    { tool: "search_photos", description: "Search photos" },
+    { tool: "get_photo_info", description: "Get photo details" },
+  ],
+  search_photos: [
+    { tool: "get_photo_info", description: "View photo details" },
+    { tool: "create_note", description: "Save photo info as note" },
+  ],
+
+  // Messages
+  list_chats: [
+    { tool: "read_chat", description: "Read chat messages" },
+    { tool: "send_message", description: "Send a message" },
+    { tool: "search_contacts", description: "Find contact" },
+  ],
+
+  // System
+  get_system_info: [
+    { tool: "list_running_apps", description: "See running apps" },
+    { tool: "get_battery_status", description: "Check battery" },
+  ],
+
+  // Shortcuts
+  list_shortcuts: [
+    { tool: "run_shortcut", description: "Run a shortcut" },
+    { tool: "search_shortcuts", description: "Search shortcuts" },
+    { tool: "get_shortcut_detail", description: "View shortcut details" },
+  ],
+  run_shortcut: [
+    { tool: "list_shortcuts", description: "See all shortcuts" },
+    { tool: "create_note", description: "Log shortcut output" },
+  ],
+
+  // Music (expanded)
+  search_music: [
+    { tool: "play_track", description: "Play a found track" },
+    { tool: "add_to_playlist", description: "Add to playlist" },
+  ],
+  list_playlists: [
+    { tool: "play_playlist", description: "Play a playlist" },
+    { tool: "search_music", description: "Search for music" },
+  ],
+
+  // Maps
+  search_maps: [
+    { tool: "get_directions", description: "Get directions" },
+    { tool: "create_reminder", description: "Remind when near location" },
+  ],
+
+  // Weather
+  get_weather: [
+    { tool: "create_reminder", description: "Set weather-based reminder" },
+    { tool: "create_note", description: "Log weather observation" },
+  ],
+
+  // Speech
+  transcribe_audio: [
+    { tool: "create_note", description: "Save transcription as note" },
+    { tool: "create_reminder", description: "Create reminder from transcript" },
+    { tool: "semantic_search", description: "Find related items" },
+  ],
 };
 
 /** Get suggested next actions for a tool result, boosted by usage patterns. */

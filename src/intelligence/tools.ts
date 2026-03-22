@@ -1,8 +1,8 @@
 import type { McpServer } from "../shared/mcp.js";
 import { z } from "zod";
 import type { AirMcpConfig } from "../shared/config.js";
-import { ok, toolError } from "../shared/result.js";
-import { runSwift } from "../shared/swift.js";
+import { ok, err, toolError } from "../shared/result.js";
+import { runSwift, checkSwiftBridge } from "../shared/swift.js";
 import { zFilePath } from "../shared/validate.js";
 
 interface TextResult {
@@ -427,6 +427,41 @@ export function registerIntelligenceTools(server: McpServer, _config: AirMcpConf
         return ok(result);
       } catch (e) {
         return toolError("check AI status", e);
+      }
+    },
+  );
+
+  // --- On-Device AI Agent: Foundation Models + AirMCP tools ---
+
+  server.registerTool(
+    "ai_agent",
+    {
+      title: "On-Device AI Agent",
+      description:
+        "Run a prompt through Apple's on-device Foundation Models with access to AirMCP tools (Calendar, Reminders, Contacts). " +
+        "The on-device LLM autonomously decides which tools to call. Requires macOS 26+ with Apple Silicon.",
+      inputSchema: {
+        prompt: z.string().min(1).describe("What you want the on-device AI to do with your Apple data"),
+        systemInstruction: z.string().optional().describe("Optional system instruction for the AI agent"),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: false,
+      },
+    },
+    async ({ prompt, systemInstruction }) => {
+      const bridgeErr = await checkSwiftBridge();
+      if (bridgeErr) return err(`Swift bridge required: ${bridgeErr}`);
+      try {
+        const result = await runSwift<TextResult>(
+          "ai-agent",
+          JSON.stringify({ text: prompt, tone: systemInstruction }),
+        );
+        return ok({ response: result.output, model: "apple-foundation-models", onDevice: true });
+      } catch (e) {
+        return toolError("run on-device AI agent", e);
       }
     },
   );

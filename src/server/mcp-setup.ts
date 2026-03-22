@@ -6,13 +6,14 @@
 import { McpServer as SdkMcpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { McpServer as LightMcpServer } from "../shared/mcp.js";
 import { z } from "zod";
-import { ok, err } from "../shared/result.js";
+import { ok, okStructured, err, toolError } from "../shared/result.js";
 import { registerCrossPrompts } from "../cross/prompts.js";
 import { registerCrossTools } from "../cross/tools.js";
 import { registerSemanticTools } from "../semantic/tools.js";
 import { registerResources } from "../shared/resources.js";
 import { registerSetupTools } from "../shared/setup.js";
 import { registerSkillEngine } from "../skills/index.js";
+import { getRegisteredTriggers } from "../skills/triggers.js";
 import { registerApps } from "../apps/tools.js";
 import { isModuleEnabled, NPM_PACKAGE_NAME, type AirMcpConfig } from "../shared/config.js";
 import { loadModuleRegistry, setModuleRegistry } from "../shared/modules.js";
@@ -20,6 +21,13 @@ import { registerDynamicShortcutTools } from "../shortcuts/tools.js";
 import { HitlClient } from "../shared/hitl.js";
 import { installHitlGuard } from "../shared/hitl-guard.js";
 import { toolRegistry } from "../shared/tool-registry.js";
+import { semanticToolSearch, isToolSearchIndexed, indexToolDescriptions } from "../shared/tool-search.js";
+import { isCompactMode } from "../shared/tool-filter.js";
+import { usageTracker } from "../shared/usage-tracker.js";
+import { generateProactiveContext } from "../shared/proactive.js";
+import { eventBus } from "../shared/event-bus.js";
+import { resourceCache } from "../shared/cache.js";
+import { checkSwiftBridge, runSwift } from "../shared/swift.js";
 import type { BannerInfo } from "../shared/banner.js";
 
 export interface CreateServerOptions {
@@ -116,14 +124,223 @@ export async function createServer(
         query: z.string().min(1).describe("Search query — e.g. 'calendar', 'send email', 'music playback'"),
         limit: z.number().min(1).max(50).optional().describe("Max results (default 20)"),
       },
+      outputSchema: {
+        query: z.string(),
+        matches: z.array(z.object({
+          name: z.string(),
+          title: z.string().optional(),
+          description: z.string().optional(),
+        })),
+        total: z.number().optional(),
+        method: z.string().optional(),
+        hint: z.string().optional(),
+      },
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
     async ({ query, limit }) => {
-      const results = toolRegistry.searchTools(query, limit ?? 20);
-      if (results.length === 0) {
-        return ok({ query, matches: [], hint: "Try broader terms or check module names: notes, calendar, reminders, mail, music, contacts, finder, safari, system, photos, messages, shortcuts" });
+      const maxResults = limit ?? 20;
+      const substringResults = toolRegistry.searchTools(query, maxResults);
+
+      // If substring search found enough, return immediately
+      if (substringResults.length >= 3 || !isToolSearchIndexed()) {
+        const result = { query, matches: substringResults, total: substringResults.length, method: "keyword" };
+        return okStructured(result);
       }
-      return ok({ query, matches: results, total: results.length });
+
+      // Fallback to semantic search
+      const semanticResults = await semanticToolSearch(query, maxResults);
+
+      // Merge: substring first, then semantic (deduplicated)
+      const seen = new Set(substringResults.map(r => r.name));
+      const merged = [...substringResults];
+      for (const r of semanticResults) {
+        if (!seen.has(r.name)) {
+          merged.push(r);
+          seen.add(r.name);
+        }
+      }
+
+      const final = merged.slice(0, maxResults);
+      if (final.length === 0) {
+        const result = { query, matches: [] as typeof final, hint: "Try broader terms or check module names: notes, calendar, reminders, mail, music, contacts, finder, safari, system, photos, messages, shortcuts" };
+        return okStructured(result);
+      }
+      const result = { query, matches: final, total: final.length, method: substringResults.length > 0 ? "keyword+semantic" : "semantic" };
+      return okStructured(result);
+    },
+  );
+
+  // suggest_next_tools: usage-pattern-based tool recommendations
+  lServer.registerTool(
+    "suggest_next_tools",
+    {
+      title: "Suggest Next Tools",
+      description:
+        "Based on your usage patterns, suggest which tools typically follow a given tool. " +
+        "Learns from how you use AirMCP over time. Returns frequently-used tool sequences.",
+      inputSchema: {
+        after: z.string().min(1).describe("Tool name to get suggestions for — e.g. 'today_events'"),
+        limit: z.number().min(1).max(20).optional().describe("Max suggestions (default 5)"),
+      },
+      outputSchema: {
+        after: z.string(),
+        suggestions: z.array(z.object({
+          tool: z.string(),
+          count: z.number(),
+        })),
+        totalCalls: z.number(),
+        hint: z.string().optional(),
+      },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    },
+    async ({ after, limit }) => {
+      const next = usageTracker.getNextTools(after, limit ?? 5);
+      const stats = usageTracker.getStats();
+      if (next.length === 0) {
+        const result = {
+          after,
+          suggestions: [] as { tool: string; count: number }[],
+          hint: "No usage patterns recorded yet. Use tools normally and suggestions will appear over time.",
+          totalCalls: stats.totalCalls,
+        };
+        return okStructured(result);
+      }
+      const result = { after, suggestions: next, totalCalls: stats.totalCalls };
+      return okStructured(result);
+    },
+  );
+
+  // proactive_context: time/pattern-aware context suggestions
+  lServer.registerTool(
+    "proactive_context",
+    {
+      title: "Proactive Context",
+      description:
+        "Get contextually relevant tool and workflow suggestions based on time of day, day of week, and your usage patterns. " +
+        "Like Siri Suggestions but for MCP — tells you what you probably want to do right now.",
+      inputSchema: {},
+      outputSchema: {
+        timeContext: z.object({
+          period: z.enum(["morning", "afternoon", "evening", "night"]),
+          hour: z.number(),
+          isWeekend: z.boolean(),
+        }),
+        suggestedTools: z.array(z.object({
+          tool: z.string(),
+          reason: z.string(),
+        })),
+        suggestedWorkflows: z.array(z.string()),
+      },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    },
+    async () => {
+      const bundle = generateProactiveContext();
+      return okStructured(bundle);
+    },
+  );
+
+  // event_subscribe: start real-time event observation
+  lServer.registerTool(
+    "event_subscribe",
+    {
+      title: "Subscribe to Events",
+      description:
+        "Start real-time monitoring of Apple data changes (calendar updates, reminder changes, clipboard changes). " +
+        "Events are pushed as they happen. Requires the Swift bridge in persistent mode.",
+      inputSchema: {},
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+    },
+    async () => {
+      const bridgeErr = await checkSwiftBridge();
+      if (bridgeErr) return err(`Swift bridge required: ${bridgeErr}`);
+      try {
+        if (eventBus.isRunning) {
+          return ok({ status: "already_running", message: "Event observer is already active" });
+        }
+        await runSwift("start-observer", "{}");
+        // Remove any existing listeners before re-attaching (idempotent)
+        eventBus.removeAllListeners("calendar_changed");
+        eventBus.removeAllListeners("reminders_changed");
+        eventBus.removeAllListeners("pasteboard_changed");
+        eventBus.start();
+
+        // Connect events to MCP resource notifications
+        eventBus.on("calendar_changed", () => {
+          resourceCache.delete("calendar:today");
+          resourceCache.delete("calendar:upcoming");
+          resourceCache.delete("snapshot:standard");
+          resourceCache.delete("snapshot:brief");
+          resourceCache.delete("snapshot:full");
+          // Notify MCP clients that resources changed
+          try { server.sendResourceListChanged(); } catch { /* client may not support notifications */ }
+        });
+        eventBus.on("reminders_changed", () => {
+          resourceCache.delete("reminders:due");
+          resourceCache.delete("reminders:today");
+          resourceCache.delete("snapshot:standard");
+          resourceCache.delete("snapshot:brief");
+          resourceCache.delete("snapshot:full");
+          try { server.sendResourceListChanged(); } catch { /* client may not support notifications */ }
+        });
+        eventBus.on("pasteboard_changed", () => {
+          resourceCache.delete("system:clipboard");
+          try { server.sendResourceListChanged(); } catch { /* client may not support notifications */ }
+        });
+
+        return ok({ status: "started", monitoring: ["calendar", "reminders", "pasteboard"] });
+      } catch (e) {
+        return toolError("start event observer", e);
+      }
+    },
+  );
+
+  // event_status: check what events have been detected
+  lServer.registerTool(
+    "event_status",
+    {
+      title: "Event Monitor Status",
+      description: "Check if real-time event monitoring is active.",
+      inputSchema: {},
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    },
+    async () => {
+      return ok({ running: eventBus.isRunning });
+    },
+  );
+
+  // list_triggers: show all skills with event triggers
+  lServer.registerTool(
+    "list_triggers",
+    {
+      title: "List Event Triggers",
+      description: "Show all skills with event triggers (calendar_changed, reminders_changed, pasteboard_changed) and their debounce settings.",
+      inputSchema: {},
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    },
+    async () => {
+      const triggers = getRegisteredTriggers();
+      return ok({ triggers, total: triggers.length });
+    },
+  );
+
+  // cloud_sync: cross-device data synchronization
+  lServer.registerTool(
+    "cloud_sync_status",
+    {
+      title: "iCloud Sync Status",
+      description: "Check iCloud sync status — see what usage data and config is synced across your Apple devices.",
+      inputSchema: {},
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    },
+    async () => {
+      const bridgeErr = await checkSwiftBridge();
+      if (bridgeErr) return err(`Swift bridge required: ${bridgeErr}`);
+      try {
+        const result = await runSwift("cloud-sync-status", "{}");
+        return ok(result);
+      } catch (e) {
+        return toolError("check iCloud sync", e);
+      }
     },
   );
 
@@ -160,6 +377,11 @@ export async function createServer(
     },
   );
 
+  // Index tool descriptions for semantic search (non-blocking)
+  indexToolDescriptions().catch((e) => {
+    console.error(`[AirMCP] Semantic tool index failed: ${e instanceof Error ? e.message : String(e)}`);
+  });
+
   // Collect banner info for startup display
   const toolCount = toolRegistry.getToolCount();
   const promptCount = toolRegistry.getPromptCount();
@@ -180,6 +402,7 @@ export async function createServer(
     nodeVersion: process.version.slice(1),
     sendMessages: config.allowSendMessages,
     sendMail: config.allowSendMail,
+    compactTools: isCompactMode(),
   };
 
   return { server, bannerInfo };

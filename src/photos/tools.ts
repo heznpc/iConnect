@@ -3,7 +3,7 @@ import { z } from "zod";
 import { runSwift } from "../shared/swift.js";
 import { runAutomation } from "../shared/automation.js";
 import type { AirMcpConfig } from "../shared/config.js";
-import { ok, toolError } from "../shared/result.js";
+import { ok, okLinked, toolError } from "../shared/result.js";
 import { zFilePath } from "../shared/validate.js";
 import {
   listAlbumsScript,
@@ -104,7 +104,7 @@ export function registerPhotosTools(server: McpServer, _config: AirMcpConfig): v
         swift: { command: "list-albums" },
         jxa: () => listAlbumsScript(),
       });
-      return ok(result);
+      return okLinked("list_albums", result);
     } catch (e) {
       return toolError("list albums", e);
     }
@@ -151,7 +151,7 @@ export function registerPhotosTools(server: McpServer, _config: AirMcpConfig): v
         },
         jxa: () => searchPhotosScript(query, limit),
       });
-      return ok(result);
+      return okLinked("search_photos", result);
     } catch (e) {
       return toolError("search photos", e);
     }

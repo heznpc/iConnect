@@ -2,7 +2,7 @@ import { z } from "zod";
 import type { McpServer } from "../shared/mcp.js";
 import type { AirMcpConfig } from "../shared/config.js";
 import { runSwift, checkSwiftBridge } from "../shared/swift.js";
-import { ok, err, toolError } from "../shared/result.js";
+import { ok, okLinked, err, toolError } from "../shared/result.js";
 
 export function registerSpeechTools(server: McpServer, _config: AirMcpConfig): void {
   server.registerTool(
@@ -24,7 +24,7 @@ export function registerSpeechTools(server: McpServer, _config: AirMcpConfig): v
           "transcribe-audio",
           JSON.stringify({ path, language }),
         );
-        return ok(result);
+        return okLinked("transcribe_audio", result);
       } catch (e) {
         return toolError("transcribe audio", e);
       }

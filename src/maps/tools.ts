@@ -2,7 +2,7 @@ import type { McpServer } from "../shared/mcp.js";
 import { z } from "zod";
 import { runJxa } from "../shared/jxa.js";
 import type { AirMcpConfig } from "../shared/config.js";
-import { ok, toolError } from "../shared/result.js";
+import { ok, okLinked, toolError } from "../shared/result.js";
 import {
   searchLocationScript,
   getDirectionsScript,
@@ -26,7 +26,7 @@ export function registerMapsTools(server: McpServer, _config: AirMcpConfig): voi
     },
     async ({ query }) => {
       try {
-        return ok(await runJxa(searchLocationScript(query)));
+        return okLinked("search_maps", await runJxa(searchLocationScript(query)));
       } catch (e) {
         return toolError("search location", e);
       }

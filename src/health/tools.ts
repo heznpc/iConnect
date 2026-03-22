@@ -2,7 +2,7 @@ import { z } from "zod";
 import type { McpServer } from "../shared/mcp.js";
 import type { AirMcpConfig } from "../shared/config.js";
 import { runSwift, checkSwiftBridge } from "../shared/swift.js";
-import { ok, okLinked, err, toolError } from "../shared/result.js";
+import { ok, okLinked, okLinkedStructured, err, toolError } from "../shared/result.js";
 
 export function registerHealthTools(server: McpServer, _config: AirMcpConfig): void {
   server.registerTool(
@@ -12,6 +12,13 @@ export function registerHealthTools(server: McpServer, _config: AirMcpConfig): v
       description:
         "Get a combined health dashboard: today's steps, 7-day average heart rate, last night's sleep, active energy burned, and exercise minutes. All data is aggregated — no raw samples or timestamps.",
       inputSchema: {},
+      outputSchema: {
+        stepsToday: z.number().describe("Step count today"),
+        heartRateAvg7d: z.number().nullable().describe("7-day average resting heart rate (bpm)"),
+        sleepHoursLastNight: z.number().describe("Hours slept last night"),
+        activeEnergyToday: z.number().describe("Active calories burned today"),
+        exerciseMinutesToday: z.number().describe("Exercise minutes today"),
+      },
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
     async () => {
@@ -25,7 +32,7 @@ export function registerHealthTools(server: McpServer, _config: AirMcpConfig): v
           activeEnergyToday: number;
           exerciseMinutesToday: number;
         }>("health-summary", "{}");
-        return okLinked("health_summary", result);
+        return okLinkedStructured("health_summary", result);
       } catch (e) {
         return toolError("get health summary", e);
       }

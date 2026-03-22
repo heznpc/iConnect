@@ -2,7 +2,7 @@ import type { McpServer } from "../shared/mcp.js";
 import { z } from "zod";
 import { runJxa, runAppleScript } from "../shared/jxa.js";
 import type { AirMcpConfig } from "../shared/config.js";
-import { ok, okUntrusted, err, toolError } from "../shared/result.js";
+import { ok, okLinked, okUntrusted, err, toolError } from "../shared/result.js";
 import { TIMEOUT } from "../shared/constants.js";
 import { zFilePath } from "../shared/validate.js";
 import {
@@ -28,7 +28,7 @@ export function registerMessagesTools(server: McpServer, config: AirMcpConfig): 
     },
     async ({ limit }) => {
       try {
-        return ok(await runJxa(listChatsScript(limit)));
+        return okLinked("list_chats", await runJxa(listChatsScript(limit)));
       } catch (e) {
         return toolError("list chats", e);
       }

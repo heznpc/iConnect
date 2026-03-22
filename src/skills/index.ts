@@ -4,6 +4,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadAllSkills, mergeSkills, watchUserSkills } from "./loader.js";
 import { registerSkills } from "./register.js";
+import { registerTrigger, startTriggerListener } from "./triggers.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const BUILTINS_DIR = join(__dirname, "builtins");
@@ -20,6 +21,12 @@ export async function registerSkillEngine(server: McpServer): Promise<void> {
   }
 
   registerSkills(server, merged);
+
+  // Register event triggers for skills that have them
+  for (const skill of merged) {
+    registerTrigger(skill);
+  }
+  startTriggerListener(server);
 
   // Watch user skills directory for changes — only once per process
   if (!skillsWatcher) {

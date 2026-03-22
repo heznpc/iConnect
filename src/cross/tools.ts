@@ -1,10 +1,11 @@
 import type { McpServer } from "../shared/mcp.js";
 import { z } from "zod";
-import { ok, err } from "../shared/result.js";
+import { ok, err, toolError } from "../shared/result.js";
 import { buildSnapshot } from "../shared/resources.js";
 import type { AirMcpConfig } from "../shared/config.js";
 import { isModuleEnabled } from "../shared/config.js";
 import { runSwift, checkSwiftBridge } from "../shared/swift.js";
+import { checkOllama, ollamaGenerate, ollamaModels, DEFAULT_MODEL } from "../shared/local-llm.js";
 
 /**
  * Cross-module tools that leverage MCP Sampling to delegate
@@ -105,6 +106,48 @@ export function registerCrossTools(mcpServer: McpServer, config: AirMcpConfig): 
         }
         return err(`Sampling failed: ${msg}`);
       }
+    },
+  );
+
+  mcpServer.registerTool(
+    "local_llm_generate",
+    {
+      title: "Local LLM Generate",
+      description:
+        "Generate text using a local Ollama model. Runs entirely on your machine — no data sent to any cloud. " +
+        "Requires Ollama running at localhost:11434. Useful for summarization, extraction, and analysis.",
+      inputSchema: {
+        prompt: z.string().min(1).describe("The prompt to send to the local LLM"),
+        model: z.string().optional().describe("Ollama model name (default: llama3.2)"),
+        system: z.string().optional().describe("System instruction for the model"),
+      },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: false, openWorldHint: true },
+    },
+    async ({ prompt, model, system }) => {
+      const available = await checkOllama();
+      if (!available) return err("Ollama is not running. Start it with 'ollama serve' or install from ollama.com");
+      try {
+        const response = await ollamaGenerate(prompt, { model, system });
+        return ok({ response, model: model ?? DEFAULT_MODEL, local: true });
+      } catch (e) {
+        return toolError("generate with local LLM", e);
+      }
+    },
+  );
+
+  mcpServer.registerTool(
+    "local_llm_status",
+    {
+      title: "Local LLM Status",
+      description: "Check if a local Ollama LLM is available and list installed models.",
+      inputSchema: {},
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+    },
+    async () => {
+      const available = await checkOllama();
+      if (!available) return ok({ available: false, models: [], hint: "Install Ollama from ollama.com and run 'ollama serve'" });
+      const models = await ollamaModels();
+      return ok({ available: true, models });
     },
   );
 }

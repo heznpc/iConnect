@@ -113,6 +113,64 @@ async function collectMail(): Promise<CollectedItem[]> {
   `);
 }
 
+async function collectPhotos(): Promise<CollectedItem[]> {
+  return runJxa<CollectedItem[]>(`
+    const Photos = Application('Photos');
+    const result = [];
+    try {
+      const albums = Photos.albums();
+      const count = Math.min(albums.length, 50);
+      for (let i = 0; i < count; i++) {
+        try {
+          const album = albums[i];
+          const name = album.name();
+          result.push({
+            id: 'album:' + album.id(),
+            source: 'photos',
+            title: name,
+            text: 'Photo album: ' + name
+          });
+        } catch(e) {}
+      }
+    } catch(e) {}
+    JSON.stringify(result);
+  `);
+}
+
+async function collectFiles(): Promise<CollectedItem[]> {
+  return runJxa<CollectedItem[]>(`
+    const Finder = Application('Finder');
+    const result = [];
+    try {
+      const home = Finder.home();
+      const folders = ['Documents', 'Desktop', 'Downloads'];
+      for (const folderName of folders) {
+        try {
+          const folder = home.folders.byName(folderName);
+          const files = folder.files();
+          const count = Math.min(files.length, 20);
+          for (let i = 0; i < count; i++) {
+            try {
+              const f = files[i];
+              const name = f.name();
+              const path = f.url().replace('file://', '');
+              const size = f.size();
+              const modified = f.modificationDate().toISOString();
+              result.push({
+                id: 'file:' + path,
+                source: 'finder',
+                title: name,
+                text: 'File: ' + name + ' at ' + decodeURIComponent(path) + ' (' + size + ' bytes, modified ' + modified + ')'
+              });
+            } catch(e) {}
+          }
+        } catch(e) {}
+      }
+    } catch(e) {}
+    JSON.stringify(result);
+  `);
+}
+
 async function collectItems(source: string): Promise<VectorEntry[]> {
   const now = new Date().toISOString();
   let items: CollectedItem[];
@@ -129,6 +187,12 @@ async function collectItems(source: string): Promise<VectorEntry[]> {
       break;
     case "mail":
       items = await collectMail();
+      break;
+    case "photos":
+      items = await collectPhotos();
+      break;
+    case "finder":
+      items = await collectFiles();
       break;
     default:
       return [];
@@ -303,7 +367,7 @@ export class SemanticSearchService {
     enabled: (mod: string) => boolean,
     onProgress?: (progress: number, total: number, message: string) => Promise<void>,
   ): Promise<{ indexed: number; errors: string[] }> {
-    const sources = ["notes", "calendar", "reminders", "mail"].filter((m) => enabled(m));
+    const sources = ["notes", "calendar", "reminders", "mail", "photos", "finder"].filter((m) => enabled(m));
     const entries: VectorEntry[] = [];
     const errors: string[] = [];
     const totalSteps = sources.length + 1; // +1 for embedding step
