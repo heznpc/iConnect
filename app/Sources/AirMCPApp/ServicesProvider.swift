@@ -8,11 +8,18 @@ final class ServicesProvider: NSObject, @unchecked Sendable {
 
     /// Escape a string for safe interpolation into an AppleScript string literal.
     private func escapeForAppleScript(_ str: String) -> String {
-        str.replacingOccurrences(of: "\\", with: "\\\\")
-           .replacingOccurrences(of: "\"", with: "\\\"")
-           .replacingOccurrences(of: "\n", with: "\\n")
-           .replacingOccurrences(of: "\r", with: "\\r")
-           .replacingOccurrences(of: "\t", with: "\\t")
+        var result = str
+        // Strip null bytes and control characters (0x00-0x08, 0x0b, 0x0c, 0x0e-0x1f)
+        result = result.unicodeScalars.filter { scalar in
+            scalar.value == 0x09 || scalar.value == 0x0a || scalar.value == 0x0d || scalar.value >= 0x20
+        }.map { String($0) }.joined()
+        // Escape special characters
+        return result
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+            .replacingOccurrences(of: "\n", with: "\\n")
+            .replacingOccurrences(of: "\r", with: "\\r")
+            .replacingOccurrences(of: "\t", with: "\\t")
     }
 
     /// Run an AppleScript string on a background queue.

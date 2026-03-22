@@ -48,8 +48,10 @@ describe('registerCrossTools', () => {
     const config = createMockConfig();
     registerCrossTools(server, config);
 
-    expect(server.registerTool).toHaveBeenCalledTimes(1);
+    expect(server.registerTool).toHaveBeenCalledTimes(3);
     expect(server._tools.has('summarize_context')).toBe(true);
+    expect(server._tools.has('local_llm_generate')).toBe(true);
+    expect(server._tools.has('local_llm_status')).toBe(true);
   });
 
   test('summarize_context has correct annotations', () => {
