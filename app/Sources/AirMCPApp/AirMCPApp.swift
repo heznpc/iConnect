@@ -27,16 +27,20 @@ struct AirMCPApp: App {
             }
         }
         self.notificationDelegate = delegate
-        UNUserNotificationCenter.current().delegate = delegate
 
-        // Set app icon from bundled resource
-        if let iconURL = Bundle.module.url(forResource: "AppIcon@2x", withExtension: "png", subdirectory: "Resources"),
-           let icon = NSImage(contentsOf: iconURL) {
-            NSApp.applicationIconImage = icon
+        // Defer NSApp-dependent setup to after the application is fully initialized
+        DispatchQueue.main.async {
+            UNUserNotificationCenter.current().delegate = delegate
+
+            // Set app icon from bundled resource
+            if let iconURL = Bundle.module.url(forResource: "AppIcon@2x", withExtension: "png", subdirectory: "Resources"),
+               let icon = NSImage(contentsOf: iconURL) {
+                NSApp?.applicationIconImage = icon
+            }
+
+            // Register macOS Services provider (right-click → Services menu)
+            NSApp?.servicesProvider = ServicesProvider()
         }
-
-        // Register macOS Services provider (right-click → Services menu)
-        NSApp.servicesProvider = ServicesProvider()
     }
 
     var body: some Scene {
