@@ -1,6 +1,6 @@
 # AirMCP
 
-> MCP server for the entire Apple ecosystem. 253 tools across 25 modules.
+> MCP server for the entire Apple ecosystem. 262 tools across 25 modules.
 
 ## Links
 

@@ -387,7 +387,7 @@ Useful for running a Mac Mini as an "always-on AI hub."
 | `send_file` | Send file via iMessage/SMS | write |
 | `list_participants` | List chat participants | read |
 
-### Shortcuts (10 tools)
+### Shortcuts (11 tools)
 
 | Tool | Description | Type |
 |------|-------------|------|
