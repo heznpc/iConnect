@@ -18,3 +18,21 @@ qa-sequential-report-*.md
 docs/site/node_modules/
 docs/site/dist/
 AirMCP.app
+
+# Binary / bundle
+*.mcpb
+
+# Runtime / temp
+*.log
+*.db
+*.sqlite
+*.bak
+*.tmp
+*.swp
+*~
+
+# Build cache
+*.tsbuildinfo
+
+# Local env
+.env.local
