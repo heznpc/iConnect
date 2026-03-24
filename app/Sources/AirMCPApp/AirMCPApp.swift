@@ -87,7 +87,7 @@ struct AirMCPApp: App {
         HitlManager.requestNotificationPermission()
         HitlManager.registerNotificationCategory()
         hitlManager.timeoutSeconds = configManager.hitlTimeout
-        if configManager.hitlLevel != "off" {
+        if configManager.hitlLevel != .off {
             hitlManager.startListening()
         }
     }

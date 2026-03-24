@@ -1,0 +1,156 @@
+/* Menu - Server */
+"menu.refreshStatus" = "Refresh Status";
+"menu.startServer" = "Start Server";
+"menu.stopServer" = "Stop Server";
+"menu.checking" = "Checking...";
+"menu.toolsAvailable" = "%d tools available";
+"menu.toolsAvailableDisabled" = "%d tools available (%d modules disabled)";
+
+/* Menu - Sections */
+"menu.modules" = "Modules";
+"menu.settings" = "Settings";
+"menu.viewLogs" = "View Logs (%d)";
+"menu.quit" = "Quit";
+
+/* Menu - Swift Bridge */
+"menu.swiftBridgeAvailable" = "Swift Bridge: Available";
+"menu.swiftBridgeNotBuilt" = "Swift Bridge: Not Built";
+"menu.swiftBuildHint" = "Build with: npm run swift-build";
+
+/* Menu - Update */
+"menu.updateAvailable" = "Update Available: v%@";
+"menu.updateNow" = "Update Now";
+"menu.updating" = "Updating...";
+
+/* Menu - Setup */
+"menu.getStarted" = "Get Started";
+"menu.setupPermissions" = "Setup Permissions...";
+"menu.settingUp" = "Setting Up...";
+
+/* Menu - Config */
+"menu.copyClaudeConfig" = "Copy Claude Config";
+"menu.copyClaudeCodeConfig" = "Copy Claude Code Config";
+"menu.openDocumentation" = "Open Documentation";
+
+/* Menu - Logs */
+"menu.noLogs" = "No log entries yet";
+"menu.moreLines" = "%d more lines...";
+"menu.clearLogs" = "Clear Logs";
+
+/* Settings */
+"settings.autoStart" = "Start Server on Launch";
+"settings.includeShared" = "Include Shared Notes";
+"settings.allowMessages" = "Allow Send Messages";
+"settings.allowMail" = "Allow Send Mail";
+"settings.shareApproval" = "Share Approval";
+"settings.shareApprovalHint" = "Require HITL approval before accessing shared items";
+"settings.restartHint" = "Restart server after changes";
+
+/* Settings - HITL */
+"settings.hitl" = "HITL Confirmation";
+"settings.hitlLevel" = "Level";
+"settings.hitlOff" = "Off";
+"settings.hitlDestructiveOnly" = "Destructive Only";
+"settings.hitlAllWrites" = "All Writes";
+"settings.hitlAll" = "All";
+"settings.hitlTimeout" = "Timeout: %ds";
+"settings.hitlConnected" = "HITL: Connected";
+"settings.hitlWaiting" = "HITL: Waiting";
+"settings.hitlInactive" = "HITL: Inactive";
+"settings.recentApprovals" = "Recent Approvals";
+"settings.approved" = "Approved";
+"settings.denied" = "Denied";
+
+/* Modules */
+"module.notes" = "Notes";
+"module.notes.desc" = "Read, create, search";
+"module.reminders" = "Reminders";
+"module.reminders.desc" = "Create, complete, manage lists";
+"module.calendar" = "Calendar";
+"module.calendar.desc" = "Events, schedules, availability";
+"module.contacts" = "Contacts";
+"module.contacts.desc" = "Look up, create, update";
+"module.mail" = "Mail";
+"module.mail.desc" = "Read, search, compose";
+"module.messages" = "Messages";
+"module.messages.desc" = "Read, search, send";
+"module.music" = "Music";
+"module.music.desc" = "Playback, playlists, library";
+"module.finder" = "Finder";
+"module.finder.desc" = "Files, folders, search";
+"module.safari" = "Safari";
+"module.safari.desc" = "Tabs, bookmarks, reading list";
+"module.system" = "System";
+"module.system.desc" = "Preferences, clipboard, display";
+"module.photos" = "Photos";
+"module.photos.desc" = "Browse, search, albums";
+"module.shortcuts" = "Shortcuts";
+"module.shortcuts.desc" = "Run, list, import, export shortcuts";
+"module.ui" = "UI Automation";
+"module.ui.desc" = "Accessibility-based app control";
+"module.intelligence" = "Intelligence";
+"module.intelligence.desc" = "AI summarize, rewrite, generate (macOS 26+)";
+"module.tv" = "TV";
+"module.tv.desc" = "Playback, library, search";
+"module.screen" = "Screen";
+"module.screen.desc" = "Screenshot, window list, recording";
+"module.maps" = "Maps";
+"module.maps.desc" = "Search, directions, pins";
+"module.podcasts" = "Podcasts";
+"module.podcasts.desc" = "Shows, episodes, playback";
+"module.weather" = "Weather";
+"module.weather.desc" = "Forecasts, current conditions, alerts";
+"module.pages" = "Pages";
+"module.pages.desc" = "Documents, export, formatting";
+"module.numbers" = "Numbers";
+"module.numbers.desc" = "Spreadsheets, cells, formulas";
+"module.keynote" = "Keynote";
+"module.keynote.desc" = "Presentations, slides, export";
+"module.location" = "Location";
+"module.location.desc" = "Current location, geocoding";
+"module.bluetooth" = "Bluetooth";
+"module.bluetooth.desc" = "Devices, connect, disconnect";
+"module.google" = "Google Workspace";
+"module.google.desc" = "Gmail, Drive, Sheets, Calendar, Docs";
+"module.speech" = "Speech";
+"module.speech.desc" = "Text-to-speech, voice synthesis";
+"module.health" = "Health";
+"module.health.desc" = "Steps, heart rate, sleep, activity";
+"module.requiresMacOS" = "requires macOS %d+";
+
+/* Onboarding */
+"onboarding.back" = "Back";
+"onboarding.next" = "Next";
+"onboarding.finish" = "Finish";
+"onboarding.welcome" = "Welcome to AirMCP";
+"onboarding.welcomeDesc" = "AirMCP lets AI assistants like Claude interact with your Mac apps \u2014 Notes, Calendar, Mail, Reminders, and more \u2014 through the Model Context Protocol (MCP).";
+"onboarding.welcomeTime" = "This setup will take about a minute.";
+"onboarding.nodeRequired" = "Node.js Required";
+"onboarding.nodeChecking" = "Checking for Node.js...";
+"onboarding.nodeFound" = "Node.js found";
+"onboarding.nodeNotFound" = "Node.js not found";
+"onboarding.nodeInstallHint" = "AirMCP requires Node.js to run. Please install it and relaunch the app.";
+"onboarding.nodeDownload" = "Download Node.js";
+"onboarding.nodeCheckAgain" = "Check Again";
+"onboarding.chooseModules" = "Choose Modules";
+"onboarding.chooseModulesDesc" = "Select which Mac apps AirMCP can access. You can change these later in Settings.";
+"onboarding.enableAll" = "Enable All";
+"onboarding.disableAll" = "Disable All";
+"onboarding.permissions" = "macOS Permissions";
+"onboarding.permissionsDesc" = "AirMCP uses AppleScript to communicate with Mac apps. macOS will ask for permission the first time each app is accessed.";
+"onboarding.openSettings" = "Open System Settings";
+"onboarding.connectClient" = "Connect to an AI Client";
+"onboarding.connectClientDesc" = "AirMCP detected the following MCP-compatible clients. Patch their config to add AirMCP automatically.";
+"onboarding.noClients" = "No supported clients detected. You can configure manually later using the \"Copy Config\" menu items.";
+"onboarding.installed" = "Installed";
+"onboarding.notFound" = "Not found";
+"onboarding.patched" = "Patched";
+"onboarding.failed" = "Failed";
+"onboarding.autoPatch" = "Auto-Patch";
+
+/* Log Viewer */
+"log.title" = "Server Logs";
+"log.lineCount" = "%d lines";
+"log.clear" = "Clear";
+"log.empty" = "No log entries yet.";
+"log.emptyHint" = "Start the server to see output here.";

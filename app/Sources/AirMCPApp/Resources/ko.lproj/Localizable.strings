@@ -1,0 +1,156 @@
+/* Menu - Server */
+"menu.refreshStatus" = "상태 새로고침";
+"menu.startServer" = "서버 시작";
+"menu.stopServer" = "서버 중지";
+"menu.checking" = "확인 중...";
+"menu.toolsAvailable" = "%d개 도구 사용 가능";
+"menu.toolsAvailableDisabled" = "%d개 도구 사용 가능 (%d개 모듈 비활성)";
+
+/* Menu - Sections */
+"menu.modules" = "모듈";
+"menu.settings" = "설정";
+"menu.viewLogs" = "로그 보기 (%d)";
+"menu.quit" = "종료";
+
+/* Menu - Swift Bridge */
+"menu.swiftBridgeAvailable" = "Swift 브릿지: 사용 가능";
+"menu.swiftBridgeNotBuilt" = "Swift 브릿지: 미빌드";
+"menu.swiftBuildHint" = "빌드: npm run swift-build";
+
+/* Menu - Update */
+"menu.updateAvailable" = "업데이트 가능: v%@";
+"menu.updateNow" = "지금 업데이트";
+"menu.updating" = "업데이트 중...";
+
+/* Menu - Setup */
+"menu.getStarted" = "시작하기";
+"menu.setupPermissions" = "권한 설정...";
+"menu.settingUp" = "설정 중...";
+
+/* Menu - Config */
+"menu.copyClaudeConfig" = "Claude 설정 복사";
+"menu.copyClaudeCodeConfig" = "Claude Code 설정 복사";
+"menu.openDocumentation" = "문서 열기";
+
+/* Menu - Logs */
+"menu.noLogs" = "로그 없음";
+"menu.moreLines" = "%d줄 더...";
+"menu.clearLogs" = "로그 지우기";
+
+/* Settings */
+"settings.autoStart" = "실행 시 서버 자동 시작";
+"settings.includeShared" = "공유 메모 포함";
+"settings.allowMessages" = "메시지 전송 허용";
+"settings.allowMail" = "메일 전송 허용";
+"settings.shareApproval" = "공유 항목 승인";
+"settings.shareApprovalHint" = "공유 항목 접근 시 HITL 승인 필요";
+"settings.restartHint" = "변경 후 서버를 재시작하세요";
+
+/* Settings - HITL */
+"settings.hitl" = "HITL 확인";
+"settings.hitlLevel" = "수준";
+"settings.hitlOff" = "끄기";
+"settings.hitlDestructiveOnly" = "파괴적 작업만";
+"settings.hitlAllWrites" = "모든 쓰기";
+"settings.hitlAll" = "전체";
+"settings.hitlTimeout" = "타임아웃: %d초";
+"settings.hitlConnected" = "HITL: 연결됨";
+"settings.hitlWaiting" = "HITL: 대기 중";
+"settings.hitlInactive" = "HITL: 비활성";
+"settings.recentApprovals" = "최근 승인 내역";
+"settings.approved" = "승인됨";
+"settings.denied" = "거부됨";
+
+/* Modules */
+"module.notes" = "메모";
+"module.notes.desc" = "읽기, 생성, 검색";
+"module.reminders" = "미리알림";
+"module.reminders.desc" = "생성, 완료, 목록 관리";
+"module.calendar" = "캘린더";
+"module.calendar.desc" = "일정, 스케줄, 가용성";
+"module.contacts" = "연락처";
+"module.contacts.desc" = "조회, 생성, 수정";
+"module.mail" = "메일";
+"module.mail.desc" = "읽기, 검색, 작성";
+"module.messages" = "메시지";
+"module.messages.desc" = "읽기, 검색, 전송";
+"module.music" = "음악";
+"module.music.desc" = "재생, 플레이리스트, 라이브러리";
+"module.finder" = "Finder";
+"module.finder.desc" = "파일, 폴더, 검색";
+"module.safari" = "Safari";
+"module.safari.desc" = "탭, 북마크, 읽기 목록";
+"module.system" = "시스템";
+"module.system.desc" = "환경설정, 클립보드, 디스플레이";
+"module.photos" = "사진";
+"module.photos.desc" = "탐색, 검색, 앨범";
+"module.shortcuts" = "단축어";
+"module.shortcuts.desc" = "실행, 목록, 가져오기, 내보내기";
+"module.ui" = "UI 자동화";
+"module.ui.desc" = "접근성 기반 앱 제어";
+"module.intelligence" = "Intelligence";
+"module.intelligence.desc" = "AI 요약, 재작성, 생성 (macOS 26+)";
+"module.tv" = "TV";
+"module.tv.desc" = "재생, 라이브러리, 검색";
+"module.screen" = "화면";
+"module.screen.desc" = "스크린샷, 윈도우 목록, 녹화";
+"module.maps" = "지도";
+"module.maps.desc" = "검색, 길찾기, 핀";
+"module.podcasts" = "팟캐스트";
+"module.podcasts.desc" = "프로그램, 에피소드, 재생";
+"module.weather" = "날씨";
+"module.weather.desc" = "예보, 현재 날씨, 알림";
+"module.pages" = "Pages";
+"module.pages.desc" = "문서, 내보내기, 서식";
+"module.numbers" = "Numbers";
+"module.numbers.desc" = "스프레드시트, 셀, 수식";
+"module.keynote" = "Keynote";
+"module.keynote.desc" = "프레젠테이션, 슬라이드, 내보내기";
+"module.location" = "위치";
+"module.location.desc" = "현재 위치, 지오코딩";
+"module.bluetooth" = "블루투스";
+"module.bluetooth.desc" = "기기, 연결, 해제";
+"module.google" = "Google Workspace";
+"module.google.desc" = "Gmail, Drive, Sheets, Calendar, Docs";
+"module.speech" = "음성";
+"module.speech.desc" = "텍스트 음성 변환, 음성 합성";
+"module.health" = "건강";
+"module.health.desc" = "걸음 수, 심박수, 수면, 활동";
+"module.requiresMacOS" = "macOS %d 이상 필요";
+
+/* Onboarding */
+"onboarding.back" = "이전";
+"onboarding.next" = "다음";
+"onboarding.finish" = "완료";
+"onboarding.welcome" = "AirMCP에 오신 것을 환영합니다";
+"onboarding.welcomeDesc" = "AirMCP는 Claude 같은 AI 어시스턴트가 Mac 앱(메모, 캘린더, 메일, 미리알림 등)과 MCP(Model Context Protocol)를 통해 소통할 수 있게 해줍니다.";
+"onboarding.welcomeTime" = "설정은 약 1분 정도 걸립니다.";
+"onboarding.nodeRequired" = "Node.js 필요";
+"onboarding.nodeChecking" = "Node.js 확인 중...";
+"onboarding.nodeFound" = "Node.js 발견됨";
+"onboarding.nodeNotFound" = "Node.js를 찾을 수 없음";
+"onboarding.nodeInstallHint" = "AirMCP를 실행하려면 Node.js가 필요합니다. 설치 후 앱을 다시 실행해주세요.";
+"onboarding.nodeDownload" = "Node.js 다운로드";
+"onboarding.nodeCheckAgain" = "다시 확인";
+"onboarding.chooseModules" = "모듈 선택";
+"onboarding.chooseModulesDesc" = "AirMCP가 접근할 Mac 앱을 선택하세요. 나중에 설정에서 변경할 수 있습니다.";
+"onboarding.enableAll" = "모두 활성화";
+"onboarding.disableAll" = "모두 비활성화";
+"onboarding.permissions" = "macOS 권한";
+"onboarding.permissionsDesc" = "AirMCP는 AppleScript로 Mac 앱과 통신합니다. 각 앱에 처음 접근할 때 macOS가 권한을 요청합니다.";
+"onboarding.openSettings" = "시스템 설정 열기";
+"onboarding.connectClient" = "AI 클라이언트 연결";
+"onboarding.connectClientDesc" = "AirMCP가 다음 MCP 호환 클라이언트를 감지했습니다. 설정을 패치하여 AirMCP를 자동으로 추가할 수 있습니다.";
+"onboarding.noClients" = "지원되는 클라이언트가 감지되지 않았습니다. 나중에 '설정 복사' 메뉴에서 수동으로 설정할 수 있습니다.";
+"onboarding.installed" = "설치됨";
+"onboarding.notFound" = "미발견";
+"onboarding.patched" = "패치됨";
+"onboarding.failed" = "실패";
+"onboarding.autoPatch" = "자동 패치";
+
+/* Log Viewer */
+"log.title" = "서버 로그";
+"log.lineCount" = "%d줄";
+"log.clear" = "지우기";
+"log.empty" = "로그 항목 없음";
+"log.emptyHint" = "서버를 시작하면 출력이 여기에 표시됩니다.";

@@ -118,6 +118,7 @@ export function registerNoteTools(server: McpServer, config: AirMcpConfig): void
       inputSchema: {
         query: z.string().min(1).describe("Search keyword"),
         limit: z.number().int().min(1).max(500).optional().default(50).describe("Max results to return (default: 50)"),
+        offset: z.number().int().min(0).optional().default(0).describe("Number of matching results to skip (for pagination)"),
       },
       annotations: {
         readOnlyHint: true,
@@ -126,9 +127,9 @@ export function registerNoteTools(server: McpServer, config: AirMcpConfig): void
         openWorldHint: false,
       },
     },
-    async ({ query, limit }) => {
+    async ({ query, limit, offset }) => {
       try {
-        const result = await runJxa<{ total: number; returned: number; notes: SearchResult[] }>(searchNotesScript(query, limit));
+        const result = await runJxa<{ total: number; returned: number; offset: number; notes: SearchResult[] }>(searchNotesScript(query, limit, offset));
         result.notes = filterSharedAccess(result.notes, config, "notes");
         result.returned = result.notes.length;
         return okUntrusted(result);

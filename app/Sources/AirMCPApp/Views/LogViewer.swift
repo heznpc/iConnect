@@ -7,13 +7,13 @@ struct LogViewer: View {
         VStack(alignment: .leading, spacing: 0) {
             // Header
             HStack {
-                Text("Server Logs")
+                Text(L("log.title"))
                     .font(.headline)
                 Spacer()
-                Text("\(logManager.entries.count) lines")
+                Text(L("log.lineCount", logManager.entries.count))
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                Button("Clear") {
+                Button(L("log.clear")) {
                     logManager.clear()
                 }
                 .font(.caption)
@@ -29,9 +29,9 @@ struct LogViewer: View {
             if logManager.entries.isEmpty {
                 VStack {
                     Spacer()
-                    Text("No log entries yet.")
+                    Text(L("log.empty"))
                         .foregroundStyle(.secondary)
-                    Text("Start the server to see output here.")
+                    Text(L("log.emptyHint"))
                         .font(.caption)
                         .foregroundStyle(.tertiary)
                     Spacer()

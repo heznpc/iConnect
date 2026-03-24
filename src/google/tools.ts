@@ -169,8 +169,12 @@ export function registerGoogleTools(server: McpServer, config: AirMcpConfig): vo
     },
     async ({ query, maxResults }) => {
       try {
+        // Drive API query language: single quotes delimit string literals.
+        // Backslash escaping is NOT supported — strip quotes to prevent
+        // query-language operator injection (e.g. "x' OR name contains 'y").
+        const safeQuery = query.replace(/['\\]/g, "");
         return ok(await runGws("drive", "files", "list", {
-          q: `fullText contains '${query.replace(/'/g, "\\'")}'`,
+          q: `fullText contains '${safeQuery}'`,
           pageSize: maxResults,
           fields: "files(id,name,mimeType,modifiedTime,webViewLink),nextPageToken",
         }));

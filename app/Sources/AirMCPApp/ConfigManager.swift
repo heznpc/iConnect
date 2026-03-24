@@ -1,15 +1,22 @@
 import Foundation
 
+enum HitlLevel: String, Codable, Sendable, CaseIterable {
+    case off = "off"
+    case destructiveOnly = "destructive-only"
+    case allWrites = "all-writes"
+    case all = "all"
+}
+
 @MainActor
 @Observable
 final class ConfigManager {
 
     struct HitlConfig: Codable, Sendable {
-        var level: String
+        var level: HitlLevel
         var whitelist: [String]
         var timeout: Int
 
-        static let `default` = HitlConfig(level: "off", whitelist: [], timeout: 30)
+        static let `default` = HitlConfig(level: .off, whitelist: [], timeout: 30)
     }
 
     struct Config: Codable, Sendable {
@@ -101,8 +108,8 @@ final class ConfigManager {
         }
     }
 
-    var hitlLevel: String {
-        get { config.hitl?.level ?? "off" }
+    var hitlLevel: HitlLevel {
+        get { config.hitl?.level ?? .off }
         set {
             if config.hitl == nil { config.hitl = .default }
             config.hitl?.level = newValue

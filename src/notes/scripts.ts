@@ -3,6 +3,24 @@
 
 import { esc } from "../shared/esc.js";
 
+/**
+ * JXA helper function string that builds a note result object from indexed arrays.
+ * Embed this at the start of any JXA script that needs to build note results.
+ * Avoids duplicating the same object construction in 6+ places.
+ */
+const JXA_BUILD_NOTE = `
+  function buildNote(i, ids, names, containers, creationDates, modificationDates, shareds, folderName) {
+    return {
+      id: ids[i],
+      name: names[i],
+      folder: folderName || containers[i].name(),
+      creationDate: creationDates[i].toISOString(),
+      modificationDate: modificationDates[i].toISOString(),
+      shared: shareds[i]
+    };
+  }
+`;
+
 export function listNotesScript(limit: number, offset: number, folder?: string): string {
   if (folder) {
     return `
@@ -32,6 +50,7 @@ export function listNotesScript(limit: number, offset: number, folder?: string):
     `;
   }
   return `
+    ${JXA_BUILD_NOTE}
     const Notes = Application('Notes');
     const names = Notes.notes.name();
     const ids = Notes.notes.id();
@@ -43,21 +62,15 @@ export function listNotesScript(limit: number, offset: number, folder?: string):
     const end = Math.min(start + ${limit}, names.length);
     const result = [];
     for (let i = start; i < end; i++) {
-      result.push({
-        id: ids[i],
-        name: names[i],
-        folder: containers[i].name(),
-        creationDate: creationDates[i].toISOString(),
-        modificationDate: modificationDates[i].toISOString(),
-        shared: shareds[i]
-      });
+      result.push(buildNote(i, ids, names, containers, creationDates, modificationDates, shareds));
     }
     JSON.stringify({total: names.length, offset: start, returned: result.length, notes: result});
   `;
 }
 
-export function searchNotesScript(query: string, limit: number): string {
+export function searchNotesScript(query: string, limit: number, offset: number = 0): string {
   return `
+    ${JXA_BUILD_NOTE}
     const Notes = Application('Notes');
     const names = Notes.notes.name();
     const ids = Notes.notes.id();
@@ -68,41 +81,40 @@ export function searchNotesScript(query: string, limit: number): string {
     const q = '${esc(query)}'.toLowerCase();
     const result = [];
     const nameMatched = new Set();
+    let matched = 0;
+    const skip = ${offset};
     // Phase 1: Search by title only (cheap — no plaintext fetch)
-    for (let i = 0; i < names.length && result.length < ${limit}; i++) {
+    for (let i = 0; i < names.length; i++) {
       if (names[i].toLowerCase().includes(q)) {
-        const pt = Notes.notes[i].plaintext();
-        result.push({
-          id: ids[i],
-          name: names[i],
-          folder: containers[i].name(),
-          creationDate: creationDates[i].toISOString(),
-          modificationDate: modificationDates[i].toISOString(),
-          preview: pt.substring(0, 200),
-          shared: shareds[i]
-        });
         nameMatched.add(i);
+        if (matched >= skip && result.length < ${limit}) {
+          const pt = Notes.notes[i].plaintext();
+          result.push({...buildNote(i, ids, names, containers, creationDates, modificationDates, shareds), preview: pt.substring(0, 200)});
+        }
+        matched++;
+        if (result.length >= ${limit}) break;
       }
     }
     // Phase 2: Search body content (expensive — per-note plaintext, stops at limit)
     if (result.length < ${limit}) {
-      for (let i = 0; i < names.length && result.length < ${limit}; i++) {
+      for (let i = 0; i < names.length; i++) {
         if (nameMatched.has(i)) continue;
+        if (matched < skip) {
+          const pt = Notes.notes[i].plaintext();
+          if (pt.toLowerCase().includes(q)) { matched++; }
+          continue;
+        }
         const pt = Notes.notes[i].plaintext();
         if (pt.toLowerCase().includes(q)) {
-          result.push({
-            id: ids[i],
-            name: names[i],
-            folder: containers[i].name(),
-            creationDate: creationDates[i].toISOString(),
-            modificationDate: modificationDates[i].toISOString(),
-            preview: pt.substring(0, 200),
-            shared: shareds[i]
-          });
+          result.push({...buildNote(i, ids, names, containers, creationDates, modificationDates, shareds), preview: pt.substring(0, 200)});
+          matched++;
+          if (result.length >= ${limit}) break;
         }
       }
     }
-    JSON.stringify({total: names.length, returned: result.length, notes: result});
+    // Note: totalMatched is a lower bound — the loop exits early once the page is full,
+    // so there may be more matches beyond what was counted.
+    JSON.stringify({total: names.length, totalMatched: matched, offset: skip, returned: result.length, notes: result});
   `;
 }
 

@@ -10,7 +10,9 @@ final class UpdateManager {
 
     private var timer: Timer?
     private static let checkInterval: TimeInterval = 3600 // 1 hour
-    private let currentVersion = "0.3.0"
+    private let currentVersion = "2.4.2"
+
+    var currentVersionString: String { currentVersion }
 
     // MARK: - Periodic Check
 

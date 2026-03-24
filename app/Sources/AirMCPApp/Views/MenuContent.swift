@@ -1,27 +1,38 @@
 import SwiftUI
 import AppKit
 
+// MARK: - Localization Helper
+
+func L(_ key: String) -> String {
+    NSLocalizedString(key, bundle: .module, comment: "")
+}
+
+func L(_ key: String, _ args: CVarArg...) -> String {
+    String(format: NSLocalizedString(key, bundle: .module, comment: ""), arguments: args)
+}
+
 // MARK: - Module Definitions
 
 private struct ModuleInfo: Identifiable {
     let id: String
-    let name: String
+    let nameKey: String
+    let descKey: String
     let icon: String
-    let description: String
     let toolCount: Int
-    /// Minimum macOS version required, or nil if available on all versions.
     let minMacosVersion: Int?
 
-    init(id: String, name: String, icon: String, description: String, toolCount: Int, minMacosVersion: Int? = nil) {
+    init(id: String, icon: String, toolCount: Int, minMacosVersion: Int? = nil) {
         self.id = id
-        self.name = name
+        self.nameKey = "module.\(id)"
+        self.descKey = "module.\(id).desc"
         self.icon = icon
-        self.description = description
         self.toolCount = toolCount
         self.minMacosVersion = minMacosVersion
     }
 
-    /// Whether this module is available on the current macOS version.
+    var localizedName: String { L(nameKey) }
+    var localizedDescription: String { L(descKey) }
+
     var isAvailableOnCurrentOS: Bool {
         guard let required = minMacosVersion else { return true }
         return Self.currentMacOSVersion >= required
@@ -31,42 +42,33 @@ private struct ModuleInfo: Identifiable {
 }
 
 private let allModules: [ModuleInfo] = [
-    ModuleInfo(id: "notes", name: "Notes", icon: "note.text",
-               description: "Read, create, search", toolCount: 12),
-    ModuleInfo(id: "reminders", name: "Reminders", icon: "checklist",
-               description: "Create, complete, manage lists", toolCount: 11),
-    ModuleInfo(id: "calendar", name: "Calendar", icon: "calendar",
-               description: "Events, schedules, availability", toolCount: 10),
-    ModuleInfo(id: "contacts", name: "Contacts", icon: "person.2",
-               description: "Look up, create, update", toolCount: 10),
-    ModuleInfo(id: "mail", name: "Mail", icon: "envelope",
-               description: "Read, search, compose", toolCount: 11),
-    ModuleInfo(id: "messages", name: "Messages", icon: "bubble.left",
-               description: "Read, search, send", toolCount: 6),
-    ModuleInfo(id: "music", name: "Music", icon: "music.note",
-               description: "Playback, playlists, library", toolCount: 13),
-    ModuleInfo(id: "finder", name: "Finder", icon: "folder",
-               description: "Files, folders, search", toolCount: 8),
-    ModuleInfo(id: "safari", name: "Safari", icon: "safari",
-               description: "Tabs, bookmarks, reading list", toolCount: 12),
-    ModuleInfo(id: "system", name: "System", icon: "gearshape",
-               description: "Preferences, clipboard, display", toolCount: 17),
-    ModuleInfo(id: "photos", name: "Photos", icon: "photo",
-               description: "Browse, search, albums", toolCount: 9),
-    ModuleInfo(id: "shortcuts", name: "Shortcuts", icon: "command",
-               description: "Run, list, import, export shortcuts", toolCount: 11),
-    ModuleInfo(id: "ui", name: "UI Automation", icon: "hand.tap",
-               description: "Accessibility-based app control", toolCount: 6),
-    ModuleInfo(id: "intelligence", name: "Intelligence", icon: "brain",
-               description: "AI summarize, rewrite, generate (macOS 26+)", toolCount: 8, minMacosVersion: 26),
-    ModuleInfo(id: "tv", name: "TV", icon: "tv",
-               description: "Playback, library, search", toolCount: 6),
-    ModuleInfo(id: "screen", name: "Screen", icon: "camera.viewfinder",
-               description: "Screenshot, window list, recording", toolCount: 5),
-    ModuleInfo(id: "maps", name: "Maps", icon: "map",
-               description: "Search, directions, pins", toolCount: 6),
-    ModuleInfo(id: "podcasts", name: "Podcasts", icon: "antenna.radiowaves.left.and.right.circle",
-               description: "Shows, episodes, playback", toolCount: 6),
+    ModuleInfo(id: "notes", icon: "note.text", toolCount: 12),
+    ModuleInfo(id: "reminders", icon: "checklist", toolCount: 11),
+    ModuleInfo(id: "calendar", icon: "calendar", toolCount: 10),
+    ModuleInfo(id: "contacts", icon: "person.2", toolCount: 10),
+    ModuleInfo(id: "mail", icon: "envelope", toolCount: 11),
+    ModuleInfo(id: "messages", icon: "bubble.left", toolCount: 6),
+    ModuleInfo(id: "music", icon: "music.note", toolCount: 13),
+    ModuleInfo(id: "finder", icon: "folder", toolCount: 8),
+    ModuleInfo(id: "safari", icon: "safari", toolCount: 12),
+    ModuleInfo(id: "system", icon: "gearshape", toolCount: 17),
+    ModuleInfo(id: "photos", icon: "photo", toolCount: 9),
+    ModuleInfo(id: "shortcuts", icon: "command", toolCount: 11),
+    ModuleInfo(id: "ui", icon: "hand.tap", toolCount: 6),
+    ModuleInfo(id: "intelligence", icon: "brain", toolCount: 8, minMacosVersion: 26),
+    ModuleInfo(id: "tv", icon: "tv", toolCount: 6),
+    ModuleInfo(id: "screen", icon: "camera.viewfinder", toolCount: 5),
+    ModuleInfo(id: "maps", icon: "map", toolCount: 6),
+    ModuleInfo(id: "podcasts", icon: "antenna.radiowaves.left.and.right.circle", toolCount: 6),
+    ModuleInfo(id: "weather", icon: "cloud.sun", toolCount: 3),
+    ModuleInfo(id: "pages", icon: "doc.richtext", toolCount: 7),
+    ModuleInfo(id: "numbers", icon: "tablecells", toolCount: 9),
+    ModuleInfo(id: "keynote", icon: "play.rectangle", toolCount: 9),
+    ModuleInfo(id: "location", icon: "location", toolCount: 2),
+    ModuleInfo(id: "bluetooth", icon: "wave.3.right", toolCount: 4),
+    ModuleInfo(id: "google", icon: "globe", toolCount: 16),
+    ModuleInfo(id: "speech", icon: "waveform", toolCount: 3),
+    ModuleInfo(id: "health", icon: "heart", toolCount: 5),
 ]
 
 // MARK: - Shared Constants
@@ -117,197 +119,114 @@ struct MenuContent: View {
     let updateManager: UpdateManager
 
     var body: some View {
-        // Server Status
+        // ── 1. Server Status ────────────────────────────────
+        serverStatusSection
+
+        Divider()
+
+        // ── 2. Update & Quick Setup ────────────────────────
+        updateSection
+        quickSetupSection
+
+        // ── 3. Modules ─────────────────────────────────────
+        modulesSection
+
+        // ── 4. Swift Bridge ────────────────────────────────
+        swiftBridgeStatus
+
+        Divider()
+
+        // ── 5. Settings ────────────────────────────────────
+        settingsMenu
+
+        Divider()
+
+        // ── 6. Logs ────────────────────────────────────────
+        logsMenu
+
+        // ── 7. Configuration & Help ────────────────────────
+        configSection
+
+        Divider()
+
+        // ── 8. Footer ──────────────────────────────────────
+        footerSection
+    }
+
+    // MARK: 1 - Server Status
+
+    @ViewBuilder
+    private var serverStatusSection: some View {
         Label(serverManager.statusLabel, systemImage: serverManager.statusIcon)
             .foregroundStyle(serverManager.status == .running ? .green : .secondary)
 
-        // Active Tools Count
         toolCountLabel
 
-        // Server Control: Start / Stop
         serverControlButton
 
-        Button("Refresh Status") {
+        Button(L("menu.refreshStatus")) {
             serverManager.checkStatus()
         }
         .keyboardShortcut("r")
-
-        Divider()
-
-        // Update notification
-        updateSection
-
-        // Quick Setup (visible when server not running)
-        quickSetupSection
-
-        // Module Status
-        Menu("Modules") {
-            ForEach(allModules) { module in
-                moduleToggle(for: module)
-            }
-        }
-
-        // Swift Bridge Status
-        if configManager.swiftBridgeAvailable {
-            Label("Swift Bridge: Available", systemImage: "checkmark.circle.fill")
-                .foregroundStyle(.green)
-        } else {
-            Label("Swift Bridge: Not Built", systemImage: "xmark.circle")
-                .foregroundStyle(.secondary)
-            Text("Build with: npm run swift-build")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
-
-        Divider()
-
-        // Quick Settings
-        Menu("Settings") {
-            Toggle("Start Server on Launch", isOn: Binding(
-                get: { serverManager.autoStartEnabled },
-                set: { serverManager.autoStartEnabled = $0 }
-            ))
-
-            Divider()
-
-            Toggle("Include Shared Notes", isOn: Binding(
-                get: { configManager.includeShared },
-                set: { configManager.includeShared = $0 }
-            ))
-
-            Toggle("Allow Send Messages", isOn: Binding(
-                get: { configManager.allowSendMessages },
-                set: { configManager.allowSendMessages = $0 }
-            ))
-
-            Toggle("Allow Send Mail", isOn: Binding(
-                get: { configManager.allowSendMail },
-                set: { configManager.allowSendMail = $0 }
-            ))
-
-            Divider()
-
-            Text("Share Approval")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            shareApprovalToggles
-
-            Divider()
-
-            Text("HITL Confirmation")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            Picker("Level", selection: Binding(
-                get: { configManager.hitlLevel },
-                set: { configManager.hitlLevel = $0 }
-            )) {
-                Text("Off").tag("off")
-                Text("Destructive Only").tag("destructive-only")
-                Text("All Writes").tag("all-writes")
-                Text("All").tag("all")
-            }
-
-            Stepper(
-                "Timeout: \(configManager.hitlTimeout)s",
-                value: Binding(
-                    get: { configManager.hitlTimeout },
-                    set: { configManager.hitlTimeout = $0 }
-                ),
-                in: 10...120,
-                step: 5
-            )
-
-            hitlStatusLabel
-
-            Divider()
-
-            Text("Restart server after changes")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
-
-        Divider()
-
-        // Log Viewer
-        Menu("View Logs (\(logManager.entries.count))") {
-            if logManager.entries.isEmpty {
-                Text("No log entries yet")
-                    .foregroundStyle(.secondary)
-            } else {
-                ForEach(logManager.recentLines) { entry in
-                    Text(entry.message)
-                        .font(.system(.caption, design: .monospaced))
-                        .foregroundStyle(entry.isError ? .red : .primary)
-                        .lineLimit(1)
-                }
-
-                if logManager.entries.count > 20 {
-                    Divider()
-                    Text("\(logManager.entries.count - 20) more lines...")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                Divider()
-
-                Button("Clear Logs") {
-                    logManager.clear()
-                }
-            }
-        }
-
-        // Permissions & Config
-        Button(permissionManager.isRunning ? "Setting Up..." : "Setup Permissions...") {
-            permissionManager.runSetup()
-        }
-        .disabled(permissionManager.isRunning)
-
-        Button("Copy Claude Config") {
-            copyClaudeConfig()
-        }
-        .keyboardShortcut("c")
-
-        Button("Copy Claude Code Config") {
-            copyClaudeCodeConfig()
-        }
-
-        Divider()
-
-        Button("Open Documentation") {
-            if let url = URL(string: "https://github.com/heznpc/AirMCP") {
-                NSWorkspace.shared.open(url)
-            }
-        }
-
-        Divider()
-
-        Text("AirMCP v1.0.0")
-            .foregroundStyle(.secondary)
-
-        Button("Quit") {
-            serverManager.stopServer()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                NSApplication.shared.terminate(nil)
-            }
-        }
-        .keyboardShortcut("q")
     }
 
-    // MARK: - Update Section
+    @ViewBuilder
+    private var serverControlButton: some View {
+        switch serverManager.status {
+        case .running:
+            Button {
+                serverManager.stopServer()
+            } label: {
+                Label(L("menu.stopServer"), systemImage: "stop.circle")
+            }
+        case .stopped:
+            Button {
+                serverManager.startServer()
+            } label: {
+                Label(L("menu.startServer"), systemImage: "play.circle")
+            }
+        case .checking:
+            Button(L("menu.checking")) {}
+                .disabled(true)
+        }
+    }
+
+    @ViewBuilder
+    private var toolCountLabel: some View {
+        let disabled = configManager.disabledModules
+        let active = activeToolCount(disabledModules: disabled)
+        let disabledCount = disabledModuleCount(disabledModules: disabled)
+
+        if disabledCount > 0 {
+            Label(
+                L("menu.toolsAvailableDisabled", active, disabledCount),
+                systemImage: "wrench.and.screwdriver"
+            )
+            .foregroundStyle(.secondary)
+            .font(.caption)
+        } else {
+            Label(
+                L("menu.toolsAvailable", active),
+                systemImage: "wrench.and.screwdriver"
+            )
+            .foregroundStyle(.secondary)
+            .font(.caption)
+        }
+    }
+
+    // MARK: 2 - Update
 
     @ViewBuilder
     private var updateSection: some View {
         if let version = updateManager.availableVersion {
-            Label("Update Available: v\(version)", systemImage: "arrow.down.circle.fill")
+            Label(L("menu.updateAvailable", version), systemImage: "arrow.down.circle.fill")
                 .foregroundStyle(.orange)
 
             if updateManager.isUpdating {
-                Label("Updating...", systemImage: "progress.indicator")
+                Label(L("menu.updating"), systemImage: "progress.indicator")
                     .foregroundStyle(.secondary)
             } else {
-                Button("Update Now") {
+                Button(L("menu.updateNow")) {
                     updateManager.performUpdate()
                 }
             }
@@ -322,61 +241,59 @@ struct MenuContent: View {
         }
     }
 
-    // MARK: - Server Control Button
+    // MARK: 2b - Quick Setup
 
     @ViewBuilder
-    private var serverControlButton: some View {
-        switch serverManager.status {
-        case .running:
+    private var quickSetupSection: some View {
+        let showGetStarted = serverManager.status == .stopped
+            && !setupManager.isRunning
+            && setupManager.state == .idle
+
+        if showGetStarted {
             Button {
-                serverManager.stopServer()
+                setupManager.runSetup(
+                    permissionManager: permissionManager,
+                    serverManager: serverManager
+                )
             } label: {
-                Label("Stop Server", systemImage: "stop.circle")
+                Label(L("menu.getStarted"), systemImage: "sparkles")
             }
-        case .stopped:
-            Button {
-                serverManager.startServer()
-            } label: {
-                Label("Start Server", systemImage: "play.circle")
+
+            Divider()
+        }
+
+        if let label = setupManager.progressLabel {
+            if case .done = setupManager.state {
+                Label(label, systemImage: "checkmark.seal.fill")
+                    .foregroundStyle(.green)
+                Divider()
+            } else if case .failed = setupManager.state {
+                Label(label, systemImage: "exclamationmark.triangle")
+                    .foregroundStyle(.red)
+                Divider()
+            } else {
+                Label(label, systemImage: "progress.indicator")
+                    .foregroundStyle(.secondary)
+                Divider()
             }
-        case .checking:
-            Button("Checking...") {}
-                .disabled(true)
         }
     }
 
-    // MARK: - Tool Count Label
+    // MARK: 3 - Modules
 
     @ViewBuilder
-    private var toolCountLabel: some View {
-        let disabled = configManager.disabledModules
-        let active = activeToolCount(disabledModules: disabled)
-        let disabledCount = disabledModuleCount(disabledModules: disabled)
-
-        if disabledCount > 0 {
-            let noun = disabledCount == 1 ? "module" : "modules"
-            Label(
-                "\(active) tools available (\(disabledCount) \(noun) disabled)",
-                systemImage: "wrench.and.screwdriver"
-            )
-            .foregroundStyle(.secondary)
-            .font(.caption)
-        } else {
-            Label(
-                "\(active) tools available",
-                systemImage: "wrench.and.screwdriver"
-            )
-            .foregroundStyle(.secondary)
-            .font(.caption)
+    private var modulesSection: some View {
+        Menu(L("menu.modules")) {
+            ForEach(allModules) { module in
+                moduleToggle(for: module)
+            }
         }
     }
-
-    // MARK: - Module Toggle
 
     @ViewBuilder
     private func moduleToggle(for module: ModuleInfo) -> some View {
         let isDisabled = configManager.disabledModules.contains(module.id)
-        let label = "\(module.name) \u{2014} \(module.description)"
+        let label = "\(module.localizedName) \u{2014} \(module.localizedDescription)"
 
         if module.isAvailableOnCurrentOS {
             Toggle(isOn: Binding(
@@ -394,75 +311,192 @@ struct MenuContent: View {
                 Label(label, systemImage: module.icon)
             }
         } else {
-            Label("\(label) — requires macOS \(module.minMacosVersion ?? 0)+", systemImage: module.icon)
+            Label(
+                "\(label) — \(L("module.requiresMacOS", module.minMacosVersion ?? 0))",
+                systemImage: module.icon
+            )
+            .foregroundStyle(.secondary)
+        }
+    }
+
+    // MARK: 4 - Swift Bridge
+
+    @ViewBuilder
+    private var swiftBridgeStatus: some View {
+        if configManager.swiftBridgeAvailable {
+            Label(L("menu.swiftBridgeAvailable"), systemImage: "checkmark.circle.fill")
+                .foregroundStyle(.green)
+        } else {
+            Label(L("menu.swiftBridgeNotBuilt"), systemImage: "xmark.circle")
+                .foregroundStyle(.secondary)
+            Text(L("menu.swiftBuildHint"))
+                .font(.caption)
                 .foregroundStyle(.secondary)
         }
     }
 
-    // MARK: - Quick Setup Section
+    // MARK: 5 - Settings
 
     @ViewBuilder
-    private var quickSetupSection: some View {
-        let showGetStarted = serverManager.status == .stopped
-            && !setupManager.isRunning
-            && setupManager.state == .idle
-
-        if showGetStarted {
-            Button {
-                setupManager.runSetup(
-                    permissionManager: permissionManager,
-                    serverManager: serverManager
-                )
-            } label: {
-                Label("Get Started", systemImage: "sparkles")
-            }
+    private var settingsMenu: some View {
+        Menu(L("menu.settings")) {
+            // General
+            Toggle(L("settings.autoStart"), isOn: Binding(
+                get: { serverManager.autoStartEnabled },
+                set: { serverManager.autoStartEnabled = $0 }
+            ))
 
             Divider()
+
+            // Permissions
+            Toggle(L("settings.includeShared"), isOn: Binding(
+                get: { configManager.includeShared },
+                set: { configManager.includeShared = $0 }
+            ))
+
+            Toggle(L("settings.allowMessages"), isOn: Binding(
+                get: { configManager.allowSendMessages },
+                set: { configManager.allowSendMessages = $0 }
+            ))
+
+            Toggle(L("settings.allowMail"), isOn: Binding(
+                get: { configManager.allowSendMail },
+                set: { configManager.allowSendMail = $0 }
+            ))
+
+            Divider()
+
+            // Share Approval
+            Text(L("settings.shareApproval"))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            shareApprovalToggles
+
+            Divider()
+
+            // HITL
+            Text(L("settings.hitl"))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            Picker(L("settings.hitlLevel"), selection: Binding(
+                get: { configManager.hitlLevel },
+                set: { configManager.hitlLevel = $0 }
+            )) {
+                Text(L("settings.hitlOff")).tag(HitlLevel.off)
+                Text(L("settings.hitlDestructiveOnly")).tag(HitlLevel.destructiveOnly)
+                Text(L("settings.hitlAllWrites")).tag(HitlLevel.allWrites)
+                Text(L("settings.hitlAll")).tag(HitlLevel.all)
+            }
+
+            Stepper(
+                L("settings.hitlTimeout", configManager.hitlTimeout),
+                value: Binding(
+                    get: { configManager.hitlTimeout },
+                    set: { configManager.hitlTimeout = $0 }
+                ),
+                in: 10...120,
+                step: 5
+            )
+
+            hitlStatusLabel
+
+            Divider()
+
+            Text(L("settings.restartHint"))
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
+    }
 
-        if let label = setupManager.progressLabel {
-            if case .done = setupManager.state {
-                Label(label, systemImage: "checkmark.seal.fill")
-                    .foregroundStyle(.green)
+    // MARK: 6 - Logs
 
-                Divider()
-            } else if case .failed = setupManager.state {
-                Label(label, systemImage: "exclamationmark.triangle")
-                    .foregroundStyle(.red)
-
-                Divider()
-            } else {
-                Label(label, systemImage: "progress.indicator")
+    @ViewBuilder
+    private var logsMenu: some View {
+        Menu(L("menu.viewLogs", logManager.entries.count)) {
+            if logManager.entries.isEmpty {
+                Text(L("menu.noLogs"))
                     .foregroundStyle(.secondary)
+            } else {
+                ForEach(logManager.recentLines) { entry in
+                    Text(entry.message)
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundStyle(entry.isError ? .red : .primary)
+                        .lineLimit(1)
+                }
+
+                if logManager.entries.count > 20 {
+                    Divider()
+                    Text(L("menu.moreLines", logManager.entries.count - 20))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
 
                 Divider()
+
+                Button(L("menu.clearLogs")) {
+                    logManager.clear()
+                }
             }
         }
     }
 
-    // MARK: - Clipboard Helpers
+    // MARK: 7 - Configuration & Help
 
-    private func copyClaudeConfig() {
-        AirMcpConstants.copyToClipboard(AirMcpConstants.claudeDesktopConfig)
+    @ViewBuilder
+    private var configSection: some View {
+        Button(permissionManager.isRunning ? L("menu.settingUp") : L("menu.setupPermissions")) {
+            permissionManager.runSetup()
+        }
+        .disabled(permissionManager.isRunning)
+
+        Button(L("menu.copyClaudeConfig")) {
+            AirMcpConstants.copyToClipboard(AirMcpConstants.claudeDesktopConfig)
+        }
+        .keyboardShortcut("c")
+
+        Button(L("menu.copyClaudeCodeConfig")) {
+            AirMcpConstants.copyToClipboard("claude mcp add airmcp -- npx -y \(AirMcpConstants.npmPackageName)")
+        }
+
+        Divider()
+
+        Button(L("menu.openDocumentation")) {
+            if let url = URL(string: "https://github.com/heznpc/AirMCP") {
+                NSWorkspace.shared.open(url)
+            }
+        }
     }
 
-    private func copyClaudeCodeConfig() {
-        AirMcpConstants.copyToClipboard("claude mcp add airmcp -- npx -y \(AirMcpConstants.npmPackageName)")
+    // MARK: 8 - Footer
+
+    @ViewBuilder
+    private var footerSection: some View {
+        Text("AirMCP v\(updateManager.currentVersionString)")
+            .foregroundStyle(.secondary)
+
+        Button(L("menu.quit")) {
+            serverManager.stopServer()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                NSApplication.shared.terminate(nil)
+            }
+        }
+        .keyboardShortcut("q")
     }
 
     // MARK: - Share Approval Toggles
 
-    /// Modules that support share-approval gating (have shared item handling).
-    private static let shareApprovalCapableModules: [(id: String, name: String)] = [
-        ("notes", "Notes"),
-        ("reminders", "Reminders"),
-        ("calendar", "Calendar"),
+    private static let shareApprovalCapableModules: [(id: String, nameKey: String)] = [
+        ("notes", "module.notes"),
+        ("reminders", "module.reminders"),
+        ("calendar", "module.calendar"),
     ]
 
     @ViewBuilder
     private var shareApprovalToggles: some View {
         ForEach(Self.shareApprovalCapableModules, id: \.id) { module in
-            Toggle(module.name, isOn: Binding(
+            Toggle(L(module.nameKey), isOn: Binding(
                 get: { configManager.shareApprovalModules.contains(module.id) },
                 set: { enabled in
                     var modules = configManager.shareApprovalModules
@@ -478,7 +512,7 @@ struct MenuContent: View {
             ))
         }
 
-        Text("Require HITL approval before accessing shared items")
+        Text(L("settings.shareApprovalHint"))
             .font(.caption)
             .foregroundStyle(.secondary)
     }
@@ -489,24 +523,24 @@ struct MenuContent: View {
     private var hitlStatusLabel: some View {
         switch hitlManager.state {
         case .connected:
-            Label("HITL: Connected", systemImage: "antenna.radiowaves.left.and.right")
+            Label(L("settings.hitlConnected"), systemImage: "antenna.radiowaves.left.and.right")
                 .foregroundStyle(.green)
         case .listening:
-            Label("HITL: Waiting", systemImage: "antenna.radiowaves.left.and.right.slash")
+            Label(L("settings.hitlWaiting"), systemImage: "antenna.radiowaves.left.and.right.slash")
                 .foregroundStyle(.secondary)
         case .idle:
-            Label("HITL: Inactive", systemImage: "antenna.radiowaves.left.and.right.slash")
+            Label(L("settings.hitlInactive"), systemImage: "antenna.radiowaves.left.and.right.slash")
                 .foregroundStyle(.secondary)
         }
 
         if !hitlManager.recentRequests.isEmpty {
             Divider()
-            Text("Recent Approvals")
+            Text(L("settings.recentApprovals"))
                 .font(.caption)
                 .foregroundStyle(.secondary)
             ForEach(hitlManager.recentRequests) { record in
                 Label(
-                    "\(record.tool) — \(record.approved ? "Approved" : "Denied")",
+                    "\(record.tool) — \(record.approved ? L("settings.approved") : L("settings.denied"))",
                     systemImage: record.approved ? "checkmark.circle" : "xmark.circle"
                 )
                 .foregroundStyle(record.approved ? .green : .red)

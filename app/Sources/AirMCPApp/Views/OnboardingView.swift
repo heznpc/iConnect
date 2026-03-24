@@ -83,7 +83,7 @@ struct OnboardingView: View {
             // Navigation buttons
             HStack {
                 if currentStep > 0 {
-                    Button("Back") {
+                    Button(L("onboarding.back")) {
                         withAnimation { currentStep -= 1 }
                     }
                     .keyboardShortcut(.cancelAction)
@@ -92,13 +92,13 @@ struct OnboardingView: View {
                 Spacer()
 
                 if currentStep < totalSteps - 1 {
-                    Button("Next") {
+                    Button(L("onboarding.next")) {
                         advanceStep()
                     }
                     .keyboardShortcut(.defaultAction)
                     .disabled(currentStep == 1 && !nodeAvailable)
                 } else {
-                    Button("Finish") {
+                    Button(L("onboarding.finish")) {
                         saveAndComplete()
                     }
                     .keyboardShortcut(.defaultAction)
@@ -122,16 +122,16 @@ struct OnboardingView: View {
                     .frame(width: 72, height: 72)
             }
 
-            Text("Welcome to AirMCP")
+            Text(L("onboarding.welcome"))
                 .font(.title)
                 .fontWeight(.bold)
 
-            Text("AirMCP lets AI assistants like Claude interact with your Mac apps \u{2014} Notes, Calendar, Mail, Reminders, and more \u{2014} through the Model Context Protocol (MCP).")
+            Text(L("onboarding.welcomeDesc"))
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: 400)
 
-            Text("This setup will take about a minute.")
+            Text(L("onboarding.welcomeTime"))
                 .font(.callout)
                 .foregroundStyle(.tertiary)
 
@@ -150,33 +150,33 @@ struct OnboardingView: View {
                 .font(.system(size: 44))
                 .foregroundStyle(Color.accentColor)
 
-            Text("Node.js Required")
+            Text(L("onboarding.nodeRequired"))
                 .font(.title2)
                 .fontWeight(.semibold)
 
             if nodeChecking {
                 ProgressView()
                     .controlSize(.small)
-                Text("Checking for Node.js...")
+                Text(L("onboarding.nodeChecking"))
                     .foregroundStyle(.secondary)
             } else if nodeAvailable {
-                Label("Node.js found", systemImage: "checkmark.circle.fill")
+                Label(L("onboarding.nodeFound"), systemImage: "checkmark.circle.fill")
                     .foregroundStyle(.green)
                     .font(.headline)
             } else {
-                Label("Node.js not found", systemImage: "xmark.circle.fill")
+                Label(L("onboarding.nodeNotFound"), systemImage: "xmark.circle.fill")
                     .foregroundStyle(.red)
                     .font(.headline)
 
-                Text("AirMCP requires Node.js to run. Please install it and relaunch the app.")
+                Text(L("onboarding.nodeInstallHint"))
                     .multilineTextAlignment(.center)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: 380)
 
-                Link("Download Node.js", destination: URL(string: "https://nodejs.org")!)
+                Link(L("onboarding.nodeDownload"), destination: URL(string: "https://nodejs.org")!)
                     .font(.headline)
 
-                Button("Check Again") {
+                Button(L("onboarding.nodeCheckAgain")) {
                     nodeChecking = true
                     Task { await checkNode() }
                 }
@@ -192,11 +192,11 @@ struct OnboardingView: View {
 
     private var moduleSelectionStep: some View {
         VStack(spacing: 12) {
-            Text("Choose Modules")
+            Text(L("onboarding.chooseModules"))
                 .font(.title2)
                 .fontWeight(.semibold)
 
-            Text("Select which Mac apps AirMCP can access. You can change these later in Settings.")
+            Text(L("onboarding.chooseModulesDesc"))
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -213,11 +213,11 @@ struct OnboardingView: View {
             .frame(maxHeight: 260)
 
             HStack(spacing: 16) {
-                Button("Enable All") {
+                Button(L("onboarding.enableAll")) {
                     disabledModules.removeAll()
                 }
                 .font(.caption)
-                Button("Disable All") {
+                Button(L("onboarding.disableAll")) {
                     disabledModules = Set(onboardingModules.map(\.id))
                 }
                 .font(.caption)
@@ -280,11 +280,11 @@ struct OnboardingView: View {
                 .font(.system(size: 44))
                 .foregroundStyle(Color.accentColor)
 
-            Text("macOS Permissions")
+            Text(L("onboarding.permissions"))
                 .font(.title2)
                 .fontWeight(.semibold)
 
-            Text("AirMCP uses AppleScript to communicate with Mac apps. macOS will ask for permission the first time each app is accessed.")
+            Text(L("onboarding.permissionsDesc"))
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: 400)
@@ -308,7 +308,7 @@ struct OnboardingView: View {
             }
             .padding(.horizontal, 32)
 
-            Button("Open System Settings") {
+            Button(L("onboarding.openSettings")) {
                 if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Automation") {
                     NSWorkspace.shared.open(url)
                 }
@@ -350,11 +350,11 @@ struct OnboardingView: View {
                 .font(.system(size: 44))
                 .foregroundStyle(Color.accentColor)
 
-            Text("Connect to an AI Client")
+            Text(L("onboarding.connectClient"))
                 .font(.title2)
                 .fontWeight(.semibold)
 
-            Text("AirMCP detected the following MCP-compatible clients. Patch their config to add AirMCP automatically.")
+            Text(L("onboarding.connectClientDesc"))
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: 400)
@@ -367,7 +367,7 @@ struct OnboardingView: View {
             .padding(.horizontal, 24)
 
             if mcpClients.allSatisfy({ !$0.detected }) {
-                Text("No supported clients detected. You can configure manually later using the \"Copy Config\" menu items.")
+                Text(L("onboarding.noClients"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -389,7 +389,7 @@ struct OnboardingView: View {
             VStack(alignment: .leading) {
                 Text(client.name)
                     .fontWeight(.medium)
-                Text(client.detected ? "Installed" : "Not found")
+                Text(client.detected ? L("onboarding.installed") : L("onboarding.notFound"))
                     .font(.caption)
                     .foregroundStyle(client.detected ? .green : .secondary)
             }
@@ -398,14 +398,14 @@ struct OnboardingView: View {
 
             if client.detected {
                 if let result = patchResults[client.id] {
-                    Label(result ? "Patched" : "Failed", systemImage: result ? "checkmark.circle.fill" : "xmark.circle")
+                    Label(result ? L("onboarding.patched") : L("onboarding.failed"), systemImage: result ? "checkmark.circle.fill" : "xmark.circle")
                         .foregroundStyle(result ? .green : .red)
                         .font(.caption)
                 } else if patchingClient == client.id {
                     ProgressView()
                         .controlSize(.small)
                 } else {
-                    Button("Auto-Patch") {
+                    Button(L("onboarding.autoPatch")) {
                         patchClient(client)
                     }
                     .controlSize(.small)
