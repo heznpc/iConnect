@@ -36,3 +36,4 @@ AirMCP.app
 
 # Local env
 .env.local
+.vscode/
