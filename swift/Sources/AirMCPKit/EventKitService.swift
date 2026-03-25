@@ -178,8 +178,10 @@ public struct EventKitService: Sendable {
             // Find first writable calendar, or fall back to default
             if let writable = store.calendars(for: .event).first(where: { $0.allowsContentModifications }) {
                 event.calendar = writable
+            } else if let defaultCal = store.defaultCalendarForNewEvents {
+                event.calendar = defaultCal
             } else {
-                event.calendar = store.defaultCalendarForNewEvents
+                throw AirMCPKitError.unsupported("No writable calendar available on this device")
             }
         }
 
@@ -331,8 +333,10 @@ public struct EventKitService: Sendable {
                 throw AirMCPKitError.notFound("Calendar not found: \(calName)")
             }
             event.calendar = cal
+        } else if let defaultCal = store.defaultCalendarForNewEvents {
+            event.calendar = defaultCal
         } else {
-            event.calendar = store.defaultCalendarForNewEvents
+            throw AirMCPKitError.unsupported("No writable calendar available on this device")
         }
 
         event.addRecurrenceRule(try buildRecurrenceRule(input.recurrence))
@@ -548,7 +552,9 @@ public struct EventKitService: Sendable {
 
     public func createReminderList(_ input: CreateReminderListInput) async throws -> ReminderListMutationOutput {
         let store = try await authorizedReminderStore()
-        let source = store.defaultCalendarForNewReminders()?.source ?? store.sources.first!
+        guard let source = store.defaultCalendarForNewReminders()?.source ?? store.sources.first else {
+            throw AirMCPKitError.unsupported("No reminder source available on this device")
+        }
         let newCal = EKCalendar(for: .reminder, eventStore: store)
         newCal.title = input.name
         newCal.source = source

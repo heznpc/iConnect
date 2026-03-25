@@ -75,6 +75,7 @@ private let allModules: [ModuleInfo] = [
 
 enum AirMcpConstants {
     static let npmPackageName = "airmcp"
+    static let mcpProtocolVersion = "2025-03-26"
     static let keyAutoStart = "autoStartServer"
     static let keyOnboardingCompleted = "onboardingCompleted"
 

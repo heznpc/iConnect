@@ -147,14 +147,15 @@ final class ConfigManager {
         return candidates.contains { FileManager.default.isExecutableFile(atPath: $0) }
     }
 
-    /// Path relative to where npm/npx installs: ~/.config/airmcp or common dev path
+    /// Check AIRMCP_BRIDGE_PATH env var, then fall back to ~/.config/airmcp/AirMcpBridge
     private var homeBridgePath: String? {
-        // Check typical dev checkout via npx package cache
-        let home = FileManager.default.homeDirectoryForCurrentUser.path
-        // Common dev location
-        let devPath = home + "/IdeaProjects/airmcp/swift/.build/release/AirMcpBridge"
-        if FileManager.default.isExecutableFile(atPath: devPath) {
-            return devPath
+        if let envPath = ProcessInfo.processInfo.environment["AIRMCP_BRIDGE_PATH"],
+           FileManager.default.isExecutableFile(atPath: envPath) {
+            return envPath
+        }
+        let configPath = FileManager.default.homeDirectoryForCurrentUser.path + "/.config/airmcp/AirMcpBridge"
+        if FileManager.default.isExecutableFile(atPath: configPath) {
+            return configPath
         }
         return nil
     }

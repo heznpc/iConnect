@@ -1335,8 +1335,12 @@ case "pasteboard-content":
 case "pasteboard-detect":
     let contentType = await pasteboardService.detectContentType()
     let output: [String: String] = ["type": contentType.rawValue]
-    let data = try! JSONSerialization.data(withJSONObject: output, options: [.sortedKeys])
-    writeRawJSON(data)
+    do {
+        let data = try JSONSerialization.data(withJSONObject: output, options: [.sortedKeys])
+        writeRawJSON(data)
+    } catch {
+        writeError("Failed to serialize pasteboard type: \(error.localizedDescription)")
+    }
 
 // --- HealthKit: aggregated health data (privacy-safe) ---
 

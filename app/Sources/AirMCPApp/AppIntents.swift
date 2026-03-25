@@ -206,7 +206,7 @@ struct AirMCPShortcuts: AppShortcutsProvider {
 private func runAirMCPTool(_ toolName: String, args: [String: Any]) async throws -> String {
     let process = Process()
     process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-    process.arguments = ["npx", "-y", "airmcp"]
+    process.arguments = ["npx", "-y", AirMcpConstants.npmPackageName]
 
     let stdinPipe = Pipe()
     let stdoutPipe = Pipe()
@@ -222,7 +222,7 @@ private func runAirMCPTool(_ toolName: String, args: [String: Any]) async throws
         "id": 1,
         "method": "initialize",
         "params": [
-            "protocolVersion": "2025-03-26",
+            "protocolVersion": AirMcpConstants.mcpProtocolVersion,
             "capabilities": [:] as [String: Any],
             "clientInfo": ["name": "AirMCPApp", "version": "1.0"]
         ]

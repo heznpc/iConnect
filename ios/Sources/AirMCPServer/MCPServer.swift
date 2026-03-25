@@ -62,6 +62,8 @@ struct ToolBox: @unchecked Sendable {
 // MARK: - MCP Server
 
 public actor MCPServer {
+    public static let protocolVersion = "2025-03-26"
+
     private var tools: [String: ToolBox] = [:]
     private let serverName: String
     private let serverVersion: String
@@ -104,7 +106,7 @@ public actor MCPServer {
 
     private func handleInitialize(id: JSONRPCRequest.RequestID?) -> JSONRPCResponse {
         .success(id: id, result: [
-            "protocolVersion": "2025-03-26",
+            "protocolVersion": MCPServer.protocolVersion,
             "capabilities": [
                 "tools": ["listChanged": false],
                 "resources": ["subscribe": false, "listChanged": false],

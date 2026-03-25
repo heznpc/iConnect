@@ -74,7 +74,9 @@ public class BluetoothManager: NSObject, CBCentralManagerDelegate, @unchecked Se
 
     public func initialize() async -> CBManagerState {
         await withCheckedContinuation { cont in
-            self.stateContinuation = cont
+            self.btQueue.sync {
+                self.stateContinuation = cont
+            }
             self.manager = CBCentralManager(delegate: self, queue: self.btQueue)
         }
     }
