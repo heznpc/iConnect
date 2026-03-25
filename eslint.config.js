@@ -6,7 +6,6 @@ import prettier from 'eslint-config-prettier';
 export default tseslint.config(
   js.configs.recommended,
   ...tseslint.configs.recommended,
-  prettier,
   {
     languageOptions: {
       globals: globals.node,
@@ -15,6 +14,7 @@ export default tseslint.config(
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
     },
   },
+  prettier,
   {
     ignores: ['dist/', 'tests/', 'jest.config.js', 'eslint.config.js'],
   }
