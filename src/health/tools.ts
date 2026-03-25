@@ -71,10 +71,7 @@ export function registerHealthTools(server: McpServer, _config: AirMcpConfig): v
       const bridgeErr = await checkSwiftBridge();
       if (bridgeErr) return err(`Swift bridge required: ${bridgeErr}`);
       try {
-        const result = await runSwift<{ heartRateAvg7d: number | null; message?: string }>(
-          "health-heart-rate",
-          "{}",
-        );
+        const result = await runSwift<{ heartRateAvg7d: number | null; message?: string }>("health-heart-rate", "{}");
         return okLinked("health_heart_rate", result);
       } catch (e) {
         return toolError("get heart rate", e);
@@ -89,7 +86,10 @@ export function registerHealthTools(server: McpServer, _config: AirMcpConfig): v
       description:
         "Get total sleep hours for a given date (defaults to last night). Only counts actual sleep stages, not time in bed.",
       inputSchema: {
-        date: z.string().optional().describe("ISO 8601 date (e.g. '2026-03-22'). Defaults to today (last night's sleep)."),
+        date: z
+          .string()
+          .optional()
+          .describe("ISO 8601 date (e.g. '2026-03-22'). Defaults to today (last night's sleep)."),
       },
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },

@@ -135,12 +135,24 @@ class ToolRegistry {
         try {
           const result = await handler(...args);
           if (process.env.AIRMCP_AUDIT_LOG !== "false") {
-            auditLog({ timestamp: new Date(start).toISOString(), tool: name, args: args[0] as Record<string, unknown>, status: "ok", durationMs: Date.now() - start });
+            auditLog({
+              timestamp: new Date(start).toISOString(),
+              tool: name,
+              args: args[0] as Record<string, unknown>,
+              status: "ok",
+              durationMs: Date.now() - start,
+            });
           }
           return result;
         } catch (e) {
           if (process.env.AIRMCP_AUDIT_LOG !== "false") {
-            auditLog({ timestamp: new Date(start).toISOString(), tool: name, args: args[0] as Record<string, unknown>, status: "error", durationMs: Date.now() - start });
+            auditLog({
+              timestamp: new Date(start).toISOString(),
+              tool: name,
+              args: args[0] as Record<string, unknown>,
+              status: "error",
+              durationMs: Date.now() - start,
+            });
           }
           throw e;
         }
@@ -161,8 +173,10 @@ class ToolRegistry {
       const result = (origRegisterTool as AnyFn)(name, ...rest);
       // Store FULL description in registry for discover_tools / semantic search
       tools.set(name, {
-        handler: wrapped, enabled: true,
-        title, description: fullDescription,
+        handler: wrapped,
+        enabled: true,
+        title,
+        description: fullDescription,
         titleLower: title?.toLowerCase(),
         descriptionLower: fullDescription?.toLowerCase(),
       });
@@ -182,7 +196,12 @@ class ToolRegistry {
       }
       const result = (origTool as AnyFn)(name, ...rest);
       // Store FULL description in registry for discover_tools / semantic search
-      tools.set(name, { handler: wrapped, enabled: true, description: fullDesc, descriptionLower: fullDesc?.toLowerCase() });
+      tools.set(name, {
+        handler: wrapped,
+        enabled: true,
+        description: fullDesc,
+        descriptionLower: fullDesc?.toLowerCase(),
+      });
       return result;
     }) as typeof server.tool;
   }

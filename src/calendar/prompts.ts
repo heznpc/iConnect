@@ -39,13 +39,10 @@ export function registerCalendarPrompts(server: McpServer): void {
     },
   );
 
-  server.prompt(
-    "meeting-prep",
-    { eventId: z.string().describe("Event ID to prepare for") },
-    ({ eventId }) => {
-      return userPrompt(
-        "Read event details, find related notes, and prepare meeting context.",
-        `미팅 준비를 도와줘.
+  server.prompt("meeting-prep", { eventId: z.string().describe("Event ID to prepare for") }, ({ eventId }) => {
+    return userPrompt(
+      "Read event details, find related notes, and prepare meeting context.",
+      `미팅 준비를 도와줘.
 
 다음 단계를 반드시 AirMCP 도구를 사용해서 실행해:
 
@@ -64,7 +61,6 @@ export function registerCalendarPrompts(server: McpServer): void {
 - 도구 호출 실패 시 사용자에게 알리고 대안 도구 시도 (예: read_event 실패 시 search_events로 이벤트 검색)
 - 권한 에러 시 setup_permissions 안내
 - 앱이 응답하지 않으면 다음 단계로 건너뛰기`,
-      );
-    },
-  );
+    );
+  });
 }

@@ -24,11 +24,13 @@ export function registerWeatherTools(server: McpServer, _config: AirMcpConfig): 
         windDirection: z.number().describe("Wind direction in degrees"),
         precipitation: z.number().describe("Precipitation in mm"),
         cloudCover: z.number().describe("Cloud cover percentage"),
-        units: z.object({
-          temperature: z.string(),
-          windSpeed: z.string(),
-          precipitation: z.string(),
-        }).describe("Units for numeric values"),
+        units: z
+          .object({
+            temperature: z.string(),
+            windSpeed: z.string(),
+            precipitation: z.string(),
+          })
+          .describe("Units for numeric values"),
       },
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     },
@@ -71,7 +73,14 @@ export function registerWeatherTools(server: McpServer, _config: AirMcpConfig): 
       inputSchema: {
         latitude: z.number().min(-90).max(90).describe("Latitude coordinate"),
         longitude: z.number().min(-180).max(180).describe("Longitude coordinate"),
-        hours: z.number().int().min(1).max(168).optional().default(24).describe("Number of forecast hours (default: 24)"),
+        hours: z
+          .number()
+          .int()
+          .min(1)
+          .max(168)
+          .optional()
+          .default(24)
+          .describe("Number of forecast hours (default: 24)"),
       },
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     },

@@ -9,10 +9,14 @@ export function registerSpeechTools(server: McpServer, _config: AirMcpConfig): v
     "transcribe_audio",
     {
       title: "Transcribe Audio",
-      description: "Transcribe an audio file to text using Apple's on-device speech recognition. Supports most audio formats (m4a, mp3, wav, caf).",
+      description:
+        "Transcribe an audio file to text using Apple's on-device speech recognition. Supports most audio formats (m4a, mp3, wav, caf).",
       inputSchema: {
         path: z.string().describe("Absolute path to the audio file"),
-        language: z.string().optional().describe("Language code (e.g. 'en-US', 'ko-KR', 'ja-JP'). Defaults to system language."),
+        language: z
+          .string()
+          .optional()
+          .describe("Language code (e.g. 'en-US', 'ko-KR', 'ja-JP'). Defaults to system language."),
       },
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
@@ -43,10 +47,7 @@ export function registerSpeechTools(server: McpServer, _config: AirMcpConfig): v
       const bridgeErr = await checkSwiftBridge();
       if (bridgeErr) return err(`Swift bridge required: ${bridgeErr}`);
       try {
-        const result = await runSwift<{ available: boolean; supportsOnDevice: boolean }>(
-          "speech-availability",
-          "{}",
-        );
+        const result = await runSwift<{ available: boolean; supportsOnDevice: boolean }>("speech-availability", "{}");
         return ok(result);
       } catch (e) {
         return toolError("check speech availability", e);
@@ -58,7 +59,8 @@ export function registerSpeechTools(server: McpServer, _config: AirMcpConfig): v
     "smart_clipboard",
     {
       title: "Smart Clipboard",
-      description: "Get clipboard content with automatic type detection (text, URL, email, phone, date, file path, image). More structured than raw clipboard access.",
+      description:
+        "Get clipboard content with automatic type detection (text, URL, email, phone, date, file path, image). More structured than raw clipboard access.",
       inputSchema: {},
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
@@ -67,8 +69,12 @@ export function registerSpeechTools(server: McpServer, _config: AirMcpConfig): v
       if (bridgeErr) return err(`Swift bridge required: ${bridgeErr}`);
       try {
         const result = await runSwift<{
-          text: string | null; hasImage: boolean; hasURL: boolean;
-          url: string | null; types: string[]; changeCount: number;
+          text: string | null;
+          hasImage: boolean;
+          hasURL: boolean;
+          url: string | null;
+          types: string[];
+          changeCount: number;
           detectedType: string;
         }>("pasteboard-smart", "{}");
         return ok(result);

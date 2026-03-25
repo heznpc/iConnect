@@ -184,7 +184,10 @@ export function registerContactTools(server: McpServer, _config: AirMcpConfig): 
     async ({ firstName, lastName, email, phone, organization, jobTitle, note }) => {
       try {
         const result = await runAutomation<ContactMutationResult>({
-          swift: { command: "create-contact", input: { firstName, lastName, email, phone, organization, jobTitle, note } },
+          swift: {
+            command: "create-contact",
+            input: { firstName, lastName, email, phone, organization, jobTitle, note },
+          },
           jxa: () => createContactScript(firstName, lastName, { email, phone, organization, jobTitle, note }),
         });
         return ok(result);

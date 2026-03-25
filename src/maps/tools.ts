@@ -102,7 +102,8 @@ export function registerMapsTools(server: McpServer, _config: AirMcpConfig): voi
     "search_nearby",
     {
       title: "Search Nearby",
-      description: "Search for places near a location in Apple Maps. If no coordinates are given, searches near the current location.",
+      description:
+        "Search for places near a location in Apple Maps. If no coordinates are given, searches near the current location.",
       inputSchema: {
         query: z.string().describe("What to search for (e.g. 'coffee shops', 'gas stations')"),
         latitude: z.number().optional().describe("Latitude of the center point"),
@@ -144,9 +145,13 @@ export function registerMapsTools(server: McpServer, _config: AirMcpConfig): voi
     "geocode",
     {
       title: "Geocode",
-      description: "Convert a place name or address to geographic coordinates. Returns up to 5 matching locations with latitude, longitude, country, and timezone.",
+      description:
+        "Convert a place name or address to geographic coordinates. Returns up to 5 matching locations with latitude, longitude, country, and timezone.",
       inputSchema: {
-        query: z.string().min(1).describe("Place name or address (e.g. 'Seoul', 'Tokyo Tower', '1600 Pennsylvania Ave')"),
+        query: z
+          .string()
+          .min(1)
+          .describe("Place name or address (e.g. 'Seoul', 'Tokyo Tower', '1600 Pennsylvania Ave')"),
       },
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     },

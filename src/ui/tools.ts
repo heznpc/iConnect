@@ -11,13 +11,7 @@ import {
   uiScrollScript,
   uiReadScript,
 } from "./scripts.js";
-import {
-  axQueryScript,
-  axPerformScript,
-  axTraverseScript,
-  axDiffScript,
-  type AXLocator,
-} from "./ax-query.js";
+import { axQueryScript, axPerformScript, axTraverseScript, axDiffScript, type AXLocator } from "./ax-query.js";
 
 export function registerUiTools(server: McpServer, _config: AirMcpConfig): void {
   server.registerTool(
@@ -27,7 +21,10 @@ export function registerUiTools(server: McpServer, _config: AirMcpConfig): void 
       description:
         "Open an application by name or bundle ID and return an accessibility tree summary of its windows and top-level UI elements. Requires Accessibility permissions.",
       inputSchema: {
-        appName: z.string().min(1).describe("Application name (e.g. 'Safari', 'Xcode') or bundle ID (e.g. 'com.apple.Safari')"),
+        appName: z
+          .string()
+          .min(1)
+          .describe("Application name (e.g. 'Safari', 'Xcode') or bundle ID (e.g. 'com.apple.Safari')"),
       },
       annotations: {
         readOnlyHint: false,
@@ -52,12 +49,29 @@ export function registerUiTools(server: McpServer, _config: AirMcpConfig): void 
       description:
         "Click a UI element either by exact screen coordinates (x, y) or by searching for an element containing the given text. Optionally filter by accessibility role (e.g. 'AXButton', 'AXMenuItem', 'AXTextField'). Requires Accessibility permissions.",
       inputSchema: {
-        appName: z.string().optional().describe("App name to activate before clicking. If omitted, uses the frontmost app."),
+        appName: z
+          .string()
+          .optional()
+          .describe("App name to activate before clicking. If omitted, uses the frontmost app."),
         x: z.number().optional().describe("X screen coordinate to click"),
         y: z.number().optional().describe("Y screen coordinate to click"),
-        text: z.string().optional().describe("Text to search for in UI element names, descriptions, titles, and values"),
-        role: z.string().optional().describe("Filter by accessibility role (e.g. 'AXButton', 'AXMenuItem', 'AXStaticText', 'AXTextField', 'AXCheckBox')"),
-        index: z.number().int().min(0).optional().default(0).describe("If multiple elements match, click the one at this index (default: 0, first match)"),
+        text: z
+          .string()
+          .optional()
+          .describe("Text to search for in UI element names, descriptions, titles, and values"),
+        role: z
+          .string()
+          .optional()
+          .describe(
+            "Filter by accessibility role (e.g. 'AXButton', 'AXMenuItem', 'AXStaticText', 'AXTextField', 'AXCheckBox')",
+          ),
+        index: z
+          .number()
+          .int()
+          .min(0)
+          .optional()
+          .default(0)
+          .describe("If multiple elements match, click the one at this index (default: 0, first match)"),
       },
       annotations: {
         readOnlyHint: false,
@@ -89,7 +103,10 @@ export function registerUiTools(server: McpServer, _config: AirMcpConfig): void 
         "Type text into the currently focused field using simulated keystrokes via System Events. Optionally activate a specific app first. Requires Accessibility permissions.",
       inputSchema: {
         text: z.string().min(1).describe("Text to type"),
-        appName: z.string().optional().describe("App name to activate before typing. If omitted, types into the frontmost app."),
+        appName: z
+          .string()
+          .optional()
+          .describe("App name to activate before typing. If omitted, types into the frontmost app."),
       },
       annotations: {
         readOnlyHint: false,
@@ -114,9 +131,20 @@ export function registerUiTools(server: McpServer, _config: AirMcpConfig): void 
       description:
         "Send a key or key combination (e.g. Return, Cmd+S, Ctrl+C). Supports modifier keys: command/cmd, shift, option/alt, control/ctrl. Special keys: return, enter, tab, space, delete, escape, arrow keys (up/down/left/right), F1-F12, home, end, pageup, pagedown. Requires Accessibility permissions.",
       inputSchema: {
-        key: z.string().min(1).describe("Key to press — a single character (e.g. 's', 'a') or special key name (e.g. 'return', 'tab', 'escape', 'up', 'f5')"),
-        modifiers: z.array(z.string()).optional().describe("Modifier keys to hold: 'command'/'cmd', 'shift', 'option'/'alt', 'control'/'ctrl'"),
-        appName: z.string().optional().describe("App name to activate before pressing keys. If omitted, sends to the frontmost app."),
+        key: z
+          .string()
+          .min(1)
+          .describe(
+            "Key to press — a single character (e.g. 's', 'a') or special key name (e.g. 'return', 'tab', 'escape', 'up', 'f5')",
+          ),
+        modifiers: z
+          .array(z.string())
+          .optional()
+          .describe("Modifier keys to hold: 'command'/'cmd', 'shift', 'option'/'alt', 'control'/'ctrl'"),
+        appName: z
+          .string()
+          .optional()
+          .describe("App name to activate before pressing keys. If omitted, sends to the frontmost app."),
       },
       annotations: {
         readOnlyHint: false,
@@ -143,7 +171,10 @@ export function registerUiTools(server: McpServer, _config: AirMcpConfig): void 
       inputSchema: {
         direction: z.enum(["up", "down", "left", "right"]).describe("Scroll direction"),
         amount: z.number().int().min(1).max(100).optional().default(3).describe("Number of scroll steps (default: 3)"),
-        appName: z.string().optional().describe("App name to activate before scrolling. If omitted, scrolls in the frontmost app."),
+        appName: z
+          .string()
+          .optional()
+          .describe("App name to activate before scrolling. If omitted, scrolls in the frontmost app."),
       },
       annotations: {
         readOnlyHint: false,
@@ -169,8 +200,22 @@ export function registerUiTools(server: McpServer, _config: AirMcpConfig): void 
         "Read the accessibility tree of the frontmost app (or specified app). Returns structured data about all visible UI elements including their roles, names, values, positions, and hierarchy. Use this to understand what UI elements are available before interacting with them. Requires Accessibility permissions.",
       inputSchema: {
         appName: z.string().optional().describe("App name to read. If omitted, reads the frontmost app."),
-        maxDepth: z.number().int().min(1).max(10).optional().default(3).describe("Maximum depth of the UI tree to traverse (default: 3)"),
-        maxElements: z.number().int().min(1).max(1000).optional().default(200).describe("Maximum number of UI elements to return (default: 200)"),
+        maxDepth: z
+          .number()
+          .int()
+          .min(1)
+          .max(10)
+          .optional()
+          .default(3)
+          .describe("Maximum depth of the UI tree to traverse (default: 3)"),
+        maxElements: z
+          .number()
+          .int()
+          .min(1)
+          .max(1000)
+          .optional()
+          .default(200)
+          .describe("Maximum number of UI elements to return (default: 200)"),
       },
       annotations: {
         readOnlyHint: true,
@@ -202,21 +247,45 @@ export function registerUiTools(server: McpServer, _config: AirMcpConfig): void 
         "Works on any app, including those without AppleScript support. Requires Accessibility permissions.",
       inputSchema: {
         app: z.string().optional().describe("App name to search in. If omitted, uses frontmost app."),
-        role: z.string().optional().describe("AX role filter (e.g. 'AXButton', 'AXTextField', 'AXMenuItem', 'AXStaticText', 'AXCheckBox', 'AXPopUpButton')"),
+        role: z
+          .string()
+          .optional()
+          .describe(
+            "AX role filter (e.g. 'AXButton', 'AXTextField', 'AXMenuItem', 'AXStaticText', 'AXCheckBox', 'AXPopUpButton')",
+          ),
         title: z.string().optional().describe("Title text to match (substring, case-insensitive)"),
         value: z.string().optional().describe("Value text to match (substring, case-insensitive)"),
         description: z.string().optional().describe("Description text to match (substring)"),
         identifier: z.string().optional().describe("AXIdentifier to match (exact)"),
-        label: z.string().optional().describe("General label search — matches across name, title, value, and description"),
-        maxResults: z.number().int().min(1).max(100).optional().default(20).describe("Max results to return (default: 20)"),
-        maxDepth: z.number().int().min(1).max(15).optional().default(8).describe("Max tree depth to search (default: 8)"),
+        label: z
+          .string()
+          .optional()
+          .describe("General label search — matches across name, title, value, and description"),
+        maxResults: z
+          .number()
+          .int()
+          .min(1)
+          .max(100)
+          .optional()
+          .default(20)
+          .describe("Max results to return (default: 20)"),
+        maxDepth: z
+          .number()
+          .int()
+          .min(1)
+          .max(15)
+          .optional()
+          .default(8)
+          .describe("Max tree depth to search (default: 8)"),
       },
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     },
     async ({ app, role, title, value, description, identifier, label, maxResults, maxDepth }) => {
       try {
         if (!role && !title && !value && !description && !identifier && !label) {
-          return err("At least one search criterion (role, title, value, description, identifier, or label) is required.");
+          return err(
+            "At least one search criterion (role, title, value, description, identifier, or label) is required.",
+          );
         }
         const locator: AXLocator = { app, role, title, value, description, identifier, label };
         return ok(await runJxa(axQueryScript(locator, maxResults, maxDepth)));
@@ -242,9 +311,34 @@ export function registerUiTools(server: McpServer, _config: AirMcpConfig): void 
         description: z.string().optional().describe("Description text to match"),
         identifier: z.string().optional().describe("AXIdentifier exact match"),
         label: z.string().optional().describe("General label search"),
-        action: z.enum(["press", "click", "pick", "select", "confirm", "setValue", "set", "raise", "focus", "showMenu", "AXPress", "AXPick", "AXConfirm", "AXSetValue", "AXRaise", "AXShowMenu"]).describe("Action to perform"),
+        action: z
+          .enum([
+            "press",
+            "click",
+            "pick",
+            "select",
+            "confirm",
+            "setValue",
+            "set",
+            "raise",
+            "focus",
+            "showMenu",
+            "AXPress",
+            "AXPick",
+            "AXConfirm",
+            "AXSetValue",
+            "AXRaise",
+            "AXShowMenu",
+          ])
+          .describe("Action to perform"),
         actionValue: z.string().optional().describe("Value to set (for setValue action)"),
-        index: z.number().int().min(0).optional().default(0).describe("If multiple matches, act on element at this index (default: 0)"),
+        index: z
+          .number()
+          .int()
+          .min(0)
+          .optional()
+          .default(0)
+          .describe("If multiple matches, act on element at this index (default: 0)"),
       },
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true },
     },
@@ -277,7 +371,14 @@ export function registerUiTools(server: McpServer, _config: AirMcpConfig): void 
         app: z.string().optional().describe("App name to traverse. If omitted, uses frontmost app."),
         pid: z.number().int().optional().describe("Process ID for precise targeting (overrides app name lookup)"),
         maxDepth: z.number().int().min(1).max(15).optional().default(5).describe("Max traversal depth (default: 5)"),
-        maxElements: z.number().int().min(1).max(2000).optional().default(500).describe("Max elements to collect (default: 500)"),
+        maxElements: z
+          .number()
+          .int()
+          .min(1)
+          .max(2000)
+          .optional()
+          .default(500)
+          .describe("Max elements to collect (default: 500)"),
         onlyVisible: z.boolean().optional().default(false).describe("Only include elements with visible position/size"),
       },
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
@@ -300,7 +401,11 @@ export function registerUiTools(server: McpServer, _config: AirMcpConfig): void 
         "Pass the 'elements' array from a previous ui_traverse result as beforeSnapshot. " +
         "Returns added, removed, and changed elements. Useful for verifying action results.",
       inputSchema: {
-        beforeSnapshot: z.string().min(1).max(500000).describe("JSON string of previous UI tree snapshot (elements array from ui_traverse)"),
+        beforeSnapshot: z
+          .string()
+          .min(1)
+          .max(500000)
+          .describe("JSON string of previous UI tree snapshot (elements array from ui_traverse)"),
         app: z.string().optional().describe("App name to compare against"),
       },
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },

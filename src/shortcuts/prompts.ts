@@ -59,12 +59,13 @@ Error handling:
   server.prompt(
     "shortcut-discovery",
     {
-      category: z.string().optional().describe("Optional category or keyword to focus the discovery (e.g. 'productivity', 'media', 'text')"),
+      category: z
+        .string()
+        .optional()
+        .describe("Optional category or keyword to focus the discovery (e.g. 'productivity', 'media', 'text')"),
     },
     ({ category }) => {
-      const filterCtx = category
-        ? `Focus on shortcuts related to "${category}".`
-        : "Cover all available shortcuts.";
+      const filterCtx = category ? `Focus on shortcuts related to "${category}".` : "Cover all available shortcuts.";
       return userPrompt(
         "Help users find, understand, and explore their available Siri Shortcuts.",
         `Help me discover and understand my available Siri Shortcuts. ${filterCtx}
@@ -123,9 +124,7 @@ Error handling:
       errorDescription: z.string().optional().describe("Description of the error or unexpected behavior"),
     },
     ({ shortcutName, errorDescription }) => {
-      const errorCtx = errorDescription
-        ? `\nReported issue: "${errorDescription}"`
-        : "";
+      const errorCtx = errorDescription ? `\nReported issue: "${errorDescription}"` : "";
       return userPrompt(
         "Diagnose and fix shortcut execution issues.",
         `Troubleshoot the Siri Shortcut "${shortcutName}".${errorCtx}

@@ -126,7 +126,14 @@ export function registerCalendarTools(server: McpServer, _config: AirMcpConfig):
         startDate: z.string().describe("Start of range (ISO 8601, e.g. '2026-03-01T00:00:00Z')"),
         endDate: z.string().describe("End of range (ISO 8601, e.g. '2026-03-31T23:59:59Z')"),
         calendar: z.string().optional().describe("Filter by calendar name"),
-        limit: z.number().int().min(1).max(1000).optional().default(100).describe("Max events to return (default: 100)"),
+        limit: z
+          .number()
+          .int()
+          .min(1)
+          .max(1000)
+          .optional()
+          .default(100)
+          .describe("Max events to return (default: 100)"),
         offset: z.number().int().min(0).optional().default(0).describe("Number of events to skip (default: 0)"),
       },
       annotations: {
@@ -288,8 +295,7 @@ export function registerCalendarTools(server: McpServer, _config: AirMcpConfig):
     "search_events",
     {
       title: "Search Events",
-      description:
-        "Search events by keyword in title or description within a date range.",
+      description: "Search events by keyword in title or description within a date range.",
       inputSchema: {
         query: z.string().describe("Search keyword"),
         startDate: z.string().describe("Start of range (ISO 8601, e.g. '2026-03-01T00:00:00Z')"),
@@ -387,13 +393,18 @@ export function registerCalendarTools(server: McpServer, _config: AirMcpConfig):
         location: z.string().optional().describe("Event location"),
         description: z.string().optional().describe("Event notes/description"),
         calendar: z.string().optional().describe("Target calendar name. Defaults to the default calendar."),
-        recurrence: z.object({
-          frequency: z.enum(["daily", "weekly", "monthly", "yearly"]).describe("Recurrence frequency"),
-          interval: z.number().int().min(1).describe("Repeat every N frequency units (e.g. 2 = every 2 weeks)"),
-          endDate: z.string().optional().describe("Recurrence end date (ISO 8601, e.g. '2026-12-31T23:59:59Z')"),
-          count: z.number().int().min(1).optional().describe("Number of occurrences (alternative to endDate)"),
-          daysOfWeek: z.array(z.number().int().min(1).max(7)).optional().describe("Days of week for weekly recurrence (1=Sun, 2=Mon, ..., 7=Sat)"),
-        }).describe("Recurrence rule"),
+        recurrence: z
+          .object({
+            frequency: z.enum(["daily", "weekly", "monthly", "yearly"]).describe("Recurrence frequency"),
+            interval: z.number().int().min(1).describe("Repeat every N frequency units (e.g. 2 = every 2 weeks)"),
+            endDate: z.string().optional().describe("Recurrence end date (ISO 8601, e.g. '2026-12-31T23:59:59Z')"),
+            count: z.number().int().min(1).optional().describe("Number of occurrences (alternative to endDate)"),
+            daysOfWeek: z
+              .array(z.number().int().min(1).max(7))
+              .optional()
+              .describe("Days of week for weekly recurrence (1=Sun, 2=Mon, ..., 7=Sat)"),
+          })
+          .describe("Recurrence rule"),
       },
       annotations: {
         readOnlyHint: false,

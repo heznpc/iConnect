@@ -123,18 +123,12 @@ async function geminiBatchEmbed(texts: string[]): Promise<number[][]> {
 // -- Swift bridge embedding --
 
 async function swiftEmbed(text: string, language?: string): Promise<number[]> {
-  const result = await runSwift<EmbedTextResult>(
-    "embed-text",
-    JSON.stringify({ text, language }),
-  );
+  const result = await runSwift<EmbedTextResult>("embed-text", JSON.stringify({ text, language }));
   return result.vector;
 }
 
 async function swiftBatchEmbed(texts: string[], language?: string): Promise<number[][]> {
-  const result = await runSwift<EmbedBatchResult>(
-    "embed-batch",
-    JSON.stringify({ texts, language }),
-  );
+  const result = await runSwift<EmbedBatchResult>("embed-batch", JSON.stringify({ texts, language }));
   return result.vectors;
 }
 
@@ -162,9 +156,12 @@ async function hybridBatchEmbed(texts: string[], language?: string): Promise<num
 /** Embed a single text. Provider priority: hybrid > gemini > swift > error. */
 export async function embedText(text: string, provider: EmbeddingProvider, language?: string): Promise<number[]> {
   switch (provider) {
-    case "gemini":  return geminiEmbed(text);
-    case "swift":   return swiftEmbed(text, language);
-    case "hybrid":  return hybridEmbed(text, language);
+    case "gemini":
+      return geminiEmbed(text);
+    case "swift":
+      return swiftEmbed(text, language);
+    case "hybrid":
+      return hybridEmbed(text, language);
     default:
       throw new Error("No embedding backend available. Set GEMINI_API_KEY or run 'npm run swift-build'.");
   }
@@ -173,9 +170,12 @@ export async function embedText(text: string, provider: EmbeddingProvider, langu
 /** Embed multiple texts. Provider priority: hybrid > gemini > swift > error. */
 export async function embedBatch(texts: string[], provider: EmbeddingProvider, language?: string): Promise<number[][]> {
   switch (provider) {
-    case "gemini":  return geminiBatchEmbed(texts);
-    case "swift":   return swiftBatchEmbed(texts, language);
-    case "hybrid":  return hybridBatchEmbed(texts, language);
+    case "gemini":
+      return geminiBatchEmbed(texts);
+    case "swift":
+      return swiftBatchEmbed(texts, language);
+    case "hybrid":
+      return hybridBatchEmbed(texts, language);
     default:
       throw new Error("No embedding backend available. Set GEMINI_API_KEY or run 'npm run swift-build'.");
   }

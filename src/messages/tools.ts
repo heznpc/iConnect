@@ -80,13 +80,17 @@ export function registerMessagesTools(server: McpServer, config: AirMcpConfig): 
       title: "Send Message",
       description: "Send a text message via iMessage/SMS. Requires a phone number or email as the target handle.",
       inputSchema: {
-        target: z.string().min(1).describe("Recipient handle (phone number or email, e.g. '+821012345678' or 'user@example.com')"),
+        target: z
+          .string()
+          .min(1)
+          .describe("Recipient handle (phone number or email, e.g. '+821012345678' or 'user@example.com')"),
         text: z.string().min(1).max(10000).describe("Message text to send"),
       },
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true },
     },
     async ({ target, text }) => {
-      if (!allowSendMessages) return err("Sending messages is disabled. Set AIRMCP_ALLOW_SEND_MESSAGES=true to enable.");
+      if (!allowSendMessages)
+        return err("Sending messages is disabled. Set AIRMCP_ALLOW_SEND_MESSAGES=true to enable.");
       try {
         await runAppleScript(sendMessageScript(target, text), { app: "Messages", timeout: TIMEOUT.MESSAGE_SEND });
         return ok({ sent: true, to: target, text: text.substring(0, 80) });
@@ -108,7 +112,8 @@ export function registerMessagesTools(server: McpServer, config: AirMcpConfig): 
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true },
     },
     async ({ target, filePath }) => {
-      if (!allowSendMessages) return err("Sending messages is disabled. Set AIRMCP_ALLOW_SEND_MESSAGES=true to enable.");
+      if (!allowSendMessages)
+        return err("Sending messages is disabled. Set AIRMCP_ALLOW_SEND_MESSAGES=true to enable.");
       try {
         await runAppleScript(sendFileScript(target, filePath), { app: "Messages", timeout: TIMEOUT.MESSAGE_SEND });
         return ok({ sent: true, to: target, file: filePath });
@@ -136,5 +141,4 @@ export function registerMessagesTools(server: McpServer, config: AirMcpConfig): 
       }
     },
   );
-
 }

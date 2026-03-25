@@ -34,14 +34,15 @@ export function registerSemanticTools(server: McpServer, config: AirMcpConfig): 
     async ({ sources }, extra) => {
       try {
         const progressToken = extra._meta?.progressToken;
-        const onProgress = progressToken !== undefined
-          ? async (progress: number, total: number, message: string) => {
-              await extra.sendNotification({
-                method: "notifications/progress",
-                params: { progressToken, progress, total, message },
-              });
-            }
-          : undefined;
+        const onProgress =
+          progressToken !== undefined
+            ? async (progress: number, total: number, message: string) => {
+                await extra.sendNotification({
+                  method: "notifications/progress",
+                  params: { progressToken, progress, total, message },
+                });
+              }
+            : undefined;
 
         const { indexed, errors, store } = await service.index(sources, onProgress);
         if (indexed === 0) {
@@ -179,7 +180,11 @@ export function registerSemanticTools(server: McpServer, config: AirMcpConfig): 
             // Spotlight clear is best-effort
           }
         }
-        return ok({ cleared: before.total, spotlightCleared: !swiftErr, message: "Vector store and Spotlight index cleared." });
+        return ok({
+          cleared: before.total,
+          spotlightCleared: !swiftErr,
+          message: "Vector store and Spotlight index cleared.",
+        });
       } catch (e) {
         return toolError("clear index", e);
       }
@@ -191,7 +196,8 @@ export function registerSemanticTools(server: McpServer, config: AirMcpConfig): 
     "spotlight_clear",
     {
       title: "Clear Spotlight Index",
-      description: "Remove all AirMCP entries from macOS Spotlight without clearing the local vector store. Requires Swift bridge.",
+      description:
+        "Remove all AirMCP entries from macOS Spotlight without clearing the local vector store. Requires Swift bridge.",
       inputSchema: {},
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
     },

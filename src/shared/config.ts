@@ -25,7 +25,9 @@ export function getOsVersion(): number {
     }).trim();
     const major = parseInt(ver.split(".")[0]!, 10);
     if (!isNaN(major)) return major;
-  } catch { /* fall through to Darwin heuristic */ }
+  } catch {
+    /* fall through to Darwin heuristic */
+  }
   const darwinMajor = parseInt(release().split(".")[0]!, 10);
   if (isNaN(darwinMajor)) return 0;
   // Darwin 25+ → macOS 26+ (version jump); Darwin 20-24 → macOS 11-15
@@ -95,7 +97,11 @@ export interface McpClient {
 }
 
 export const MCP_CLIENTS: McpClient[] = [
-  { name: "Claude Desktop", configPath: join(HOME, "Library", "Application Support", "Claude", "claude_desktop_config.json"), serversKey: "mcpServers" },
+  {
+    name: "Claude Desktop",
+    configPath: join(HOME, "Library", "Application Support", "Claude", "claude_desktop_config.json"),
+    serversKey: "mcpServers",
+  },
   { name: "Claude Code", configPath: join(HOME, ".claude", "mcp.json"), serversKey: "mcpServers" },
   { name: "Cursor", configPath: join(HOME, ".cursor", "mcp.json"), serversKey: "mcpServers" },
   { name: "Windsurf", configPath: join(HOME, ".codeium", "windsurf", "mcp_config.json"), serversKey: "mcpServers" },
@@ -260,9 +266,7 @@ export function parseConfig(): AirMcpConfig {
 
   // HITL config: env var > JSON > default
   const hitlLevelRaw = process.env.AIRMCP_HITL_LEVEL ?? file.hitl?.level ?? "destructive-only";
-  const hitlLevel: HitlLevel = HITL_LEVELS.includes(hitlLevelRaw)
-    ? (hitlLevelRaw as HitlLevel)
-    : "destructive-only";
+  const hitlLevel: HitlLevel = HITL_LEVELS.includes(hitlLevelRaw) ? (hitlLevelRaw as HitlLevel) : "destructive-only";
   const hitlWhitelist = new Set<string>(file.hitl?.whitelist ?? []);
   const hitlTimeout = file.hitl?.timeout ?? 30;
   const hitlSocketPath = PATHS.HITL_SOCKET;

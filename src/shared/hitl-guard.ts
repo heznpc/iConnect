@@ -79,11 +79,7 @@ async function tryElicitApproval(
  * 1. MCP Elicitation (form mode) — works with any MCP client that supports it
  * 2. Socket-based HITL — fallback for clients without elicitation support
  */
-export function installHitlGuard(
-  server: McpServer,
-  hitlClient: HitlClient,
-  config: AirMcpConfig,
-): void {
+export function installHitlGuard(server: McpServer, hitlClient: HitlClient, config: AirMcpConfig): void {
   const original = server.registerTool.bind(server);
 
   const patched = (
@@ -118,9 +114,7 @@ export function installHitlGuard(
         annotations.openWorldHint ?? false,
       );
       if (!approved) {
-        return err(
-          `Action denied: "${name}" requires user approval. The user denied or did not respond in time.`,
-        );
+        return err(`Action denied: "${name}" requires user approval. The user denied or did not respond in time.`);
       }
       return (callback as (...a: unknown[]) => unknown)(...args);
     };

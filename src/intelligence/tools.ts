@@ -136,10 +136,7 @@ export function registerIntelligenceTools(server: McpServer, _config: AirMcpConf
         "Generate text using Apple's on-device Foundation Model with custom system instructions. Runs entirely on-device via Apple Silicon. Requires macOS 26+.",
       inputSchema: {
         prompt: z.string().describe("The user prompt / instruction for text generation"),
-        systemInstruction: z
-          .string()
-          .optional()
-          .describe("Optional system instruction to guide the model's behavior"),
+        systemInstruction: z.string().optional().describe("Optional system instruction to guide the model's behavior"),
         temperature: z
           .number()
           .min(0)
@@ -175,10 +172,7 @@ export function registerIntelligenceTools(server: McpServer, _config: AirMcpConf
         "Generate structured JSON output from Apple's on-device Foundation Model with optional schema constraints. Useful for extracting structured data from natural language. Requires macOS 26+.",
       inputSchema: {
         prompt: z.string().describe("The prompt describing what structured data to generate"),
-        systemInstruction: z
-          .string()
-          .optional()
-          .describe("Optional system instruction to guide output format"),
+        systemInstruction: z.string().optional().describe("Optional system instruction to guide output format"),
         schema: z
           .record(
             z.object({
@@ -217,10 +211,7 @@ export function registerIntelligenceTools(server: McpServer, _config: AirMcpConf
         "Classify and tag content using Apple's on-device Foundation Model. Returns confidence scores for each provided tag/category. Requires macOS 26+.",
       inputSchema: {
         text: z.string().describe("The text content to classify"),
-        tags: z
-          .array(z.string())
-          .min(1)
-          .describe("List of tag/category names to classify the content against"),
+        tags: z.array(z.string()).min(1).describe("List of tag/category names to classify the content against"),
       },
       annotations: {
         readOnlyHint: true,
@@ -246,14 +237,9 @@ export function registerIntelligenceTools(server: McpServer, _config: AirMcpConf
       description:
         "Send a message to an on-device AI session using Apple Foundation Models. Note: each call creates a fresh session — sessionName is for caller-side tracking only, not server-side persistence. Requires macOS 26+.",
       inputSchema: {
-        sessionName: z
-          .string()
-          .describe("Name for this chat session (use same name to continue a conversation)"),
+        sessionName: z.string().describe("Name for this chat session (use same name to continue a conversation)"),
         message: z.string().describe("The message to send to the AI"),
-        systemInstruction: z
-          .string()
-          .optional()
-          .describe("Optional system instruction for this session"),
+        systemInstruction: z.string().optional().describe("Optional system instruction for this session"),
       },
       annotations: {
         readOnlyHint: true,
@@ -286,7 +272,8 @@ export function registerIntelligenceTools(server: McpServer, _config: AirMcpConf
         "Returns the file path to the generated PNG. Requires macOS 26+ with Apple Silicon.",
       inputSchema: {
         prompt: z.string().min(1).describe("Text description of the image to generate"),
-        outputPath: zFilePath.optional()
+        outputPath: zFilePath
+          .optional()
           .refine((p) => !p || /\.(png|jpg|jpeg)$/i.test(p), "Output path must end with .png, .jpg, or .jpeg")
           .describe("Optional output path for the image (defaults to /tmp, must end in .png/.jpg)"),
       },
@@ -299,10 +286,7 @@ export function registerIntelligenceTools(server: McpServer, _config: AirMcpConf
     },
     async ({ prompt, outputPath }) => {
       try {
-        const result = await runSwift<GenerateImageResult>(
-          "generate-image",
-          JSON.stringify({ prompt, outputPath }),
-        );
+        const result = await runSwift<GenerateImageResult>("generate-image", JSON.stringify({ prompt, outputPath }));
         return ok(result);
       } catch (e) {
         return toolError("generate image", e);
@@ -331,10 +315,7 @@ export function registerIntelligenceTools(server: McpServer, _config: AirMcpConf
     },
     async ({ imagePath }) => {
       try {
-        const result = await runSwift<ScanDocumentResult>(
-          "scan-document",
-          JSON.stringify({ imagePath }),
-        );
+        const result = await runSwift<ScanDocumentResult>("scan-document", JSON.stringify({ imagePath }));
         return ok(result);
       } catch (e) {
         return toolError("scan document", e);
@@ -354,7 +335,11 @@ export function registerIntelligenceTools(server: McpServer, _config: AirMcpConf
         "Requires macOS 26+. Works completely offline with no API keys.",
       inputSchema: {
         goal: z.string().describe("What you want to accomplish (e.g. 'organize my day', 'prepare for meeting')"),
-        context: z.string().max(10000).optional().describe("Additional context (max 10K chars, e.g. snapshot text, recent events)"),
+        context: z
+          .string()
+          .max(10000)
+          .optional()
+          .describe("Additional context (max 10K chars, e.g. snapshot text, recent events)"),
         availableTools: z
           .array(z.string())
           .optional()
@@ -370,11 +355,18 @@ export function registerIntelligenceTools(server: McpServer, _config: AirMcpConf
     async ({ goal, context, availableTools }) => {
       try {
         const tools = availableTools ?? [
-          "list_notes", "search_notes", "create_note",
-          "list_events", "today_events", "create_event",
-          "list_reminders", "create_reminder",
-          "list_messages", "search_contacts",
-          "summarize_text", "rewrite_text",
+          "list_notes",
+          "search_notes",
+          "create_note",
+          "list_events",
+          "today_events",
+          "create_event",
+          "list_reminders",
+          "create_reminder",
+          "list_messages",
+          "search_contacts",
+          "summarize_text",
+          "rewrite_text",
         ];
         const prompt = [
           `Goal: ${goal}`,
@@ -384,13 +376,16 @@ export function registerIntelligenceTools(server: McpServer, _config: AirMcpConf
           "Generate a JSON array of planned actions. Each action should have:",
           '{"step": 1, "tool": "tool_name", "args": {...}, "purpose": "why this step"}',
           "Return ONLY the JSON array, no other text.",
-        ].filter(Boolean).join("\n");
+        ]
+          .filter(Boolean)
+          .join("\n");
 
         const result = await runSwift<StructuredResult>(
           "generate-structured",
           JSON.stringify({
             prompt,
-            systemInstruction: "You are an action planner. Analyze the goal and available tools, then output a JSON array of steps to achieve the goal. Be practical and concise.",
+            systemInstruction:
+              "You are an action planner. Analyze the goal and available tools, then output a JSON array of steps to achieve the goal. Be practical and concise.",
           }),
         );
         return ok({

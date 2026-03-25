@@ -71,7 +71,12 @@ export async function loadModuleRegistry(): Promise<ModuleRegistration[]> {
         promptsFn = findRegisterFn(promptsMod);
       }
 
-      return { name: def.name, tools: toolsFn, prompts: promptsFn, minMacosVersion: def.minMacosVersion } as ModuleRegistration;
+      return {
+        name: def.name,
+        tools: toolsFn,
+        prompts: promptsFn,
+        minMacosVersion: def.minMacosVersion,
+      } as ModuleRegistration;
     } catch (e) {
       console.error(`[AirMCP] Failed to load module ${def.name}: ${e instanceof Error ? e.message : String(e)}`);
       return null;
@@ -96,7 +101,10 @@ function findRegisterFn(mod: Record<string, any>): ((...args: any[]) => any) | u
   let fallback: ((...args: any[]) => any) | undefined;
   for (const [key, val] of Object.entries(mod)) {
     if (typeof val === "function" && key.startsWith("register")) {
-      if (key.includes("Dynamic")) { fallback = fallback ?? val; continue; }
+      if (key.includes("Dynamic")) {
+        fallback = fallback ?? val;
+        continue;
+      }
       return val;
     }
   }

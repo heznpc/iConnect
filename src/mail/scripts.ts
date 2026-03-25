@@ -22,12 +22,7 @@ export function listMailboxesScript(): string {
   `;
 }
 
-export function listMessagesScript(
-  mailbox: string,
-  limit: number,
-  offset: number,
-  account?: string,
-): string {
+export function listMessagesScript(mailbox: string, limit: number, offset: number, account?: string): string {
   const acctFilter = account
     ? `const accts = Mail.accounts.whose({name: '${esc(account)}'})(); if (accts.length === 0) throw new Error('Account not found: ${esc(account)}'); const acct = accts[0];`
     : `const acct = Mail.accounts()[0];`;
@@ -98,11 +93,7 @@ export function readMessageScript(id: string, maxLength: number): string {
   `;
 }
 
-export function searchMessagesScript(
-  query: string,
-  mailbox: string,
-  limit: number,
-): string {
+export function searchMessagesScript(query: string, mailbox: string, limit: number): string {
   return `
     const Mail = Application('Mail');
     const accounts = Mail.accounts();
@@ -239,10 +230,10 @@ export function sendMailScript(
 ): string {
   const toList = to.map((a) => `msg.toRecipients.push(Mail.Recipient({address: '${esc(a)}'}));`).join("\n    ");
   const ccList = (cc ?? []).map((a) => `msg.ccRecipients.push(Mail.Recipient({address: '${esc(a)}'}));`).join("\n    ");
-  const bccList = (bcc ?? []).map((a) => `msg.bccRecipients.push(Mail.Recipient({address: '${esc(a)}'}));`).join("\n    ");
-  const acctLine = account
-    ? `msg.sender = '${esc(account)}';`
-    : "";
+  const bccList = (bcc ?? [])
+    .map((a) => `msg.bccRecipients.push(Mail.Recipient({address: '${esc(a)}'}));`)
+    .join("\n    ");
+  const acctLine = account ? `msg.sender = '${esc(account)}';` : "";
   return `
     const Mail = Application('Mail');
     const msg = Mail.OutgoingMessage({

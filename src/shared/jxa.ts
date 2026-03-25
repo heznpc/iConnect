@@ -2,11 +2,7 @@ import { execFile } from "node:child_process";
 import { TIMEOUT, BUFFER, CONCURRENCY } from "./constants.js";
 import { Semaphore } from "./semaphore.js";
 
-const TRANSIENT_PATTERNS = [
-  "Application isn't running",
-  "Connection is invalid",
-  "-1728",
-];
+const TRANSIENT_PATTERNS = ["Application isn't running", "Connection is invalid", "-1728"];
 
 // ── JXA error code descriptions ──────────────────────────────────────
 const JXA_ERROR_CODES: Record<string, string> = {
@@ -15,7 +11,7 @@ const JXA_ERROR_CODES: Record<string, string> = {
   "-1712": "Scripting not enabled — enable in System Settings > Privacy & Security > Automation",
   "-1708": "Application does not understand this command",
   "-1725": "Invalid parameter — check input values",
-  "-600":  "Application is not running",
+  "-600": "Application is not running",
   "-10810": "Application launch failed — the app may be damaged or missing",
 };
 
@@ -32,10 +28,7 @@ const PATH_RE = /\/Users\/[^\s'",;)}\]]+/g;
 const MAX_ERR_LEN = 200;
 
 function scrubPii(msg: string): string {
-  return msg
-    .replace(EMAIL_RE, "[email]")
-    .replace(PATH_RE, "[path]")
-    .slice(0, MAX_ERR_LEN);
+  return msg.replace(EMAIL_RE, "[email]").replace(PATH_RE, "[path]").slice(0, MAX_ERR_LEN);
 }
 
 // ── Concurrency semaphore (lazy — created on first use after config is parsed) ──
@@ -122,7 +115,7 @@ function parseOsascriptOutput<T>(stdout: string, app: string | undefined, stripC
   let trimmed = stdout.trim();
   if (stripControlChars) {
     // eslint-disable-next-line no-control-regex
-    trimmed = trimmed.replace(/[\x00-\x1f\x7f]/g, (c) => c === "\n" || c === "\r" || c === "\t" ? "" : "");
+    trimmed = trimmed.replace(/[\x00-\x1f\x7f]/g, (c) => (c === "\n" || c === "\r" || c === "\t" ? "" : ""));
   }
   if (!trimmed) throw new Error("osascript returned empty output");
 
@@ -142,30 +135,21 @@ function parseOsascriptOutput<T>(stdout: string, app: string | undefined, stripC
 }
 
 // ── SIGKILL fallback helper ──────────────────────────────────────────
-function execOsascript(
-  script: string,
-  timeout: number,
-  language?: "JavaScript",
-): Promise<string> {
+function execOsascript(script: string, timeout: number, language?: "JavaScript"): Promise<string> {
   return new Promise((resolve, reject) => {
     let settled = false;
     const args = language ? ["-l", language, "-e", script] : ["-e", script];
-    const child = execFile(
-      "osascript",
-      args,
-      { timeout, maxBuffer: BUFFER.JXA },
-      (error, stdout) => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(killTimer);
+    const child = execFile("osascript", args, { timeout, maxBuffer: BUFFER.JXA }, (error, stdout) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(killTimer);
 
-        if (error) {
-          reject(error);
-          return;
-        }
-        resolve(stdout);
-      },
-    );
+      if (error) {
+        reject(error);
+        return;
+      }
+      resolve(stdout);
+    });
 
     child.on("close", () => {
       settled = true;
@@ -229,10 +213,7 @@ async function runJxaInner<T>(script: string, app: string | undefined): Promise<
  * Run an AppleScript via osascript with the same protections as runJxa
  * (semaphore, circuit breaker, PII scrubbing, SIGKILL fallback).
  */
-export async function runAppleScript<T>(
-  script: string,
-  options?: { app?: string; timeout?: number },
-): Promise<T> {
+export async function runAppleScript<T>(script: string, options?: { app?: string; timeout?: number }): Promise<T> {
   const app = options?.app;
   const timeout = options?.timeout ?? TIMEOUT.JXA;
 

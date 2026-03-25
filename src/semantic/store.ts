@@ -4,10 +4,10 @@ import { cosineSimilarity } from "./embeddings.js";
 import { PATHS, TIMEOUT } from "../shared/constants.js";
 
 export interface VectorEntry {
-  id: string;        // e.g. "note:x-coredata://..." or "event:ABC123"
-  source: string;    // module name: "notes", "calendar", "reminders", "mail"
+  id: string; // e.g. "note:x-coredata://..." or "event:ABC123"
+  source: string; // module name: "notes", "calendar", "reminders", "mail"
   title: string;
-  text: string;      // concatenated searchable text
+  text: string; // concatenated searchable text
   vector: number[];
   updatedAt: string; // ISO 8601
 }

@@ -157,11 +157,7 @@ export function uiTypeScript(text: string, appName?: string): string {
 /**
  * Send a key combination (e.g., Cmd+S, Ctrl+C, Return).
  */
-export function uiPressKeyScript(
-  key: string,
-  modifiers?: string[],
-  appName?: string,
-): string {
+export function uiPressKeyScript(key: string, modifiers?: string[], appName?: string): string {
   // Map of special key names to key codes
   const keyCodeMap: Record<string, number> = {
     return: 36,
@@ -235,11 +231,7 @@ export function uiPressKeyScript(
 /**
  * Scroll at given coordinates.
  */
-export function uiScrollScript(
-  direction: "up" | "down" | "left" | "right",
-  amount: number,
-  appName?: string,
-): string {
+export function uiScrollScript(direction: "up" | "down" | "left" | "right", amount: number, appName?: string): string {
   // AppleScript scroll uses number of "clicks" — positive is up/left, negative is down/right
   let scrollX = 0;
   let scrollY = 0;

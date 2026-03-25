@@ -19,7 +19,8 @@ export async function checkSwiftBridge(): Promise<string | null> {
     await access(BINARY_PATH);
     bridgeError = null;
   } catch {
-    bridgeError = "Apple Intelligence requires macOS 26+ with Apple Silicon. Swift bridge not found. Run 'npm run swift-build' to compile.";
+    bridgeError =
+      "Apple Intelligence requires macOS 26+ with Apple Silicon. Swift bridge not found. Run 'npm run swift-build' to compile.";
   }
   bridgeChecked = true;
   return bridgeError;
@@ -283,7 +284,9 @@ function runSwiftSingleShot<T>(command: string, input: string): Promise<T> {
       }
     });
 
-    proc.on("error", (e) => { reject(e); });
+    proc.on("error", (e) => {
+      reject(e);
+    });
 
     proc.stdin.write(input);
     proc.stdin.end();

@@ -11,21 +11,17 @@ import { esc } from "../shared/esc.js";
 
 export interface AXLocator {
   app?: string;
-  role?: string;      // AXButton, AXTextField, AXStaticText, etc.
-  title?: string;     // AXTitle match (substring)
-  value?: string;     // AXValue match (substring)
+  role?: string; // AXButton, AXTextField, AXStaticText, etc.
+  title?: string; // AXTitle match (substring)
+  value?: string; // AXValue match (substring)
   description?: string; // AXDescription match
-  identifier?: string;  // AXIdentifier exact match
-  label?: string;     // AXLabel match (combined search)
+  identifier?: string; // AXIdentifier exact match
+  label?: string; // AXLabel match (combined search)
 }
 
 // ── Accessibility Query Script ───────────────────────────────────────
 
-export function axQueryScript(
-  locator: AXLocator,
-  maxResults: number,
-  maxDepth: number,
-): string {
+export function axQueryScript(locator: AXLocator, maxResults: number, maxDepth: number): string {
   const roleFilter = locator.role ? `el.role() === '${esc(locator.role)}'` : "true";
   const checks: string[] = [];
   if (locator.title) checks.push(`ttl.indexOf('${esc(locator.title).toLowerCase()}') !== -1`);
@@ -110,12 +106,7 @@ export function axQueryScript(
 
 // ── Perform Action Script ────────────────────────────────────────────
 
-export function axPerformScript(
-  locator: AXLocator,
-  action: string,
-  actionValue?: string,
-  index?: number,
-): string {
+export function axPerformScript(locator: AXLocator, action: string, actionValue?: string, index?: number): string {
   // First find the element using the same query, then perform action
   const queryPart = axQueryScript(locator, 50, 10);
   // Strip the final JSON.stringify from the query
@@ -222,13 +213,17 @@ export function axTraverseScript(
     ${app ? `Application('${esc(app)}').activate(); delay(0.5);` : ""}
 
     let proc;
-    ${pid ? `
+    ${
+      pid
+        ? `
     const procs = se.processes.whose({unixId: ${pid}})();
     if (procs.length === 0) throw new Error('No process found with PID ${pid}');
     proc = procs[0];
-    ` : `
+    `
+        : `
     proc = se.processes.whose({frontmost: true})()[0];
-    `}
+    `
+    }
 
     const procName = proc.name();
     const procPid = proc.unixId();
@@ -315,10 +310,7 @@ export function axTraverseScript(
 
 // ── UI Diff Script ───────────────────────────────────────────────────
 
-export function axDiffScript(
-  beforeSnapshot: string,
-  app?: string,
-): string {
+export function axDiffScript(beforeSnapshot: string, app?: string): string {
   return `
     const se = Application('System Events');
     ${app ? `Application('${esc(app)}').activate(); delay(0.3);` : ""}

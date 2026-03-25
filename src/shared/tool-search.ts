@@ -1,4 +1,10 @@
-import { embedText, embedBatch, cosineSimilarity, detectProvider, type EmbeddingProvider } from "../semantic/embeddings.js";
+import {
+  embedText,
+  embedBatch,
+  cosineSimilarity,
+  detectProvider,
+  type EmbeddingProvider,
+} from "../semantic/embeddings.js";
 import { toolRegistry, type ToolInfo } from "./tool-registry.js";
 import { LIMITS } from "./constants.js";
 
@@ -18,7 +24,10 @@ export async function indexToolDescriptions(): Promise<number> {
   provider = await detectProvider();
   if (provider === "none") return 0;
 
-  const tools = toolRegistry.getToolNames().map((name) => toolRegistry.getToolInfo(name)!).filter(Boolean);
+  const tools = toolRegistry
+    .getToolNames()
+    .map((name) => toolRegistry.getToolInfo(name)!)
+    .filter(Boolean);
   const texts = tools.map((t) => `${t.name}: ${t.title ?? ""} ${t.description ?? ""}`);
 
   try {

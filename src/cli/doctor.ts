@@ -11,10 +11,7 @@ import { execFileSync } from "node:child_process";
 import { MODULE_NAMES, STARTER_MODULES, NPM_PACKAGE_NAME, MCP_CLIENTS } from "../shared/config.js";
 import { HOME, PATHS } from "../shared/constants.js";
 import { LOGO_LINES, typeLine } from "../shared/banner.js";
-import {
-  RESET, BOLD, DIM, WHITE, GREEN,
-  SYM, heading, line, divider, spinner, sleep,
-} from "./style.js";
+import { RESET, BOLD, DIM, WHITE, GREEN, SYM, heading, line, divider, spinner, sleep } from "./style.js";
 
 interface FileConfig {
   locale?: string;
@@ -37,9 +34,18 @@ export async function runDoctor(): Promise<void> {
   let warn = 0;
   let fail = 0;
 
-  function ok(label: string, detail: string) { console.log(line(SYM.ok, label, detail)); pass++; }
-  function bad(label: string, detail: string) { console.log(line(SYM.fail, label, detail)); fail++; }
-  function meh(label: string, detail: string) { console.log(line(SYM.warn, label, detail)); warn++; }
+  function ok(label: string, detail: string) {
+    console.log(line(SYM.ok, label, detail));
+    pass++;
+  }
+  function bad(label: string, detail: string) {
+    console.log(line(SYM.fail, label, detail));
+    fail++;
+  }
+  function meh(label: string, detail: string) {
+    console.log(line(SYM.warn, label, detail));
+    warn++;
+  }
 
   // ── Environment ────────────────────────────────────────────────────
   console.log(heading("Environment"));
@@ -70,10 +76,17 @@ export async function runDoctor(): Promise<void> {
 
   // npm version check
   try {
-    const latest = execFileSync("npm", ["view", NPM_PACKAGE_NAME, "version"], { encoding: "utf8", timeout: 5000 }).trim();
+    const latest = execFileSync("npm", ["view", NPM_PACKAGE_NAME, "version"], {
+      encoding: "utf8",
+      timeout: 5000,
+    }).trim();
     const pkgPath = join(__dirname, "..", "package.json");
     let current = "unknown";
-    try { current = JSON.parse(readFileSync(pkgPath, "utf-8")).version; } catch { /* ignore */ }
+    try {
+      current = JSON.parse(readFileSync(pkgPath, "utf-8")).version;
+    } catch {
+      /* ignore */
+    }
     if (current === latest) ok("AirMCP Version", `v${current} ${DIM}(latest)${RESET}`);
     else meh("AirMCP Version", `v${current} → v${latest} available`);
   } catch {
@@ -167,11 +180,20 @@ export async function runDoctor(): Promise<void> {
     const s3 = spinner("Probing app permissions...");
 
     const APP_MAP: Record<string, string> = {
-      notes: "Notes", reminders: "Reminders", calendar: "Calendar",
-      contacts: "Contacts", mail: "Mail", messages: "Messages",
-      music: "Music", finder: "Finder", safari: "Safari",
-      system: "System Events", photos: "Photos", shortcuts: "Shortcuts",
-      tv: "TV", maps: "Maps",
+      notes: "Notes",
+      reminders: "Reminders",
+      calendar: "Calendar",
+      contacts: "Contacts",
+      mail: "Mail",
+      messages: "Messages",
+      music: "Music",
+      finder: "Finder",
+      safari: "Safari",
+      system: "System Events",
+      photos: "Photos",
+      shortcuts: "Shortcuts",
+      tv: "TV",
+      maps: "Maps",
     };
 
     const permResults: Array<{ app: string; ok: boolean }> = [];
@@ -179,11 +201,10 @@ export async function runDoctor(): Promise<void> {
       const appName = APP_MAP[mod];
       if (!appName) continue;
       try {
-        execFileSync(
-          "osascript",
-          ["-l", "JavaScript", "-e", `Application('${appName}'); JSON.stringify({ok:true})`],
-          { timeout: 5000, stdio: "pipe" },
-        );
+        execFileSync("osascript", ["-l", "JavaScript", "-e", `Application('${appName}'); JSON.stringify({ok:true})`], {
+          timeout: 5000,
+          stdio: "pipe",
+        });
         permResults.push({ app: appName, ok: true });
       } catch {
         permResults.push({ app: appName, ok: false });
@@ -225,7 +246,9 @@ export async function runDoctor(): Promise<void> {
   console.log("");
   console.log(divider());
   console.log("");
-  console.log(`  ${BOLD}Summary${RESET}  ${SYM.ok} ${pass} passed  ${warn > 0 ? `${SYM.warn} ${warn} warnings  ` : ""}${fail > 0 ? `${SYM.fail} ${fail} failed` : ""}`);
+  console.log(
+    `  ${BOLD}Summary${RESET}  ${SYM.ok} ${pass} passed  ${warn > 0 ? `${SYM.warn} ${warn} warnings  ` : ""}${fail > 0 ? `${SYM.fail} ${fail} failed` : ""}`,
+  );
 
   if (fail > 0) {
     console.log(`\n  ${DIM}Fix the issues above, then run: npx airmcp doctor${RESET}`);

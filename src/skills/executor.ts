@@ -52,10 +52,7 @@ function resolvePath(path: string, results: Map<string, unknown>): unknown {
 /*  Lightweight expression evaluator for only_if / skip_if conditions */
 /* ------------------------------------------------------------------ */
 
-type Token =
-  | { kind: "value"; value: unknown }
-  | { kind: "op"; op: string }
-  | { kind: "paren"; paren: "(" | ")" };
+type Token = { kind: "value"; value: unknown } | { kind: "op"; op: string } | { kind: "paren"; paren: "(" | ")" };
 
 /**
  * Tokenize a condition expression.
@@ -107,13 +104,20 @@ function tokenize(expr: string, results: Map<string, unknown>): Token[] {
 
 function compare(left: unknown, op: string, right: unknown): boolean {
   switch (op) {
-    case "==": return left == right;
-    case "!=": return left != right;
-    case ">":  return Number(left) >  Number(right);
-    case "<":  return Number(left) <  Number(right);
-    case ">=": return Number(left) >= Number(right);
-    case "<=": return Number(left) <= Number(right);
-    default:   return false;
+    case "==":
+      return left == right;
+    case "!=":
+      return left != right;
+    case ">":
+      return Number(left) > Number(right);
+    case "<":
+      return Number(left) < Number(right);
+    case ">=":
+      return Number(left) >= Number(right);
+    case "<=":
+      return Number(left) <= Number(right);
+    default:
+      return false;
   }
 }
 
@@ -285,10 +289,7 @@ async function executeOneStep(
   }
 }
 
-export async function executeSkill(
-  server: McpServer,
-  skill: SkillDefinition,
-): Promise<SkillResult> {
+export async function executeSkill(server: McpServer, skill: SkillDefinition): Promise<SkillResult> {
   const results = new Map<string, unknown>();
   const stepResults: StepResult[] = [];
   let i = 0;
@@ -303,9 +304,7 @@ export async function executeSkill(
         i++;
       }
 
-      const settled = await Promise.allSettled(
-        group.map((s) => executeOneStep(server, s, results)),
-      );
+      const settled = await Promise.allSettled(group.map((s) => executeOneStep(server, s, results)));
 
       let failed = false;
       for (let j = 0; j < group.length; j++) {

@@ -40,7 +40,11 @@ let caffeinatePid: number | null = null;
 // Clean up orphaned caffeinate process on server exit
 process.on("exit", () => {
   if (caffeinatePid !== null) {
-    try { process.kill(caffeinatePid); } catch { /* already exited */ }
+    try {
+      process.kill(caffeinatePid);
+    } catch {
+      /* already exited */
+    }
   }
 });
 
@@ -262,10 +266,15 @@ export function registerSystemTools(server: McpServer, _config: AirMcpConfig): v
     "capture_screenshot",
     {
       title: "Capture Screenshot",
-      description: "Take a screenshot and save to the specified path. Supports full screen, window, or selection capture.",
+      description:
+        "Take a screenshot and save to the specified path. Supports full screen, window, or selection capture.",
       inputSchema: {
         path: zFilePath.describe("Absolute file path to save the screenshot (e.g. '/tmp/screenshot.png')"),
-        region: z.enum(["fullscreen", "window", "selection"]).optional().default("fullscreen").describe("Capture region: fullscreen (default), window, or selection"),
+        region: z
+          .enum(["fullscreen", "window", "selection"])
+          .optional()
+          .default("fullscreen")
+          .describe("Capture region: fullscreen (default), window, or selection"),
       },
       annotations: {
         readOnlyHint: true,
@@ -473,9 +482,17 @@ export function registerSystemTools(server: McpServer, _config: AirMcpConfig): v
     "prevent_sleep",
     {
       title: "Prevent Sleep",
-      description: "Prevent the Mac from sleeping for a specified duration using caffeinate. Returns the process PID for cancellation.",
+      description:
+        "Prevent the Mac from sleeping for a specified duration using caffeinate. Returns the process PID for cancellation.",
       inputSchema: {
-        seconds: z.number().int().min(1).max(86400).optional().default(3600).describe("Duration in seconds (default: 3600 = 1 hour, max: 86400 = 24 hours)"),
+        seconds: z
+          .number()
+          .int()
+          .min(1)
+          .max(86400)
+          .optional()
+          .default(3600)
+          .describe("Duration in seconds (default: 3600 = 1 hour, max: 86400 = 24 hours)"),
       },
       annotations: {
         readOnlyHint: false,
@@ -488,7 +505,11 @@ export function registerSystemTools(server: McpServer, _config: AirMcpConfig): v
       try {
         // Kill any previous caffeinate process before starting a new one
         if (caffeinatePid !== null) {
-          try { process.kill(caffeinatePid); } catch { /* already exited */ }
+          try {
+            process.kill(caffeinatePid);
+          } catch {
+            /* already exited */
+          }
           caffeinatePid = null;
         }
         const result = await runJxa<{ action: string; pid: number; seconds: number }>(preventSleepScript(seconds));
@@ -530,7 +551,8 @@ export function registerSystemTools(server: McpServer, _config: AirMcpConfig): v
     "launch_app",
     {
       title: "Launch App",
-      description: "Launch an application by name. Lightweight — just activates the app without reading its accessibility tree.",
+      description:
+        "Launch an application by name. Lightweight — just activates the app without reading its accessibility tree.",
       inputSchema: {
         name: z.string().min(1).describe("Application name (e.g. 'Safari', 'Xcode') or bundle ID"),
       },
@@ -653,7 +675,11 @@ export function registerSystemTools(server: McpServer, _config: AirMcpConfig): v
       description: "Minimize or restore a window.",
       inputSchema: {
         appName: z.string().min(1).describe("Application name (e.g. 'Safari')"),
-        restore: z.boolean().optional().default(false).describe("Set true to restore (un-minimize) instead of minimizing"),
+        restore: z
+          .boolean()
+          .optional()
+          .default(false)
+          .describe("Set true to restore (un-minimize) instead of minimizing"),
         windowTitle: z.string().optional().describe("Specific window title. If omitted, targets the first window."),
       },
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },

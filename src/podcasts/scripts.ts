@@ -30,8 +30,8 @@ function sqliteQuery(sql: string): string {
 export function listShowsScript(): string {
   return sqliteQuery(
     "SELECT ZTITLE as name, ZAUTHOR as author, " +
-    "(SELECT COUNT(*) FROM ZMTEPISODE WHERE ZMTEPISODE.ZPODCAST = ZMTPODCAST.Z_PK) as episodeCount " +
-    "FROM ZMTPODCAST ORDER BY ZTITLE"
+      "(SELECT COUNT(*) FROM ZMTEPISODE WHERE ZMTEPISODE.ZPODCAST = ZMTPODCAST.Z_PK) as episodeCount " +
+      "FROM ZMTPODCAST ORDER BY ZTITLE",
   );
 }
 
@@ -39,8 +39,8 @@ export function listEpisodesScript(showName: string, limit: number): string {
   const safe = showName.replace(/'/g, "''");
   return sqliteQuery(
     `SELECT e.ZTITLE as title, e.ZPUBDATE as date, e.ZDURATION as duration, e.ZPLAYCOUNT as playCount ` +
-    `FROM ZMTEPISODE e JOIN ZMTPODCAST p ON e.ZPODCAST = p.Z_PK ` +
-    `WHERE p.ZTITLE = '${safe}' ORDER BY e.ZPUBDATE DESC LIMIT ${limit}`
+      `FROM ZMTEPISODE e JOIN ZMTPODCAST p ON e.ZPODCAST = p.Z_PK ` +
+      `WHERE p.ZTITLE = '${safe}' ORDER BY e.ZPUBDATE DESC LIMIT ${limit}`,
   );
 }
 
@@ -48,9 +48,9 @@ export function searchEpisodesScript(query: string, limit: number): string {
   const safe = query.replace(/'/g, "''");
   return sqliteQuery(
     `SELECT e.ZTITLE as title, p.ZTITLE as show, e.ZPUBDATE as date, e.ZDURATION as duration ` +
-    `FROM ZMTEPISODE e JOIN ZMTPODCAST p ON e.ZPODCAST = p.Z_PK ` +
-    `WHERE e.ZTITLE LIKE '%${safe}%' OR e.ZITEMDESCRIPTION LIKE '%${safe}%' ` +
-    `ORDER BY e.ZPUBDATE DESC LIMIT ${limit}`
+      `FROM ZMTEPISODE e JOIN ZMTPODCAST p ON e.ZPODCAST = p.Z_PK ` +
+      `WHERE e.ZTITLE LIKE '%${safe}%' OR e.ZITEMDESCRIPTION LIKE '%${safe}%' ` +
+      `ORDER BY e.ZPUBDATE DESC LIMIT ${limit}`,
   );
 }
 
@@ -80,8 +80,8 @@ export function playbackControlScript(action: string): string {
   const keyMap: Record<string, string> = {
     play: "space",
     pause: "space",
-    nextTrack: "using {command down}, \"right arrow\"",
-    previousTrack: "using {command down}, \"left arrow\"",
+    nextTrack: 'using {command down}, "right arrow"',
+    previousTrack: 'using {command down}, "left arrow"',
   };
   const key = keyMap[action];
   if (!key) throw new Error(`Invalid playback action: ${action}`);

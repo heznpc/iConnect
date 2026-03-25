@@ -127,20 +127,13 @@ export function createContactScript(
   lastName: string,
   opts: { email?: string; phone?: string; organization?: string; jobTitle?: string; note?: string },
 ): string {
-  const props = [
-    `firstName: '${esc(firstName)}'`,
-    `lastName: '${esc(lastName)}'`,
-  ];
+  const props = [`firstName: '${esc(firstName)}'`, `lastName: '${esc(lastName)}'`];
   if (opts.organization) props.push(`organization: '${esc(opts.organization)}'`);
   if (opts.jobTitle) props.push(`jobTitle: '${esc(opts.jobTitle)}'`);
   if (opts.note) props.push(`note: '${esc(opts.note)}'`);
 
-  const emailLine = opts.email
-    ? `p.emails.push(Contacts.Email({value: '${esc(opts.email)}', label: 'work'}));`
-    : "";
-  const phoneLine = opts.phone
-    ? `p.phones.push(Contacts.Phone({value: '${esc(opts.phone)}', label: 'mobile'}));`
-    : "";
+  const emailLine = opts.email ? `p.emails.push(Contacts.Email({value: '${esc(opts.email)}', label: 'work'}));` : "";
+  const phoneLine = opts.phone ? `p.phones.push(Contacts.Phone({value: '${esc(opts.phone)}', label: 'mobile'}));` : "";
 
   return `
     const Contacts = Application('Contacts');

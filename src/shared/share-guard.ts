@@ -21,11 +21,7 @@ export function setShareGuardHitlClient(client: HitlClient | null): void {
  * 2. If share-approval is configured for the module → include shared items (they'll be guarded on mutation)
  * 3. Otherwise (includeShared=false, no share-approval) → strip shared items
  */
-export function filterSharedAccess<T extends Shareable>(
-  items: T[],
-  config: AirMcpConfig,
-  moduleName: string,
-): T[] {
+export function filterSharedAccess<T extends Shareable>(items: T[], config: AirMcpConfig, moduleName: string): T[] {
   if (config.includeShared) return items;
   if (needsShareApproval(config, moduleName)) return items;
   return items.filter((item) => !item.shared);

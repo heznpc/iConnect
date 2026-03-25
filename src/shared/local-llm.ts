@@ -1,6 +1,12 @@
 const OLLAMA_BASE = process.env.AIRMCP_OLLAMA_URL || "http://localhost:11434";
-if (OLLAMA_BASE !== "http://localhost:11434" && !OLLAMA_BASE.startsWith("http://127.0.0.1") && !OLLAMA_BASE.startsWith("http://[::1]")) {
-  console.error(`[AirMCP] Warning: AIRMCP_OLLAMA_URL points to non-local address: ${OLLAMA_BASE}. Prompts may contain sensitive Apple data.`);
+if (
+  OLLAMA_BASE !== "http://localhost:11434" &&
+  !OLLAMA_BASE.startsWith("http://127.0.0.1") &&
+  !OLLAMA_BASE.startsWith("http://[::1]")
+) {
+  console.error(
+    `[AirMCP] Warning: AIRMCP_OLLAMA_URL points to non-local address: ${OLLAMA_BASE}. Prompts may contain sensitive Apple data.`,
+  );
 }
 export const DEFAULT_MODEL = process.env.AIRMCP_OLLAMA_MODEL || "llama3.2";
 
@@ -36,10 +42,7 @@ export async function checkOllama(): Promise<boolean> {
 }
 
 /** Generate text using a local Ollama model. */
-export async function ollamaGenerate(
-  prompt: string,
-  opts: { model?: string; system?: string } = {},
-): Promise<string> {
+export async function ollamaGenerate(prompt: string, opts: { model?: string; system?: string } = {}): Promise<string> {
   const body: Record<string, unknown> = {
     model: opts.model ?? DEFAULT_MODEL,
     prompt,

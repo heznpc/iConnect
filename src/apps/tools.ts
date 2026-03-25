@@ -113,88 +113,96 @@ export function registerApps(server: McpServer, opts: { calendar: boolean; music
   const s = server as any;
 
   if (opts.calendar) {
-  // Calendar Week View
-  // @ts-expect-error ext-apps SDK generics trigger excessive type instantiation depth
-  registerAppTool(
-    s,
-    "calendar_week_view",
-    {
-      title: "Calendar Week View",
-      description: "Display an interactive calendar week view showing events for a 7-day period.",
-      inputSchema: {
-        startDate: z.string().optional().describe("Start date (YYYY-MM-DD). Defaults to current week's Monday."),
+    // Calendar Week View
+    // @ts-expect-error ext-apps SDK generics trigger excessive type instantiation depth
+    registerAppTool(
+      s,
+      "calendar_week_view",
+      {
+        title: "Calendar Week View",
+        description: "Display an interactive calendar week view showing events for a 7-day period.",
+        inputSchema: {
+          startDate: z.string().optional().describe("Start date (YYYY-MM-DD). Defaults to current week's Monday."),
+        },
+        annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+        _meta: { ui: { resourceUri: "ui://airmcp/calendar-week" } },
       },
-      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-      _meta: { ui: { resourceUri: "ui://airmcp/calendar-week" } },
-    },
-    async ({ startDate }) => {
-      const weekStart = getWeekMonday(startDate);
-      const weekEnd = new Date(weekStart);
-      weekEnd.setDate(weekEnd.getDate() + 7);
-      const endStr = weekEnd.toISOString().slice(0, 10);
-      const raw = await runJxa(listEventsScript(weekStart, endStr, 50, 0));
-      const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
-      return {
-        content: [{
-          type: "text" as const,
-          text: JSON.stringify({ weekStart, events: parsed.events ?? [] }),
-        }],
-      };
-    },
-  );
+      async ({ startDate }) => {
+        const weekStart = getWeekMonday(startDate);
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekEnd.getDate() + 7);
+        const endStr = weekEnd.toISOString().slice(0, 10);
+        const raw = await runJxa(listEventsScript(weekStart, endStr, 50, 0));
+        const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify({ weekStart, events: parsed.events ?? [] }),
+            },
+          ],
+        };
+      },
+    );
 
-  registerAppResource(
-    s,
-    "Calendar Week View",
-    "ui://airmcp/calendar-week",
-    { description: "Interactive calendar week grid" },
-    async () => ({
-      contents: [{
-        uri: "ui://airmcp/calendar-week",
-        mimeType: RESOURCE_MIME_TYPE,
-        text: CALENDAR_WEEK_HTML,
-        _meta: { ui: { csp: { resourceDomains: ["https://esm.sh"] } } },
-      }],
-    }),
-  );
+    registerAppResource(
+      s,
+      "Calendar Week View",
+      "ui://airmcp/calendar-week",
+      { description: "Interactive calendar week grid" },
+      async () => ({
+        contents: [
+          {
+            uri: "ui://airmcp/calendar-week",
+            mimeType: RESOURCE_MIME_TYPE,
+            text: CALENDAR_WEEK_HTML,
+            _meta: { ui: { csp: { resourceDomains: ["https://esm.sh"] } } },
+          },
+        ],
+      }),
+    );
   } // calendar
 
   if (opts.music) {
-  // Music Player
-  registerAppTool(
-    s,
-    "music_player",
-    {
-      title: "Music Player",
-      description: "Display an interactive music player showing the currently playing track.",
-      inputSchema: {},
-      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-      _meta: { ui: { resourceUri: "ui://airmcp/music-player" } },
-    },
-    async () => {
-      const data = await runJxa(nowPlayingScript());
-      return {
-        content: [{
-          type: "text" as const,
-          text: typeof data === "string" ? data : JSON.stringify(data),
-        }],
-      };
-    },
-  );
+    // Music Player
+    registerAppTool(
+      s,
+      "music_player",
+      {
+        title: "Music Player",
+        description: "Display an interactive music player showing the currently playing track.",
+        inputSchema: {},
+        annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+        _meta: { ui: { resourceUri: "ui://airmcp/music-player" } },
+      },
+      async () => {
+        const data = await runJxa(nowPlayingScript());
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: typeof data === "string" ? data : JSON.stringify(data),
+            },
+          ],
+        };
+      },
+    );
 
-  registerAppResource(
-    s,
-    "Music Player",
-    "ui://airmcp/music-player",
-    { description: "Interactive music player view" },
-    async () => ({
-      contents: [{
-        uri: "ui://airmcp/music-player",
-        mimeType: RESOURCE_MIME_TYPE,
-        text: MUSIC_PLAYER_HTML,
-        _meta: { ui: { csp: { resourceDomains: ["https://esm.sh"] } } },
-      }],
-    }),
-  );
+    registerAppResource(
+      s,
+      "Music Player",
+      "ui://airmcp/music-player",
+      { description: "Interactive music player view" },
+      async () => ({
+        contents: [
+          {
+            uri: "ui://airmcp/music-player",
+            mimeType: RESOURCE_MIME_TYPE,
+            text: MUSIC_PLAYER_HTML,
+            _meta: { ui: { csp: { resourceDomains: ["https://esm.sh"] } } },
+          },
+        ],
+      }),
+    );
   } // music
 }

@@ -8,7 +8,7 @@
 interface ToolLink {
   tool: string;
   description: string;
-  args?: Record<string, string>;  // template expressions resolved against result
+  args?: Record<string, string>; // template expressions resolved against result
 }
 
 const LINK_MAP: Record<string, ToolLink[]> = {
@@ -41,18 +41,14 @@ const LINK_MAP: Record<string, ToolLink[]> = {
     { tool: "read_note", description: "Read the created note", args: { noteId: "{{id}}" } },
     { tool: "list_notes", description: "List all notes" },
   ],
-  search_notes: [
-    { tool: "read_note", description: "Read a found note", args: { noteId: "{{id}}" } },
-  ],
+  search_notes: [{ tool: "read_note", description: "Read a found note", args: { noteId: "{{id}}" } }],
 
   // Reminders
   list_reminders: [
     { tool: "create_reminder", description: "Create a new reminder" },
     { tool: "complete_reminder", description: "Mark as done", args: { reminderId: "{{id}}" } },
   ],
-  create_reminder: [
-    { tool: "list_reminders", description: "View all reminders" },
-  ],
+  create_reminder: [{ tool: "list_reminders", description: "View all reminders" }],
 
   // Mail
   list_mail: [
@@ -210,7 +206,11 @@ export function getToolLinks(toolName: string, usageNext?: Array<{ tool: string;
 }
 
 /** Append _links to a data object if links exist for the tool. */
-export function withLinks(toolName: string, data: unknown, usageNext?: Array<{ tool: string; count: number }>): unknown {
+export function withLinks(
+  toolName: string,
+  data: unknown,
+  usageNext?: Array<{ tool: string; count: number }>,
+): unknown {
   const links = getToolLinks(toolName, usageNext);
   if (links.length === 0 || data === null || data === undefined) return data;
   if (typeof data === "object" && !Array.isArray(data)) {

@@ -63,10 +63,18 @@ export function registerMailTools(server: McpServer, config: AirMcpConfig): void
     "read_message",
     {
       title: "Read Message",
-      description: "Read full content of an email message by ID. Content length is configurable (default: 5000 chars, max: 100000).",
+      description:
+        "Read full content of an email message by ID. Content length is configurable (default: 5000 chars, max: 100000).",
       inputSchema: {
         id: z.string().describe("Message ID"),
-        maxLength: z.number().int().min(100).max(100000).optional().default(5000).describe("Max content length (default: 5000)"),
+        maxLength: z
+          .number()
+          .int()
+          .min(100)
+          .max(100000)
+          .optional()
+          .default(5000)
+          .describe("Max content length (default: 5000)"),
       },
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
@@ -203,17 +211,30 @@ export function registerMailTools(server: McpServer, config: AirMcpConfig): void
       title: "Send Email",
       description: "Compose and send an email via Apple Mail. Requires allowSendMail config.",
       inputSchema: {
-        to: z.array(z.string().email()).min(1).max(LIMITS.MAIL_RECIPIENTS).describe(`Recipient email addresses (max ${LIMITS.MAIL_RECIPIENTS})`),
+        to: z
+          .array(z.string().email())
+          .min(1)
+          .max(LIMITS.MAIL_RECIPIENTS)
+          .describe(`Recipient email addresses (max ${LIMITS.MAIL_RECIPIENTS})`),
         subject: z.string().describe("Email subject"),
         body: z.string().describe("Email body text"),
-        cc: z.array(z.string().email()).max(LIMITS.MAIL_RECIPIENTS).optional().describe(`CC recipients (max ${LIMITS.MAIL_RECIPIENTS})`),
-        bcc: z.array(z.string().email()).max(LIMITS.MAIL_RECIPIENTS).optional().describe(`BCC recipients (max ${LIMITS.MAIL_RECIPIENTS})`),
+        cc: z
+          .array(z.string().email())
+          .max(LIMITS.MAIL_RECIPIENTS)
+          .optional()
+          .describe(`CC recipients (max ${LIMITS.MAIL_RECIPIENTS})`),
+        bcc: z
+          .array(z.string().email())
+          .max(LIMITS.MAIL_RECIPIENTS)
+          .optional()
+          .describe(`BCC recipients (max ${LIMITS.MAIL_RECIPIENTS})`),
         account: z.string().optional().describe("Sender email address (uses default account if omitted)"),
       },
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true },
     },
     async ({ to, subject, body, cc, bcc, account }) => {
-      if (!allowSendMail) return err("Sending mail is disabled. Set allowSendMail: true in config or AIRMCP_ALLOW_SEND_MAIL=true.");
+      if (!allowSendMail)
+        return err("Sending mail is disabled. Set allowSendMail: true in config or AIRMCP_ALLOW_SEND_MAIL=true.");
       try {
         return ok(await runJxa(sendMailScript(to, subject, body, cc, bcc, account)));
       } catch (e) {
@@ -235,7 +256,8 @@ export function registerMailTools(server: McpServer, config: AirMcpConfig): void
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true },
     },
     async ({ id, body, replyAll }) => {
-      if (!allowSendMail) return err("Sending mail is disabled. Set allowSendMail: true in config or AIRMCP_ALLOW_SEND_MAIL=true.");
+      if (!allowSendMail)
+        return err("Sending mail is disabled. Set allowSendMail: true in config or AIRMCP_ALLOW_SEND_MAIL=true.");
       try {
         return ok(await runJxa(replyMailScript(id, body, replyAll)));
       } catch (e) {

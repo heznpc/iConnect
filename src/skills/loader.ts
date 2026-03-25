@@ -3,12 +3,7 @@ import { join } from "node:path";
 import { parse } from "yaml";
 import { SkillDefinitionSchema, type SkillDefinition } from "./types.js";
 
-const USER_SKILLS_DIR = join(
-  process.env.HOME ?? process.env.USERPROFILE ?? "",
-  ".config",
-  "airmcp",
-  "skills",
-);
+const USER_SKILLS_DIR = join(process.env.HOME ?? process.env.USERPROFILE ?? "", ".config", "airmcp", "skills");
 
 export function loadSkillFile(path: string): SkillDefinition | null {
   try {

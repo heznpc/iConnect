@@ -19,10 +19,7 @@ export async function runAutomation<T>(options: {
   // Check if the Swift bridge supports this command before trying it
   if (await hasSwiftCommand(options.swift.command)) {
     try {
-      return await runSwift<T>(
-        options.swift.command,
-        JSON.stringify(options.swift.input ?? {}),
-      );
+      return await runSwift<T>(options.swift.command, JSON.stringify(options.swift.input ?? {}));
     } catch (swiftErr) {
       // Swift bridge failed — fall through to JXA fallback
       console.error(

@@ -40,7 +40,7 @@ async function collectNotes(): Promise<CollectedItem[]> {
 async function collectCalendarEvents(): Promise<CollectedItem[]> {
   const now = new Date();
   const start = new Date(now.getTime() - 30 * 86400000).toISOString(); // past 30 days
-  const end = new Date(now.getTime() + 30 * 86400000).toISOString();   // next 30 days
+  const end = new Date(now.getTime() + 30 * 86400000).toISOString(); // next 30 days
   return runJxa<CollectedItem[]>(`
     const Calendar = Application('Calendar');
     const start = new Date('${start}');
@@ -357,8 +357,13 @@ export class SemanticSearchService {
 
     if (!this.indexing) {
       this.indexing = this.runIndex((mod) => this.isModuleEnabled(mod))
-        .then(() => { this.indexing = null; })
-        .catch(() => { this.lastIndexFailure = Date.now(); this.indexing = null; });
+        .then(() => {
+          this.indexing = null;
+        })
+        .catch(() => {
+          this.lastIndexFailure = Date.now();
+          this.indexing = null;
+        });
     }
     await this.indexing;
   }

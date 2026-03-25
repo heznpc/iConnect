@@ -78,18 +78,31 @@ async function guardShared(id: string, config: AirMcpConfig, toolName: string): 
 }
 
 export function registerNoteTools(server: McpServer, config: AirMcpConfig): void {
-
   // --- Layer 1: CRUD ---
 
   server.registerTool(
     "list_notes",
     {
       title: "List Notes",
-      description: "List all notes with title, folder, and dates. Optionally filter by folder name. Supports pagination via limit/offset.",
+      description:
+        "List all notes with title, folder, and dates. Optionally filter by folder name. Supports pagination via limit/offset.",
       inputSchema: {
         folder: z.string().optional().describe("Filter by folder name"),
-        limit: z.number().int().min(1).max(1000).optional().default(200).describe("Max number of notes to return (default: 200)"),
-        offset: z.number().int().min(0).optional().default(0).describe("Number of notes to skip for pagination (default: 0)"),
+        limit: z
+          .number()
+          .int()
+          .min(1)
+          .max(1000)
+          .optional()
+          .default(200)
+          .describe("Max number of notes to return (default: 200)"),
+        offset: z
+          .number()
+          .int()
+          .min(0)
+          .optional()
+          .default(0)
+          .describe("Number of notes to skip for pagination (default: 0)"),
       },
       annotations: {
         readOnlyHint: true,
@@ -100,7 +113,9 @@ export function registerNoteTools(server: McpServer, config: AirMcpConfig): void
     },
     async ({ folder, limit, offset }) => {
       try {
-        const result = await runJxa<{ total: number; offset: number; returned: number; notes: NoteListItem[] }>(listNotesScript(limit, offset, folder));
+        const result = await runJxa<{ total: number; offset: number; returned: number; notes: NoteListItem[] }>(
+          listNotesScript(limit, offset, folder),
+        );
         result.notes = filterSharedAccess(result.notes, config, "notes");
         result.returned = result.notes.length;
         return okLinked("list_notes", result);
@@ -118,7 +133,13 @@ export function registerNoteTools(server: McpServer, config: AirMcpConfig): void
       inputSchema: {
         query: z.string().min(1).describe("Search keyword"),
         limit: z.number().int().min(1).max(500).optional().default(50).describe("Max results to return (default: 50)"),
-        offset: z.number().int().min(0).optional().default(0).describe("Number of matching results to skip (for pagination)"),
+        offset: z
+          .number()
+          .int()
+          .min(0)
+          .optional()
+          .default(0)
+          .describe("Number of matching results to skip (for pagination)"),
       },
       annotations: {
         readOnlyHint: true,
@@ -129,7 +150,9 @@ export function registerNoteTools(server: McpServer, config: AirMcpConfig): void
     },
     async ({ query, limit, offset }) => {
       try {
-        const result = await runJxa<{ total: number; returned: number; offset: number; notes: SearchResult[] }>(searchNotesScript(query, limit, offset));
+        const result = await runJxa<{ total: number; returned: number; offset: number; notes: SearchResult[] }>(
+          searchNotesScript(query, limit, offset),
+        );
         result.notes = filterSharedAccess(result.notes, config, "notes");
         result.returned = result.notes.length;
         return okUntrusted(result);
@@ -185,9 +208,7 @@ export function registerNoteTools(server: McpServer, config: AirMcpConfig): void
     },
     async ({ body, folder }) => {
       try {
-        const script = config.includeShared
-          ? createNoteSharedScript(body, folder)
-          : createNoteScript(body, folder);
+        const script = config.includeShared ? createNoteSharedScript(body, folder) : createNoteScript(body, folder);
         const result = await runJxa<MutationResult>(script);
         return okLinked("create_note", result);
       } catch (e) {
@@ -229,8 +250,7 @@ export function registerNoteTools(server: McpServer, config: AirMcpConfig): void
     "delete_note",
     {
       title: "Delete Note",
-      description:
-        "Delete a note by ID. The note is moved to Recently Deleted and permanently removed after 30 days.",
+      description: "Delete a note by ID. The note is moved to Recently Deleted and permanently removed after 30 days.",
       inputSchema: {
         id: z.string().describe("Note ID (x-coredata:// format)"),
       },
@@ -341,9 +361,29 @@ export function registerNoteTools(server: McpServer, config: AirMcpConfig): void
         "Bulk scan notes returning metadata and a text preview for each. Supports pagination via offset. Optionally filter by folder. Use this to get an overview before organizing.",
       inputSchema: {
         folder: z.string().optional().describe("Filter by folder name. Omit to scan all notes."),
-        limit: z.number().int().min(1).max(LIMITS.NOTES_BULK_SCAN).optional().default(100).describe("Max number of notes to return (default: 100)"),
-        offset: z.number().int().min(0).optional().default(0).describe("Number of notes to skip for pagination (default: 0)"),
-        previewLength: z.number().int().min(1).max(5000).optional().default(300).describe("Preview text length in characters (default: 300)"),
+        limit: z
+          .number()
+          .int()
+          .min(1)
+          .max(LIMITS.NOTES_BULK_SCAN)
+          .optional()
+          .default(100)
+          .describe("Max number of notes to return (default: 100)"),
+        offset: z
+          .number()
+          .int()
+          .min(0)
+          .optional()
+          .default(0)
+          .describe("Number of notes to skip for pagination (default: 0)"),
+        previewLength: z
+          .number()
+          .int()
+          .min(1)
+          .max(5000)
+          .optional()
+          .default(300)
+          .describe("Preview text length in characters (default: 300)"),
       },
       annotations: {
         readOnlyHint: true,
@@ -371,11 +411,7 @@ export function registerNoteTools(server: McpServer, config: AirMcpConfig): void
       description:
         "Retrieve full plaintext content of 2-5 notes at once for comparison. Use this after scan_notes to safely compare potentially duplicate or similar notes before deciding what to keep, merge, or delete.",
       inputSchema: {
-        ids: z
-          .array(z.string())
-          .min(2)
-          .max(5)
-          .describe("Array of 2-5 note IDs to compare"),
+        ids: z.array(z.string()).min(2).max(5).describe("Array of 2-5 note IDs to compare"),
       },
       annotations: {
         readOnlyHint: true,

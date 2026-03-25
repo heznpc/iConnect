@@ -139,7 +139,11 @@ class UsageTracker {
 
   private loadSync(): void {
     this.profile = { version: 1, frequency: {}, sequences: {}, hourly: {}, updatedAt: "" };
-    this.loaded = this.loadFromDisk().catch(() => {}).then(() => { this.loaded = null; });
+    this.loaded = this.loadFromDisk()
+      .catch(() => {})
+      .then(() => {
+        this.loaded = null;
+      });
   }
 
   private async loadFromDisk(): Promise<void> {

@@ -34,14 +34,11 @@ export function registerReminderPrompts(server: McpServer): void {
     },
   );
 
-  server.prompt(
-    "daily-review",
-    "Review today's due reminders and suggest priorities.",
-    () => {
-      const today = new Date().toISOString().split("T")[0];
-      return userPrompt(
-        "Review today's due reminders, flag overdue items, and suggest priorities.",
-        `오늘(${today})의 리마인더를 리뷰해줘.
+  server.prompt("daily-review", "Review today's due reminders and suggest priorities.", () => {
+    const today = new Date().toISOString().split("T")[0];
+    return userPrompt(
+      "Review today's due reminders, flag overdue items, and suggest priorities.",
+      `오늘(${today})의 리마인더를 리뷰해줘.
 
 다음 단계를 반드시 AirMCP 도구를 사용해서 실행해:
 
@@ -61,7 +58,6 @@ export function registerReminderPrompts(server: McpServer): void {
 - 도구 호출 실패 시 사용자에게 알리고 대안 도구 시도 (예: list_reminders 실패 시 search_reminders 시도)
 - 권한 에러 시 setup_permissions 안내
 - 앱이 응답하지 않으면 다음 단계로 건너뛰기`,
-      );
-    },
-  );
+    );
+  });
 }

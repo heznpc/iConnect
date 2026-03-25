@@ -27,14 +27,16 @@ export class TtlCache {
     if (cached !== undefined) return cached;
     const existing = this.inflight.get(key);
     if (existing) return existing as Promise<T>;
-    const promise = compute().then((value) => {
-      this.set(key, value, ttlMs);
-      this.inflight.delete(key);
-      return value;
-    }).catch((err) => {
-      this.inflight.delete(key);
-      throw err;
-    });
+    const promise = compute()
+      .then((value) => {
+        this.set(key, value, ttlMs);
+        this.inflight.delete(key);
+        return value;
+      })
+      .catch((err) => {
+        this.inflight.delete(key);
+        throw err;
+      });
     this.inflight.set(key, promise);
     return promise;
   }

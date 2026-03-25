@@ -4,17 +4,18 @@ import { esc } from "../shared/esc.js";
 
 /** Escape for AppleScript double-quoted strings */
 function escAS(str: string): string {
-  return str
-    .replace(/\0/g, "")
-    // eslint-disable-next-line no-control-regex
-    .replace(/[\x01-\x08\x0b\x0c\x0e-\x1f]/g, "")
-    .replace(/\\/g, "\\\\")
-    .replace(/"/g, '\\"')
-    .replace(/\n/g, "\\n")
-    .replace(/\r/g, "\\r")
-    .replace(/\t/g, "\\t");
+  return (
+    str
+      .replace(/\0/g, "")
+      // eslint-disable-next-line no-control-regex
+      .replace(/[\x01-\x08\x0b\x0c\x0e-\x1f]/g, "")
+      .replace(/\\/g, "\\\\")
+      .replace(/"/g, '\\"')
+      .replace(/\n/g, "\\n")
+      .replace(/\r/g, "\\r")
+      .replace(/\t/g, "\\t")
+  );
 }
-
 
 export function listChatsScript(limit: number): string {
   return `
@@ -74,10 +75,7 @@ export function readChatScript(chatId: string): string {
   `;
 }
 
-export function searchMessagesScript(
-  query: string,
-  limit: number,
-): string {
+export function searchMessagesScript(query: string, limit: number): string {
   return `
     const Messages = Application('Messages');
     const chats = Messages.chats();
@@ -117,10 +115,7 @@ export function searchMessagesScript(
   `;
 }
 
-export function sendMessageScript(
-  target: string,
-  text: string,
-): string {
+export function sendMessageScript(target: string, text: string): string {
   // macOS 26: JXA services() throws -1708; use AppleScript via runAppleScript().
   // NOTE: Do not echo user input back in AppleScript return to avoid
   // multi-layer escaping issues (AS→JSON). The tool handler has the input.
@@ -138,10 +133,7 @@ end tell
 return "{\\"sent\\":true}"`;
 }
 
-export function sendFileScript(
-  target: string,
-  filePath: string,
-): string {
+export function sendFileScript(target: string, filePath: string): string {
   const t = escAS(target);
   const p = escAS(filePath);
   return `tell application "Messages"
@@ -175,4 +167,3 @@ export function listParticipantsScript(chatId: string): string {
     JSON.stringify({chatId: '${esc(chatId)}', chatName: chat.name() || null, participants: result});
   `;
 }
-

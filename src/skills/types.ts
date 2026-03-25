@@ -15,10 +15,12 @@ export const SkillDefinitionSchema = z.object({
   title: z.string().min(1),
   description: z.string().min(1),
   expose_as: z.enum(["prompt", "tool"]),
-  trigger: z.object({
-    event: z.enum(["calendar_changed", "reminders_changed", "pasteboard_changed"]),
-    debounce_ms: z.number().optional(),
-  }).optional(),
+  trigger: z
+    .object({
+      event: z.enum(["calendar_changed", "reminders_changed", "pasteboard_changed"]),
+      debounce_ms: z.number().optional(),
+    })
+    .optional(),
   steps: z.array(SkillStepSchema).min(1, "At least one step required"),
 });
 

@@ -72,7 +72,7 @@ export function generateProactiveContext(): ProactiveBundle {
     for (const t of topTools) {
       const next = usageTracker.getNextTools(t.tool, 2);
       for (const n of next) {
-        if (!timeSuggestions.some(s => s.tool === n.tool) && !patternSuggestions.some(s => s.tool === n.tool)) {
+        if (!timeSuggestions.some((s) => s.tool === n.tool) && !patternSuggestions.some((s) => s.tool === n.tool)) {
           patternSuggestions.push({ tool: n.tool, reason: `Often used after ${t.tool} (${n.count}x)` });
         }
       }
@@ -80,7 +80,7 @@ export function generateProactiveContext(): ProactiveBundle {
   }
 
   // Combine: time-based first, then pattern-based (deduplicated)
-  const seen = new Set(timeSuggestions.map(s => s.tool));
+  const seen = new Set(timeSuggestions.map((s) => s.tool));
   const combined = [...timeSuggestions];
   for (const s of patternSuggestions) {
     if (!seen.has(s.tool)) {
@@ -92,11 +92,9 @@ export function generateProactiveContext(): ProactiveBundle {
   // Weekend adjustments
   if (timeContext.isWeekend) {
     // Remove work-focused tools on weekends
-    const weekendFiltered = combined.filter(s =>
-      !["get_unread_count", "search_notes"].includes(s.tool)
-    );
+    const weekendFiltered = combined.filter((s) => !["get_unread_count", "search_notes"].includes(s.tool));
     // Add leisure tools
-    if (!weekendFiltered.some(s => s.tool === "now_playing")) {
+    if (!weekendFiltered.some((s) => s.tool === "now_playing")) {
       weekendFiltered.push({ tool: "now_playing", reason: "Weekend vibes" });
     }
     return {

@@ -74,13 +74,10 @@ export function registerCrossPrompts(server: McpServer): void {
     },
   );
 
-  server.prompt(
-    "event-follow-up",
-    { eventId: z.string().describe("Calendar event ID") },
-    ({ eventId }) => {
-      return userPrompt(
-        "Create follow-up note and reminders after a meeting.",
-        `미팅 후 팔로업을 정리해줘.
+  server.prompt("event-follow-up", { eventId: z.string().describe("Calendar event ID") }, ({ eventId }) => {
+    return userPrompt(
+      "Create follow-up note and reminders after a meeting.",
+      `미팅 후 팔로업을 정리해줘.
 
 다음 단계를 반드시 AirMCP 도구를 사용해서 실행해:
 
@@ -102,9 +99,8 @@ export function registerCrossPrompts(server: McpServer): void {
 - 도구 호출 실패 시 사용자에게 알리고 대안 도구 시도 (예: read_event 실패 시 search_events로 이벤트 검색)
 - 권한 에러 시 setup_permissions 안내
 - 앱이 응답하지 않으면 다음 단계로 건너뛰기`,
-      );
-    },
-  );
+    );
+  });
 
   server.prompt(
     "daily-briefing",
@@ -229,13 +225,10 @@ export function registerCrossPrompts(server: McpServer): void {
     },
   );
 
-  server.prompt(
-    "file-organizer",
-    { directory: z.string().describe("Directory path to organize") },
-    ({ directory }) => {
-      return userPrompt(
-        "Finder + Notes file organization: scan directory, apply tags, and create summary note.",
-        `"${directory}" 폴더의 파일을 정리해줘.
+  server.prompt("file-organizer", { directory: z.string().describe("Directory path to organize") }, ({ directory }) => {
+    return userPrompt(
+      "Finder + Notes file organization: scan directory, apply tags, and create summary note.",
+      `"${directory}" 폴더의 파일을 정리해줘.
 
 다음 단계를 반드시 AirMCP 도구를 사용해서 실행해:
 
@@ -263,17 +256,13 @@ export function registerCrossPrompts(server: McpServer): void {
 - 도구 호출 실패 시 사용자에게 알리고 대안 도구 시도 (예: search_files 실패 시 list_directory 시도)
 - 권한 에러 시 setup_permissions 안내
 - 앱이 응답하지 않으면 다음 단계로 건너뛰기`,
-      );
-    },
-  );
+    );
+  });
 
-  server.prompt(
-    "dev-session",
-    { projectPath: z.string().describe("Project directory path") },
-    ({ projectPath }) => {
-      return userPrompt(
-        "Developer session setup: scan project, check specs, research docs, log to notes.",
-        `"${projectPath}" 프로젝트로 개발 세션을 시작해줘.
+  server.prompt("dev-session", { projectPath: z.string().describe("Project directory path") }, ({ projectPath }) => {
+    return userPrompt(
+      "Developer session setup: scan project, check specs, research docs, log to notes.",
+      `"${projectPath}" 프로젝트로 개발 세션을 시작해줘.
 
 다음 단계를 반드시 AirMCP 도구를 사용해서 실행해:
 
@@ -310,9 +299,8 @@ export function registerCrossPrompts(server: McpServer): void {
 - 도구 호출 실패 시 사용자에게 알리고 대안 도구 시도 (예: search_files 실패 시 list_directory 시도)
 - 권한 에러 시 setup_permissions 안내
 - 앱이 응답하지 않으면 다음 단계로 건너뛰기`,
-      );
-    },
-  );
+    );
+  });
 
   server.prompt(
     "debug-loop",

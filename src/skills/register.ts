@@ -49,10 +49,7 @@ function registerAsTool(server: McpServer, skill: SkillDefinition): void {
   );
 }
 
-export function registerSkills(
-  server: McpServer,
-  skills: SkillDefinition[],
-): { prompts: number; tools: number } {
+export function registerSkills(server: McpServer, skills: SkillDefinition[]): { prompts: number; tools: number } {
   let prompts = 0;
   let tools = 0;
   for (const skill of skills) {

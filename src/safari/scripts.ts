@@ -220,14 +220,17 @@ export function addBookmarkScript(url: string, title: string, folder?: string): 
     // Try legacy JXA first (macOS ≤ 15)
     try {
       const folders = Safari.bookmarkFolders();
-      ${folder ? `
+      ${
+        folder
+          ? `
       let target = null;
       const wanted = '${esc(folder)}';
       for (let f = 0; f < folders.length; f++) {
         if (folders[f].name() === wanted) { target = folders[f]; break; }
       }
       if (!target) throw new Error('Bookmark folder not found: ' + wanted);
-      ` : `
+      `
+          : `
       let target = null;
       for (let f = 0; f < folders.length; f++) {
         if (folders[f].name() === 'BookmarksBar' || folders[f].name() === 'Favorites') {
@@ -235,7 +238,8 @@ export function addBookmarkScript(url: string, title: string, folder?: string): 
         }
       }
       if (!target) target = folders[0];
-      `}
+      `
+      }
       const bm = Safari.BookmarkItem({ url: '${esc(url)}', name: '${esc(title)}' });
       target.bookmarkItems.push(bm);
       JSON.stringify({ added: true, title: '${esc(title)}', url: '${esc(url)}', folder: target.name() });

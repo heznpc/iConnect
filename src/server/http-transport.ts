@@ -41,7 +41,9 @@ export async function startHttpServer(options: HttpServerOptions): Promise<void>
       next();
     });
   } else if (bindAll) {
-    console.error("[AirMCP] WARNING: --bind-all without AIRMCP_HTTP_TOKEN is insecure. Set AIRMCP_HTTP_TOKEN for authentication.");
+    console.error(
+      "[AirMCP] WARNING: --bind-all without AIRMCP_HTTP_TOKEN is insecure. Set AIRMCP_HTTP_TOKEN for authentication.",
+    );
   }
 
   interface Session {
@@ -162,7 +164,11 @@ export async function startHttpServer(options: HttpServerOptions): Promise<void>
   });
 
   // Shared handler for GET/DELETE (SSE streaming + session close)
-  const handleSessionRequest = async (req: import("express").Request, res: import("express").Response, method: string) => {
+  const handleSessionRequest = async (
+    req: import("express").Request,
+    res: import("express").Response,
+    method: string,
+  ) => {
     try {
       const sessionId = req.headers["mcp-session-id"] as string | undefined;
       const s = sessionId ? sessions.get(sessionId) : undefined;
@@ -188,6 +194,9 @@ export async function startHttpServer(options: HttpServerOptions): Promise<void>
     bi.transport = "http";
     bi.port = port;
     await printBanner(bi);
-    if (bindAll) console.error(`[AirMCP] Bound to all interfaces (0.0.0.0:${port})${httpToken ? " with token auth" : " — NO AUTH"}`);
+    if (bindAll)
+      console.error(
+        `[AirMCP] Bound to all interfaces (0.0.0.0:${port})${httpToken ? " with token auth" : " — NO AUTH"}`,
+      );
   });
 }

@@ -11,13 +11,13 @@ import { LIMITS } from "./constants.js";
 import { resourceCache } from "./cache.js";
 
 const CACHE_TTL = {
-  NOTES: 30_000,      // 30s — notes change infrequently during a session
-  CALENDAR: 60_000,   // 60s — events rarely change within a minute
-  REMINDERS: 30_000,  // 30s
-  MUSIC: 5_000,       // 5s — now-playing changes often
-  MAIL: 30_000,       // 30s
-  CLIPBOARD: 2_000,   // 2s — clipboard changes frequently
-  SNAPSHOT: 15_000,   // 15s — composite, refresh more often
+  NOTES: 30_000, // 30s — notes change infrequently during a session
+  CALENDAR: 60_000, // 60s — events rarely change within a minute
+  REMINDERS: 30_000, // 30s
+  MUSIC: 5_000, // 5s — now-playing changes often
+  MAIL: 30_000, // 30s
+  CLIPBOARD: 2_000, // 2s — clipboard changes frequently
+  SNAPSHOT: 15_000, // 15s — composite, refresh more often
 } as const;
 
 // ── Resource registration factory ──
@@ -34,11 +34,13 @@ function jsonResource(
   fetcher: () => Promise<unknown>,
 ): void {
   server.registerResource(name, uri, { description, mimeType: "application/json" }, async (resourceUri) => ({
-    contents: [{
-      uri: resourceUri.href,
-      mimeType: "application/json" as const,
-      text: JSON.stringify(await fetcher(), null, 2),
-    }],
+    contents: [
+      {
+        uri: resourceUri.href,
+        mimeType: "application/json" as const,
+        text: JSON.stringify(await fetcher(), null, 2),
+      },
+    ],
   }));
 }
 
@@ -148,9 +150,9 @@ export function registerResources(server: McpServer, config?: AirMcpConfig): voi
 
   // ── Notes ──
   if (enabled("notes")) {
-    jsonResource(server, "recent-notes", "notes://recent",
-      "10 most recently modified Apple Notes",
-      () => resourceCache.getOrSet("notes:recent:10", CACHE_TTL.NOTES, () => fetchRecentNotes(10)));
+    jsonResource(server, "recent-notes", "notes://recent", "10 most recently modified Apple Notes", () =>
+      resourceCache.getOrSet("notes:recent:10", CACHE_TTL.NOTES, () => fetchRecentNotes(10)),
+    );
 
     server.registerResource(
       "recent-notes-count",
@@ -159,7 +161,9 @@ export function registerResources(server: McpServer, config?: AirMcpConfig): voi
       async (uri, variables) => {
         const raw = Array.isArray(variables.count) ? variables.count[0] : variables.count;
         const count = Math.max(1, Math.min(Number(raw) || 10, 50));
-        const notes = await resourceCache.getOrSet(`notes:recent:${count}`, CACHE_TTL.NOTES, () => fetchRecentNotes(count));
+        const notes = await resourceCache.getOrSet(`notes:recent:${count}`, CACHE_TTL.NOTES, () =>
+          fetchRecentNotes(count),
+        );
         return {
           contents: [{ uri: uri.href, mimeType: "application/json", text: JSON.stringify(notes, null, 2) }],
         };
@@ -169,51 +173,66 @@ export function registerResources(server: McpServer, config?: AirMcpConfig): voi
 
   // ── Calendar ──
   if (enabled("calendar")) {
-    jsonResource(server, "today-events", "calendar://today",
+    jsonResource(
+      server,
+      "today-events",
+      "calendar://today",
       "Today's Apple Calendar events, sorted by start time",
-      () => resourceCache.getOrSet("calendar:today", CACHE_TTL.CALENDAR, fetchTodayEvents));
+      () => resourceCache.getOrSet("calendar:today", CACHE_TTL.CALENDAR, fetchTodayEvents),
+    );
 
-    jsonResource(server, "upcoming-events", "calendar://upcoming",
+    jsonResource(
+      server,
+      "upcoming-events",
+      "calendar://upcoming",
       "Upcoming Apple Calendar events for the next 7 days",
-      () => resourceCache.getOrSet("calendar:upcoming", CACHE_TTL.CALENDAR, fetchUpcomingEvents));
+      () => resourceCache.getOrSet("calendar:upcoming", CACHE_TTL.CALENDAR, fetchUpcomingEvents),
+    );
   }
 
   // ── Reminders ──
   if (enabled("reminders")) {
-    jsonResource(server, "due-reminders", "reminders://due",
-      "Apple Reminders that are currently due or overdue",
-      () => resourceCache.getOrSet("reminders:due", CACHE_TTL.REMINDERS, fetchDueReminders));
+    jsonResource(server, "due-reminders", "reminders://due", "Apple Reminders that are currently due or overdue", () =>
+      resourceCache.getOrSet("reminders:due", CACHE_TTL.REMINDERS, fetchDueReminders),
+    );
 
-    jsonResource(server, "today-reminders", "reminders://today",
-      "Apple Reminders due today (incomplete only)",
-      () => resourceCache.getOrSet("reminders:today", CACHE_TTL.REMINDERS, fetchTodayReminders));
+    jsonResource(server, "today-reminders", "reminders://today", "Apple Reminders due today (incomplete only)", () =>
+      resourceCache.getOrSet("reminders:today", CACHE_TTL.REMINDERS, fetchTodayReminders),
+    );
   }
 
   // ── Music ──
   if (enabled("music")) {
-    jsonResource(server, "now-playing", "music://now-playing",
-      "Currently playing track in Apple Music",
-      () => resourceCache.getOrSet("music:now", CACHE_TTL.MUSIC, () => runJxa<unknown>(nowPlayingScript())));
+    jsonResource(server, "now-playing", "music://now-playing", "Currently playing track in Apple Music", () =>
+      resourceCache.getOrSet("music:now", CACHE_TTL.MUSIC, () => runJxa<unknown>(nowPlayingScript())),
+    );
   }
 
   // ── System ──
   if (enabled("system")) {
-    jsonResource(server, "clipboard", "system://clipboard",
-      "Current macOS clipboard contents",
-      () => resourceCache.getOrSet("system:clipboard", CACHE_TTL.CLIPBOARD, () => runJxa<unknown>(getClipboardScript())));
+    jsonResource(server, "clipboard", "system://clipboard", "Current macOS clipboard contents", () =>
+      resourceCache.getOrSet("system:clipboard", CACHE_TTL.CLIPBOARD, () => runJxa<unknown>(getClipboardScript())),
+    );
   }
 
   // ── Mail ──
   if (enabled("mail")) {
-    jsonResource(server, "unread-mail", "mail://unread",
-      "Unread email count across all mailboxes",
-      () => resourceCache.getOrSet("mail:unread", CACHE_TTL.MAIL, () => runJxa<unknown>(getUnreadCountScript())));
+    jsonResource(server, "unread-mail", "mail://unread", "Unread email count across all mailboxes", () =>
+      resourceCache.getOrSet("mail:unread", CACHE_TTL.MAIL, () => runJxa<unknown>(getUnreadCountScript())),
+    );
   }
 
   // ── Context Snapshot ──
-  jsonResource(server, "context-snapshot", "context://snapshot",
+  jsonResource(
+    server,
+    "context-snapshot",
+    "context://snapshot",
     "Unified context from all enabled Apple apps — calendar, reminders, notes, mail, music, system — in a single read. Default depth: standard.",
-    () => resourceCache.getOrSet("snapshot:standard", CACHE_TTL.SNAPSHOT, async () => JSON.parse(await buildSnapshot(enabled, DEPTH.standard!))));
+    () =>
+      resourceCache.getOrSet("snapshot:standard", CACHE_TTL.SNAPSHOT, async () =>
+        JSON.parse(await buildSnapshot(enabled, DEPTH.standard!)),
+      ),
+  );
 
   server.registerResource(
     "context-snapshot-depth",
@@ -227,7 +246,9 @@ export function registerResources(server: McpServer, config?: AirMcpConfig): voi
       const raw = (Array.isArray(variables.depth) ? variables.depth[0] : variables.depth) as string;
       const dc = (DEPTH[raw] ?? DEPTH.standard)!;
       const depthKey = raw in DEPTH ? raw : "standard";
-      const text = await resourceCache.getOrSet(`snapshot:${depthKey}`, CACHE_TTL.SNAPSHOT, () => buildSnapshot(enabled, dc));
+      const text = await resourceCache.getOrSet(`snapshot:${depthKey}`, CACHE_TTL.SNAPSHOT, () =>
+        buildSnapshot(enabled, dc),
+      );
       return {
         contents: [{ uri: uri.href, mimeType: "application/json", text }],
       };
@@ -253,10 +274,7 @@ interface ContextSnapshot {
   [key: string]: unknown;
 }
 
-export async function buildSnapshot(
-  enabled: (mod: string) => boolean,
-  depth: DepthConfig | string,
-): Promise<string> {
+export async function buildSnapshot(enabled: (mod: string) => boolean, depth: DepthConfig | string): Promise<string> {
   const dc: DepthConfig = typeof depth === "string" ? (DEPTH[depth] ?? DEPTH.standard!) : depth;
   const depthName = dc === DEPTH.brief ? "brief" : dc === DEPTH.full ? "full" : "standard";
 
@@ -280,9 +298,10 @@ export async function buildSnapshot(
     tasks.push({
       key: "reminders",
       promise: (async () => {
-        const { reminders: all, total: totalIncomplete } = await runJxa<{ reminders: Array<{ completed: boolean; dueDate: string | null; [k: string]: unknown }>; total: number }>(
-          listRemindersScript(LIMITS.SNAPSHOT_REMINDERS, 0, undefined, false),
-        );
+        const { reminders: all, total: totalIncomplete } = await runJxa<{
+          reminders: Array<{ completed: boolean; dueDate: string | null; [k: string]: unknown }>;
+          total: number;
+        }>(listRemindersScript(LIMITS.SNAPSHOT_REMINDERS, 0, undefined, false));
         const now = new Date();
         const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         const tomorrow = new Date(today.getTime() + 86400000);

@@ -82,7 +82,9 @@ export function registerScreenTools(server: McpServer, _config: AirMcpConfig): v
           .string()
           .min(1)
           .optional()
-          .describe("Application name to activate before capture (e.g. 'Safari', 'Xcode'). If omitted, captures the frontmost window."),
+          .describe(
+            "Application name to activate before capture (e.g. 'Safari', 'Xcode'). If omitted, captures the frontmost window.",
+          ),
       },
       annotations: {
         readOnlyHint: false,
@@ -161,12 +163,7 @@ export function registerScreenTools(server: McpServer, _config: AirMcpConfig): v
       description:
         "Record the screen for a specified duration (1-60 seconds). Returns the recording as a .mov file path. Requires Screen Recording permission.",
       inputSchema: {
-        duration: z
-          .number()
-          .int()
-          .min(1)
-          .max(60)
-          .describe("Recording duration in seconds (1-60)"),
+        duration: z.number().int().min(1).max(60).describe("Recording duration in seconds (1-60)"),
         display: z
           .number()
           .int()
@@ -193,7 +190,12 @@ export function registerScreenTools(server: McpServer, _config: AirMcpConfig): v
             const elapsed = Math.min(Math.round((Date.now() - start) / 1000), duration);
             await extra.sendNotification({
               method: "notifications/progress",
-              params: { progressToken, progress: elapsed, total: duration, message: `Recording: ${elapsed}/${duration}s` },
+              params: {
+                progressToken,
+                progress: elapsed,
+                total: duration,
+                message: `Recording: ${elapsed}/${duration}s`,
+              },
             });
             if (elapsed >= duration) clearInterval(timer);
           }, 500);
@@ -203,7 +205,11 @@ export function registerScreenTools(server: McpServer, _config: AirMcpConfig): v
         const result = await recordPromise;
         const { size } = await stat(result.path);
         if (size > BUFFER.CAPTURE) {
-          try { await unlink(result.path); } catch { /* ignore */ }
+          try {
+            await unlink(result.path);
+          } catch {
+            /* ignore */
+          }
           throw new Error("Recording too large (>5MB). Use a shorter duration or smaller region.");
         }
         return {

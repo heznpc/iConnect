@@ -212,12 +212,7 @@ export function deleteEventScript(id: string): string {
   `;
 }
 
-export function searchEventsScript(
-  query: string,
-  startDate: string,
-  endDate: string,
-  limit: number,
-): string {
+export function searchEventsScript(query: string, startDate: string, endDate: string, limit: number): string {
   return `
     const Calendar = Application('Calendar');
     const cals = Calendar.calendars();

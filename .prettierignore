@@ -1,0 +1,5 @@
+dist/
+coverage/
+node_modules/
+*.mcpb
+package-lock.json

@@ -23,9 +23,7 @@ export function listRemindersScript(limit: number, offset: number, list?: string
   if (completed === true) filterParts.push("r.completed()");
   if (completed === false) filterParts.push("!r.completed()");
 
-  const filterExpr = filterParts.length > 0
-    ? `.filter(r => ${filterParts.join(" && ")})`
-    : "";
+  const filterExpr = filterParts.length > 0 ? `.filter(r => ${filterParts.join(" && ")})` : "";
 
   if (list) {
     return `
@@ -50,7 +48,8 @@ export function listRemindersScript(limit: number, offset: number, list?: string
       JSON.stringify({total: all.length, offset: start, returned: result.length, reminders: result});
     `;
   }
-  const whoseFilter = completed === true ? ".whose({completed: true})" : completed === false ? ".whose({completed: false})" : "";
+  const whoseFilter =
+    completed === true ? ".whose({completed: true})" : completed === false ? ".whose({completed: false})" : "";
   return `
     const Reminders = Application('Reminders');
     const lists = Reminders.lists();
@@ -109,9 +108,7 @@ export function createReminderScript(
   if (opts.body) props.push(`body: '${esc(opts.body)}'`);
   if (opts.priority !== undefined) props.push(`priority: ${opts.priority}`);
 
-  const dateSetup = opts.dueDate
-    ? `r.dueDate = new Date('${esc(opts.dueDate)}');`
-    : "";
+  const dateSetup = opts.dueDate ? `r.dueDate = new Date('${esc(opts.dueDate)}');` : "";
 
   if (opts.list) {
     return `

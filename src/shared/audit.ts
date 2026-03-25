@@ -39,7 +39,9 @@ export function auditLog(entry: AuditEntry): void {
 
 function ensureFlushTimer(): void {
   if (flushTimer) return;
-  flushTimer = setInterval(() => { flushBuffer().catch(() => {}); }, FLUSH_INTERVAL);
+  flushTimer = setInterval(() => {
+    flushBuffer().catch(() => {});
+  }, FLUSH_INTERVAL);
   if (flushTimer.unref) flushTimer.unref();
 }
 

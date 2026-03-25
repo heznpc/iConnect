@@ -41,7 +41,12 @@ function describeWeatherCode(code: number): string {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function fetchOpenMeteo(latitude: number, longitude: number, extra: Record<string, string>): Promise<any> {
-  const params = new URLSearchParams({ latitude: String(latitude), longitude: String(longitude), timezone: "auto", ...extra });
+  const params = new URLSearchParams({
+    latitude: String(latitude),
+    longitude: String(longitude),
+    timezone: "auto",
+    ...extra,
+  });
   const res = await fetch(`${BASE_URL}?${params}`, {
     signal: AbortSignal.timeout(TIMEOUT.GEOCODE),
   });
@@ -51,7 +56,8 @@ async function fetchOpenMeteo(latitude: number, longitude: number, extra: Record
 
 export async function fetchCurrentWeather(latitude: number, longitude: number) {
   const data = await fetchOpenMeteo(latitude, longitude, {
-    current: "temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,wind_direction_10m,precipitation,cloud_cover",
+    current:
+      "temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,wind_direction_10m,precipitation,cloud_cover",
   });
   const c = data.current;
   return {
@@ -70,7 +76,8 @@ export async function fetchCurrentWeather(latitude: number, longitude: number) {
 
 export async function fetchDailyForecast(latitude: number, longitude: number, days: number) {
   const data = await fetchOpenMeteo(latitude, longitude, {
-    daily: "weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,precipitation_sum,precipitation_probability_max,wind_speed_10m_max",
+    daily:
+      "weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,precipitation_sum,precipitation_probability_max,wind_speed_10m_max",
     forecast_days: String(days),
   });
   const d = data.daily;
@@ -90,7 +97,8 @@ export async function fetchDailyForecast(latitude: number, longitude: number, da
 
 export async function fetchHourlyForecast(latitude: number, longitude: number, hours: number) {
   const data = await fetchOpenMeteo(latitude, longitude, {
-    hourly: "temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,precipitation,precipitation_probability,wind_speed_10m,cloud_cover",
+    hourly:
+      "temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,precipitation,precipitation_probability,wind_speed_10m,cloud_cover",
     forecast_hours: String(hours),
   });
   const h = data.hourly;

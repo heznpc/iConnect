@@ -21,12 +21,12 @@ export const MOVE_UP = (n: number) => `\x1b[${n}A`;
 // ── Symbols ──────────────────────────────────────────────────────────
 
 export const SYM = {
-  ok:   `${GREEN}✓${RESET}`,
+  ok: `${GREEN}✓${RESET}`,
   fail: `${RED}✗${RESET}`,
   warn: `${YELLOW}⚠${RESET}`,
-  dot:  `${DIM}·${RESET}`,
-  arr:  `${WHITE}❯${RESET}`,
-  bar:  `${DIM}│${RESET}`,
+  dot: `${DIM}·${RESET}`,
+  arr: `${WHITE}❯${RESET}`,
+  bar: `${DIM}│${RESET}`,
 } as const;
 
 // ── Box drawing ──────────────────────────────────────────────────────

@@ -35,5 +35,7 @@ export function compactDescription(description: string): string {
   // Cap at 80 chars
   return firstSentence.length > 80
     ? firstSentence.slice(0, 77) + "..."
-    : firstSentence.endsWith(".") ? firstSentence : firstSentence + ".";
+    : firstSentence.endsWith(".")
+      ? firstSentence
+      : firstSentence + ".";
 }

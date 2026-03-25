@@ -44,7 +44,14 @@ export function registerSafariTools(server: McpServer, config: AirMcpConfig): vo
       inputSchema: {
         windowIndex: z.number().int().min(0).optional().default(0).describe("Window index (default: 0)"),
         tabIndex: z.number().int().min(0).optional().default(0).describe("Tab index (default: 0)"),
-        maxLength: z.number().int().min(100).max(50000).optional().default(10000).describe("Max content length (default: 10000)"),
+        maxLength: z
+          .number()
+          .int()
+          .min(100)
+          .max(50000)
+          .optional()
+          .default(10000)
+          .describe("Max content length (default: 10000)"),
       },
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
@@ -137,7 +144,8 @@ export function registerSafariTools(server: McpServer, config: AirMcpConfig): vo
     "run_javascript",
     {
       title: "Run JavaScript",
-      description: "Execute JavaScript in a Safari tab. Use list_tabs to find window/tab indices. Returns the result as a string.",
+      description:
+        "Execute JavaScript in a Safari tab. Use list_tabs to find window/tab indices. Returns the result as a string.",
       inputSchema: {
         code: z.string().describe("JavaScript to execute"),
         windowIndex: z.number().int().min(0).optional().default(0).describe("Window index (default: 0)"),
@@ -146,7 +154,10 @@ export function registerSafariTools(server: McpServer, config: AirMcpConfig): vo
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true },
     },
     async ({ code, windowIndex, tabIndex }) => {
-      if (!allowRunJavascript) return err("Running JavaScript in Safari is disabled. Set AIRMCP_ALLOW_RUN_JAVASCRIPT=true or allowRunJavascript in config.json.");
+      if (!allowRunJavascript)
+        return err(
+          "Running JavaScript in Safari is disabled. Set AIRMCP_ALLOW_RUN_JAVASCRIPT=true or allowRunJavascript in config.json.",
+        );
       try {
         return ok(await runJxa(runJavascriptScript(code, windowIndex, tabIndex)));
       } catch (e) {
@@ -207,7 +218,7 @@ export function registerSafariTools(server: McpServer, config: AirMcpConfig): vo
     async () => {
       return err(
         "add_bookmark is deprecated — Safari removed bookmark scripting in macOS 26. " +
-        "Use add_to_reading_list instead."
+          "Use add_to_reading_list instead.",
       );
     },
   );

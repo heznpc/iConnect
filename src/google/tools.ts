@@ -89,7 +89,8 @@ export function registerGoogleTools(server: McpServer, config: AirMcpConfig): vo
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true },
     },
     async ({ to, subject, body, cc }) => {
-      if (!allowSendMail) return err("Sending mail is disabled. Set AIRMCP_ALLOW_SEND_MAIL=true or allowSendMail in config.json.");
+      if (!allowSendMail)
+        return err("Sending mail is disabled. Set AIRMCP_ALLOW_SEND_MAIL=true or allowSendMail in config.json.");
       try {
         // Build RFC 2822 raw message
         let raw = `To: ${to}\nSubject: ${subject}\nContent-Type: text/plain; charset=utf-8\n`;
@@ -113,7 +114,10 @@ export function registerGoogleTools(server: McpServer, config: AirMcpConfig): vo
       title: "List Drive Files",
       description: "List files in Google Drive. Supports query filters.",
       inputSchema: {
-        query: z.string().optional().describe("Drive search query (e.g. \"name contains 'report'\" or \"mimeType = 'application/pdf'\")"),
+        query: z
+          .string()
+          .optional()
+          .describe("Drive search query (e.g. \"name contains 'report'\" or \"mimeType = 'application/pdf'\")"),
         pageSize: z.number().int().min(1).max(100).optional().default(20).describe("Max files to return"),
         orderBy: z.string().optional().describe("Sort order (e.g. 'modifiedTime desc', 'name')"),
       },
@@ -146,10 +150,12 @@ export function registerGoogleTools(server: McpServer, config: AirMcpConfig): vo
     },
     async ({ fileId }) => {
       try {
-        return ok(await runGws("drive", "files", "get", {
-          fileId,
-          fields: "id,name,mimeType,modifiedTime,size,webViewLink,owners,shared,description",
-        }));
+        return ok(
+          await runGws("drive", "files", "get", {
+            fileId,
+            fields: "id,name,mimeType,modifiedTime,size,webViewLink,owners,shared,description",
+          }),
+        );
       } catch (e) {
         return err(`Drive read failed: ${e instanceof Error ? e.message : String(e)}`);
       }
@@ -173,11 +179,13 @@ export function registerGoogleTools(server: McpServer, config: AirMcpConfig): vo
         // Backslash escaping is NOT supported — strip quotes to prevent
         // query-language operator injection (e.g. "x' OR name contains 'y").
         const safeQuery = query.replace(/['\\]/g, "");
-        return ok(await runGws("drive", "files", "list", {
-          q: `fullText contains '${safeQuery}'`,
-          pageSize: maxResults,
-          fields: "files(id,name,mimeType,modifiedTime,webViewLink),nextPageToken",
-        }));
+        return ok(
+          await runGws("drive", "files", "list", {
+            q: `fullText contains '${safeQuery}'`,
+            pageSize: maxResults,
+            fields: "files(id,name,mimeType,modifiedTime,webViewLink),nextPageToken",
+          }),
+        );
       } catch (e) {
         return err(`Drive search failed: ${e instanceof Error ? e.message : String(e)}`);
       }
@@ -222,11 +230,19 @@ export function registerGoogleTools(server: McpServer, config: AirMcpConfig): vo
     },
     async ({ spreadsheetId, range, values }) => {
       try {
-        return ok(await runGws("sheets", "spreadsheets.values", "update", {
-          spreadsheetId,
-          range,
-          valueInputOption: "USER_ENTERED",
-        }, { values }));
+        return ok(
+          await runGws(
+            "sheets",
+            "spreadsheets.values",
+            "update",
+            {
+              spreadsheetId,
+              range,
+              valueInputOption: "USER_ENTERED",
+            },
+            { values },
+          ),
+        );
       } catch (e) {
         return err(`Sheets write failed: ${e instanceof Error ? e.message : String(e)}`);
       }
@@ -391,11 +407,13 @@ export function registerGoogleTools(server: McpServer, config: AirMcpConfig): vo
     },
     async ({ query, pageSize }) => {
       try {
-        return ok(await runGws("people", "people", "searchContacts", {
-          query,
-          pageSize,
-          readMask: "names,emailAddresses,phoneNumbers,organizations",
-        }));
+        return ok(
+          await runGws("people", "people", "searchContacts", {
+            query,
+            pageSize,
+            readMask: "names,emailAddresses,phoneNumbers,organizations",
+          }),
+        );
       } catch (e) {
         return err(`People search failed: ${e instanceof Error ? e.message : String(e)}`);
       }
@@ -410,9 +428,15 @@ export function registerGoogleTools(server: McpServer, config: AirMcpConfig): vo
     "gws_raw",
     {
       title: "Raw GWS Command",
-      description: "Execute any Google Workspace CLI command. For advanced use when specific tools don't cover your need.",
+      description:
+        "Execute any Google Workspace CLI command. For advanced use when specific tools don't cover your need.",
       inputSchema: {
-        service: z.string().min(1).describe("Service name (e.g. 'gmail', 'drive', 'sheets', 'calendar', 'docs', 'slides', 'tasks', 'chat', 'forms', 'keep')"),
+        service: z
+          .string()
+          .min(1)
+          .describe(
+            "Service name (e.g. 'gmail', 'drive', 'sheets', 'calendar', 'docs', 'slides', 'tasks', 'chat', 'forms', 'keep')",
+          ),
         resource: z.string().min(1).describe("Resource (e.g. 'users.messages', 'files', 'spreadsheets.values')"),
         method: z.string().min(1).describe("Method (e.g. 'list', 'get', 'create', 'update', 'delete')"),
         params: z.record(z.unknown()).optional().describe("URL/query parameters as JSON"),

@@ -127,7 +127,7 @@ export function createAlbumScript(name: string): string {
 }
 
 export function addToAlbumScript(photoIds: string[], albumName: string): string {
-  const idArray = photoIds.map(id => `'${esc(id)}'`).join(', ');
+  const idArray = photoIds.map((id) => `'${esc(id)}'`).join(", ");
   return `
     const Photos = Application('Photos');
     const albums = Photos.albums.whose({name: '${esc(albumName)}'})();

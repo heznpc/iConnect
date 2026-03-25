@@ -297,7 +297,8 @@ export function registerMusicTools(server: McpServer, _config: AirMcpConfig): vo
     "set_rating",
     {
       title: "Set Rating",
-      description: "Set the star rating (0-100) for a track. Use multiples of 20 for full stars (0, 20, 40, 60, 80, 100).",
+      description:
+        "Set the star rating (0-100) for a track. Use multiples of 20 for full stars (0, 20, 40, 60, 80, 100).",
       inputSchema: {
         trackName: z.string().describe("Track name"),
         rating: z.number().int().min(0).max(100).describe("Rating value (0-100)"),

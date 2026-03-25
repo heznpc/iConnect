@@ -394,4 +394,3 @@ export function bulkMoveNotesScript(ids: string[], targetFolder: string): string
     JSON.stringify({targetFolder: '${esc(targetFolder)}', moved: results.filter(r => r.success).length, failed: results.filter(r => !r.success).length, results: results});
   `;
 }
-

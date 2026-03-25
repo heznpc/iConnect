@@ -148,7 +148,7 @@ export function playPlaylistScript(name: string, shuffle?: boolean): string {
     const Music = Application('Music');
     const pls = Music.playlists.whose({name: '${esc(name)}'})();
     if (pls.length === 0) throw new Error('Playlist not found: ${esc(name)}');
-    ${shuffle !== undefined ? `Music.shuffleEnabled = ${shuffle};` : ''}
+    ${shuffle !== undefined ? `Music.shuffleEnabled = ${shuffle};` : ""}
     pls[0].play();
     JSON.stringify({playing: true, playlist: '${esc(name)}', shuffle: Music.shuffleEnabled()});
   `;
@@ -191,7 +191,7 @@ export function setShuffleScript(shuffle?: boolean, songRepeat?: string): string
   if (songRepeat !== undefined) lines.push(`Music.songRepeat = '${esc(songRepeat)}';`);
   return `
     const Music = Application('Music');
-    ${lines.join('\n    ')}
+    ${lines.join("\n    ")}
     JSON.stringify({
       shuffleEnabled: Music.shuffleEnabled(),
       songRepeat: Music.songRepeat()

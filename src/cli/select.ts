@@ -3,10 +3,7 @@
  * Arrow keys to navigate, Space to toggle, Enter to confirm.
  */
 import { emitKeypressEvents } from "node:readline";
-import {
-  DIM, RESET, BOLD, WHITE, GREEN,
-  HIDE_CURSOR, SHOW_CURSOR, CLEAR_LINE, MOVE_UP,
-} from "./style.js";
+import { DIM, RESET, BOLD, WHITE, GREEN, HIDE_CURSOR, SHOW_CURSOR, CLEAR_LINE, MOVE_UP } from "./style.js";
 
 // ── Single select (language picker) ──────────────────────────────────
 
@@ -16,11 +13,7 @@ export interface SelectOption {
   hint?: string;
 }
 
-export function selectOne(
-  title: string,
-  options: SelectOption[],
-  defaultIndex = 0,
-): Promise<string> {
+export function selectOne(title: string, options: SelectOption[], defaultIndex = 0): Promise<string> {
   return new Promise((resolve) => {
     let cursor = defaultIndex;
     const out = process.stdout;

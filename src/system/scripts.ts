@@ -139,7 +139,7 @@ export function showNotificationScript(message: string, title?: string, subtitle
   return `
     const app = Application.currentApplication();
     app.includeStandardAdditions = true;
-    app.displayNotification('${esc(message)}', {${opts.join(', ')}});
+    app.displayNotification('${esc(message)}', {${opts.join(", ")}});
     JSON.stringify({sent: true, message: '${esc(message)}'});
   `;
 }

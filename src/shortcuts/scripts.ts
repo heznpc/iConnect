@@ -13,9 +13,7 @@ export function listShortcutsScript(): string {
 }
 
 export function runShortcutScript(name: string, input?: string): string {
-  const inputPart = input !== undefined
-    ? ` --input-type text --input "${escJxaShell(input)}"`
-    : "";
+  const inputPart = input !== undefined ? ` --input-type text --input "${escJxaShell(input)}"` : "";
   return `
     const app = Application.currentApplication();
     app.includeStandardAdditions = true;

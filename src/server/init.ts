@@ -22,9 +22,7 @@ export interface ServerContext {
 
 export function initializeServer(): ServerContext {
   const __dirname = dirname(fileURLToPath(import.meta.url));
-  const pkg = JSON.parse(
-    readFileSync(join(__dirname, "..", "..", "package.json"), "utf-8"),
-  ) as { version: string };
+  const pkg = JSON.parse(readFileSync(join(__dirname, "..", "..", "package.json"), "utf-8")) as { version: string };
 
   const config = parseConfig();
   const osVersion = getOsVersion();
@@ -49,8 +47,14 @@ export function initializeServer(): ServerContext {
     }
   }
   process.on("exit", onExit);
-  process.on("SIGINT", () => { onExit(); process.exit(0); });
-  process.on("SIGTERM", () => { onExit(); process.exit(0); });
+  process.on("SIGINT", () => {
+    onExit();
+    process.exit(0);
+  });
+  process.on("SIGTERM", () => {
+    onExit();
+    process.exit(0);
+  });
 
   // Catch unhandled errors to prevent silent crashes
   process.on("unhandledRejection", (reason) => {

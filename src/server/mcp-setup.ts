@@ -126,11 +126,13 @@ export async function createServer(
       },
       outputSchema: {
         query: z.string(),
-        matches: z.array(z.object({
-          name: z.string(),
-          title: z.string().optional(),
-          description: z.string().optional(),
-        })),
+        matches: z.array(
+          z.object({
+            name: z.string(),
+            title: z.string().optional(),
+            description: z.string().optional(),
+          }),
+        ),
         total: z.number().optional(),
         method: z.string().optional(),
         hint: z.string().optional(),
@@ -151,7 +153,7 @@ export async function createServer(
       const semanticResults = await semanticToolSearch(query, maxResults);
 
       // Merge: substring first, then semantic (deduplicated)
-      const seen = new Set(substringResults.map(r => r.name));
+      const seen = new Set(substringResults.map((r) => r.name));
       const merged = [...substringResults];
       for (const r of semanticResults) {
         if (!seen.has(r.name)) {
@@ -162,82 +164,97 @@ export async function createServer(
 
       const final = merged.slice(0, maxResults);
       if (final.length === 0) {
-        const result = { query, matches: [] as typeof final, hint: "Try broader terms or check module names: notes, calendar, reminders, mail, music, contacts, finder, safari, system, photos, messages, shortcuts" };
+        const result = {
+          query,
+          matches: [] as typeof final,
+          hint: "Try broader terms or check module names: notes, calendar, reminders, mail, music, contacts, finder, safari, system, photos, messages, shortcuts",
+        };
         return okStructured(result);
       }
-      const result = { query, matches: final, total: final.length, method: substringResults.length > 0 ? "keyword+semantic" : "semantic" };
+      const result = {
+        query,
+        matches: final,
+        total: final.length,
+        method: substringResults.length > 0 ? "keyword+semantic" : "semantic",
+      };
       return okStructured(result);
     },
   );
 
   // suggest_next_tools: usage-pattern-based tool recommendations (requires usageTracking)
-  if (config.features.usageTracking) lServer.registerTool(
-    "suggest_next_tools",
-    {
-      title: "Suggest Next Tools",
-      description:
-        "Based on your usage patterns, suggest which tools typically follow a given tool. " +
-        "Learns from how you use AirMCP over time. Returns frequently-used tool sequences.",
-      inputSchema: {
-        after: z.string().min(1).describe("Tool name to get suggestions for — e.g. 'today_events'"),
-        limit: z.number().min(1).max(20).optional().describe("Max suggestions (default 5)"),
+  if (config.features.usageTracking)
+    lServer.registerTool(
+      "suggest_next_tools",
+      {
+        title: "Suggest Next Tools",
+        description:
+          "Based on your usage patterns, suggest which tools typically follow a given tool. " +
+          "Learns from how you use AirMCP over time. Returns frequently-used tool sequences.",
+        inputSchema: {
+          after: z.string().min(1).describe("Tool name to get suggestions for — e.g. 'today_events'"),
+          limit: z.number().min(1).max(20).optional().describe("Max suggestions (default 5)"),
+        },
+        outputSchema: {
+          after: z.string(),
+          suggestions: z.array(
+            z.object({
+              tool: z.string(),
+              count: z.number(),
+            }),
+          ),
+          totalCalls: z.number(),
+          hint: z.string().optional(),
+        },
+        annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
       },
-      outputSchema: {
-        after: z.string(),
-        suggestions: z.array(z.object({
-          tool: z.string(),
-          count: z.number(),
-        })),
-        totalCalls: z.number(),
-        hint: z.string().optional(),
-      },
-      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-    },
-    async ({ after, limit }) => {
-      const next = usageTracker.getNextTools(after, limit ?? 5);
-      const stats = usageTracker.getStats();
-      if (next.length === 0) {
-        const result = {
-          after,
-          suggestions: [] as { tool: string; count: number }[],
-          hint: "No usage patterns recorded yet. Use tools normally and suggestions will appear over time.",
-          totalCalls: stats.totalCalls,
-        };
+      async ({ after, limit }) => {
+        const next = usageTracker.getNextTools(after, limit ?? 5);
+        const stats = usageTracker.getStats();
+        if (next.length === 0) {
+          const result = {
+            after,
+            suggestions: [] as { tool: string; count: number }[],
+            hint: "No usage patterns recorded yet. Use tools normally and suggestions will appear over time.",
+            totalCalls: stats.totalCalls,
+          };
+          return okStructured(result);
+        }
+        const result = { after, suggestions: next, totalCalls: stats.totalCalls };
         return okStructured(result);
-      }
-      const result = { after, suggestions: next, totalCalls: stats.totalCalls };
-      return okStructured(result);
-    },
-  );
+      },
+    );
 
   // proactive_context: time/pattern-aware context suggestions (requires proactiveContext)
-  if (config.features.proactiveContext) lServer.registerTool(
-    "proactive_context",
-    {
-      title: "Proactive Context",
-      description:
-        "Get contextually relevant tool and workflow suggestions based on time of day, day of week, and your usage patterns. " +
-        "Like Siri Suggestions but for MCP — tells you what you probably want to do right now.",
-      inputSchema: {},
-      outputSchema: {
-        timeContext: z.object({
-          period: z.enum(["morning", "afternoon", "evening", "night"]),
-          hour: z.number(),
-          isWeekend: z.boolean(),
-        }),
-        suggestedTools: z.array(z.object({
-          tool: z.string(),
-          reason: z.string(),
-        })),
-        suggestedWorkflows: z.array(z.string()),
+  if (config.features.proactiveContext)
+    lServer.registerTool(
+      "proactive_context",
+      {
+        title: "Proactive Context",
+        description:
+          "Get contextually relevant tool and workflow suggestions based on time of day, day of week, and your usage patterns. " +
+          "Like Siri Suggestions but for MCP — tells you what you probably want to do right now.",
+        inputSchema: {},
+        outputSchema: {
+          timeContext: z.object({
+            period: z.enum(["morning", "afternoon", "evening", "night"]),
+            hour: z.number(),
+            isWeekend: z.boolean(),
+          }),
+          suggestedTools: z.array(
+            z.object({
+              tool: z.string(),
+              reason: z.string(),
+            }),
+          ),
+          suggestedWorkflows: z.array(z.string()),
+        },
+        annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
       },
-      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-    },
-    async () => {
-      const bundle = generateProactiveContext();
-      return okStructured(bundle);
-    },
-  );
+      async () => {
+        const bundle = generateProactiveContext();
+        return okStructured(bundle);
+      },
+    );
 
   // event_subscribe: start real-time event observation
   lServer.registerTool(
@@ -272,7 +289,11 @@ export async function createServer(
           resourceCache.delete("snapshot:brief");
           resourceCache.delete("snapshot:full");
           // Notify MCP clients that resources changed
-          try { server.sendResourceListChanged(); } catch { /* client may not support notifications */ }
+          try {
+            server.sendResourceListChanged();
+          } catch {
+            /* client may not support notifications */
+          }
         });
         eventBus.on("reminders_changed", () => {
           resourceCache.delete("reminders:due");
@@ -280,11 +301,19 @@ export async function createServer(
           resourceCache.delete("snapshot:standard");
           resourceCache.delete("snapshot:brief");
           resourceCache.delete("snapshot:full");
-          try { server.sendResourceListChanged(); } catch { /* client may not support notifications */ }
+          try {
+            server.sendResourceListChanged();
+          } catch {
+            /* client may not support notifications */
+          }
         });
         eventBus.on("pasteboard_changed", () => {
           resourceCache.delete("system:clipboard");
-          try { server.sendResourceListChanged(); } catch { /* client may not support notifications */ }
+          try {
+            server.sendResourceListChanged();
+          } catch {
+            /* client may not support notifications */
+          }
         });
 
         return ok({ status: "started", monitoring: ["calendar", "reminders", "pasteboard"] });
@@ -313,7 +342,8 @@ export async function createServer(
     "list_triggers",
     {
       title: "List Event Triggers",
-      description: "Show all skills with event triggers (calendar_changed, reminders_changed, pasteboard_changed) and their debounce settings.",
+      description:
+        "Show all skills with event triggers (calendar_changed, reminders_changed, pasteboard_changed) and their debounce settings.",
       inputSchema: {},
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
@@ -354,10 +384,7 @@ export async function createServer(
         "Useful in autonomous/Cowork environments where prompts cannot be invoked directly.",
       inputSchema: {
         name: z.string().min(1).describe("Prompt name (e.g. 'daily-briefing', 'dev-session')"),
-        args: z
-          .record(z.string())
-          .optional()
-          .describe("Prompt arguments as key-value pairs"),
+        args: z.record(z.string()).optional().describe("Prompt arguments as key-value pairs"),
       },
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },

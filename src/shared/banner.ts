@@ -6,7 +6,7 @@
 const DIM = "\x1b[2m";
 const RESET = "\x1b[0m";
 const BOLD = "\x1b[1m";
-const WHITE = "\x1b[97m";  // bright white
+const WHITE = "\x1b[97m"; // bright white
 const YELLOW = "\x1b[33m";
 
 export const LOGO_LINES = [
@@ -91,7 +91,10 @@ export async function printBanner(info: BannerInfo): Promise<void> {
   write("\n");
 
   // Version line — types in
-  await typeLine(`  ${DIM}:: AirMCP v${info.version} ::${RESET}                ${DIM}macOS ${info.macosVersion} / Node ${info.nodeVersion}${RESET}`, 6);
+  await typeLine(
+    `  ${DIM}:: AirMCP v${info.version} ::${RESET}                ${DIM}macOS ${info.macosVersion} / Node ${info.nodeVersion}${RESET}`,
+    6,
+  );
 
   write("\n");
 
@@ -109,11 +112,19 @@ export async function printBanner(info: BannerInfo): Promise<void> {
 
   // Stats — fill in one by one
   write(`  ${BOLD}Stats${RESET}\n`);
-  await fillLine("Tools", `${info.toolCount}${info.dynamicShortcuts > 0 ? ` (+${info.dynamicShortcuts} shortcuts)` : ""}`, 80);
+  await fillLine(
+    "Tools",
+    `${info.toolCount}${info.dynamicShortcuts > 0 ? ` (+${info.dynamicShortcuts} shortcuts)` : ""}`,
+    80,
+  );
   if (info.promptCount) {
     await fillLine("Prompts", String(info.promptCount), 60);
   }
-  await fillLine("Skills", `${info.skillsBuiltin} built-in${info.skillsUser > 0 ? `, ${info.skillsUser} user` : ""}`, 60);
+  await fillLine(
+    "Skills",
+    `${info.skillsBuiltin} built-in${info.skillsUser > 0 ? `, ${info.skillsUser} user` : ""}`,
+    60,
+  );
   const hitlVal = info.hitlLevel === "off" ? `${DIM}off${RESET}` : `${YELLOW}${info.hitlLevel}${RESET}`;
   write(`  ${DIM}├${RESET} HITL: ${hitlVal}\n`);
   if (info.compactTools) {

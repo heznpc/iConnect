@@ -23,10 +23,7 @@ export function registerCrossTools(mcpServer: McpServer, config: AirMcpConfig): 
         "Collect context from all enabled Apple apps and ask the client's LLM to produce a concise briefing. " +
         "Uses MCP Sampling — works with any LLM the client is using. No API keys required.",
       inputSchema: {
-        focus: z
-          .string()
-          .optional()
-          .describe("Optional focus area (e.g. 'meetings', 'overdue tasks', 'project X')"),
+        focus: z.string().optional().describe("Optional focus area (e.g. 'meetings', 'overdue tasks', 'project X')"),
       },
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
@@ -73,10 +70,7 @@ export function registerCrossTools(mcpServer: McpServer, config: AirMcpConfig): 
           },
         });
 
-        const text =
-          result.content.type === "text"
-            ? result.content.text
-            : JSON.stringify(result.content);
+        const text = result.content.type === "text" ? result.content.text : JSON.stringify(result.content);
 
         return ok({ briefing: text, model: result.model });
       } catch (e) {
@@ -145,7 +139,8 @@ export function registerCrossTools(mcpServer: McpServer, config: AirMcpConfig): 
     },
     async () => {
       const available = await checkOllama();
-      if (!available) return ok({ available: false, models: [], hint: "Install Ollama from ollama.com and run 'ollama serve'" });
+      if (!available)
+        return ok({ available: false, models: [], hint: "Install Ollama from ollama.com and run 'ollama serve'" });
       const models = await ollamaModels();
       return ok({ available: true, models });
     },
