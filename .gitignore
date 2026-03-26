@@ -17,6 +17,7 @@ coverage/
 qa-sequential-report-*.md
 docs/site/node_modules/
 docs/site/dist/
+docs/site/.astro/
 AirMCP.app
 
 # Binary / bundle
@@ -30,6 +31,9 @@ AirMCP.app
 *.tmp
 *.swp
 *~
+
+# Generated files (regenerate via scripts/)
+llms-full.txt
 
 # Build cache
 *.tsbuildinfo
