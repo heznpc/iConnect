@@ -1,5 +1,7 @@
+import { createHash } from "node:crypto";
 import { runSwift, checkSwiftBridge } from "../shared/swift.js";
 import { API, MODELS, TIMEOUT, LIMITS } from "../shared/constants.js";
+import { TtlCache } from "../shared/cache.js";
 
 interface EmbedTextResult {
   vector: number[];
@@ -21,6 +23,22 @@ interface GeminiEmbedResponse {
 interface GeminiBatchEmbedResponse {
   embeddings: Array<{ values: number[] }>;
 }
+
+// -- Embedding cache (tool descriptions + repeated queries are immutable per session) --
+const embedCache = new TtlCache({ maxEntries: 1000, autoPruneMs: 10 * 60_000 });
+const EMBED_CACHE_TTL = 60 * 60_000; // 60 minutes — tool descriptions and note titles are quasi-static
+
+/** Hash text for cache key — avoids storing PII/secrets in plaintext cache keys. */
+function hashText(text: string): string {
+  return createHash("sha256").update(text).digest("hex").slice(0, 16);
+}
+
+function embedCacheKey(provider: EmbeddingProvider, language: string | undefined, text: string): string {
+  return `embed:${provider}:${language ?? ""}:${hashText(text)}`;
+}
+
+// -- Max concurrent batch chunks to Gemini API --
+const BATCH_CONCURRENCY = 3;
 
 // -- Provider detection --
 
@@ -75,46 +93,55 @@ async function geminiEmbed(text: string): Promise<number[]> {
 
   if (!res.ok) {
     const body = await res.text();
-    throw new Error(`Gemini API error ${res.status}: ${body.slice(0, 200)}`);
+    throw new Error(`Gemini API error ${res.status}: ${body.slice(0, 200).replace(/key=[^&\s]*/gi, "key=[REDACTED]")}`);
   }
 
   const data = (await res.json()) as GeminiEmbedResponse;
   return data.embedding.values;
 }
 
-async function geminiBatchEmbed(texts: string[]): Promise<number[][]> {
+async function geminiBatchEmbedChunk(chunk: string[]): Promise<number[][]> {
   const apiKey = process.env.GEMINI_API_KEY!;
+  const res = await fetch(GEMINI_BATCH_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
+    body: JSON.stringify({
+      requests: chunk.map((text) => ({
+        model: `models/${GEMINI_MODEL}`,
+        content: { parts: [{ text }] },
+        taskType: "SEMANTIC_SIMILARITY",
+        outputDimensionality: GEMINI_DIMENSION,
+      })),
+    }),
+    signal: AbortSignal.timeout(TIMEOUT.EMBED_BATCH),
+  });
 
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(
+      `Gemini batch API error ${res.status}: ${body.slice(0, 200).replace(/key=[^&\s]*/gi, "key=[REDACTED]")}`,
+    );
+  }
+
+  const data = (await res.json()) as GeminiBatchEmbedResponse;
+  return data.embeddings.map((e) => e.values);
+}
+
+async function geminiBatchEmbed(texts: string[]): Promise<number[][]> {
   // Gemini batch API: max 100 per request
   const chunks: string[][] = [];
   for (let i = 0; i < texts.length; i += LIMITS.EMBED_BATCH_SIZE) {
     chunks.push(texts.slice(i, i + LIMITS.EMBED_BATCH_SIZE));
   }
 
+  // Process chunks in parallel (up to BATCH_CONCURRENCY at a time)
   const allVectors: number[][] = [];
-
-  for (const chunk of chunks) {
-    const res = await fetch(GEMINI_BATCH_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
-      body: JSON.stringify({
-        requests: chunk.map((text) => ({
-          model: `models/${GEMINI_MODEL}`,
-          content: { parts: [{ text }] },
-          taskType: "SEMANTIC_SIMILARITY",
-          outputDimensionality: GEMINI_DIMENSION,
-        })),
-      }),
-      signal: AbortSignal.timeout(TIMEOUT.EMBED_BATCH),
-    });
-
-    if (!res.ok) {
-      const body = await res.text();
-      throw new Error(`Gemini batch API error ${res.status}: ${body.slice(0, 200)}`);
+  for (let i = 0; i < chunks.length; i += BATCH_CONCURRENCY) {
+    const batch = chunks.slice(i, i + BATCH_CONCURRENCY);
+    const results = await Promise.all(batch.map((chunk) => geminiBatchEmbedChunk(chunk)));
+    for (const vectors of results) {
+      allVectors.push(...vectors);
     }
-
-    const data = (await res.json()) as GeminiBatchEmbedResponse;
-    allVectors.push(...data.embeddings.map((e) => e.values));
   }
 
   return allVectors;
@@ -153,32 +180,62 @@ async function hybridBatchEmbed(texts: string[], language?: string): Promise<num
 
 // -- Public API (auto-selects provider) --
 
-/** Embed a single text. Provider priority: hybrid > gemini > swift > error. */
+/** Embed a single text. Cached for 60 min — repeated queries skip API calls. */
 export async function embedText(text: string, provider: EmbeddingProvider, language?: string): Promise<number[]> {
-  switch (provider) {
-    case "gemini":
-      return geminiEmbed(text);
-    case "swift":
-      return swiftEmbed(text, language);
-    case "hybrid":
-      return hybridEmbed(text, language);
-    default:
-      throw new Error("No embedding backend available. Set GEMINI_API_KEY or run 'npm run swift-build'.");
-  }
+  const cacheKey = embedCacheKey(provider, language, text);
+  return embedCache.getOrSet<number[]>(cacheKey, EMBED_CACHE_TTL, async () => {
+    switch (provider) {
+      case "gemini":
+        return geminiEmbed(text);
+      case "swift":
+        return swiftEmbed(text, language);
+      case "hybrid":
+        return hybridEmbed(text, language);
+      default:
+        throw new Error("No embedding backend available. Set GEMINI_API_KEY or run 'npm run swift-build'.");
+    }
+  });
 }
 
-/** Embed multiple texts. Provider priority: hybrid > gemini > swift > error. */
+/** Embed multiple texts with per-text cache. Only uncached texts hit the API. */
 export async function embedBatch(texts: string[], provider: EmbeddingProvider, language?: string): Promise<number[][]> {
+  // Precompute cache keys to avoid double-hashing
+  const cacheKeys = texts.map((text) => embedCacheKey(provider, language, text));
+  const results: (number[] | null)[] = cacheKeys.map((key) => embedCache.get<number[]>(key) ?? null);
+
+  const uncachedIdx = results.reduce<number[]>((acc, r, i) => {
+    if (r === null) acc.push(i);
+    return acc;
+  }, []);
+
+  if (uncachedIdx.length === 0) return results as number[][];
+
+  // Batch-embed only uncached texts
+  const uncachedTexts = uncachedIdx.map((i) => texts[i]!);
+  let newVectors: number[][];
   switch (provider) {
     case "gemini":
-      return geminiBatchEmbed(texts);
+      newVectors = await geminiBatchEmbed(uncachedTexts);
+      break;
     case "swift":
-      return swiftBatchEmbed(texts, language);
+      newVectors = await swiftBatchEmbed(uncachedTexts, language);
+      break;
     case "hybrid":
-      return hybridBatchEmbed(texts, language);
+      newVectors = await hybridBatchEmbed(uncachedTexts, language);
+      break;
     default:
       throw new Error("No embedding backend available. Set GEMINI_API_KEY or run 'npm run swift-build'.");
   }
+
+  // Cache new vectors and merge into results
+  for (let j = 0; j < uncachedIdx.length; j++) {
+    const idx = uncachedIdx[j]!;
+    const vector = newVectors[j]!;
+    embedCache.set(cacheKeys[idx]!, vector, EMBED_CACHE_TTL);
+    results[idx] = vector;
+  }
+
+  return results as number[][];
 }
 
 /** Cosine similarity between two vectors. */

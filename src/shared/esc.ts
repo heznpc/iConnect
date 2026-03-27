@@ -15,6 +15,21 @@ export function esc(str: string): string {
   );
 }
 
+/** Escape a string for safe interpolation inside AppleScript double-quoted strings. */
+export function escAS(str: string): string {
+  return (
+    str
+      .replace(/\0/g, "")
+      // eslint-disable-next-line no-control-regex
+      .replace(/[\x01-\x08\x0b\x0c\x0e-\x1f]/g, "")
+      .replace(/\\/g, "\\\\")
+      .replace(/"/g, '\\"')
+      .replace(/\n/g, "\\n")
+      .replace(/\r/g, "\\r")
+      .replace(/\t/g, "\\t")
+  );
+}
+
 /** Escape a string for safe interpolation inside shell double-quoted arguments via doShellScript. */
 export function escShell(str: string): string {
   return str
@@ -35,4 +50,11 @@ export function escShell(str: string): string {
 export function escJxaShell(str: string): string {
   const shellSafe = escShell(str);
   return shellSafe.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+}
+
+/** Ensure n is a finite integer — prevents shell injection if a non-number leaks through validation. */
+export function safeInt(n: number): number {
+  const v = Math.trunc(n);
+  if (!Number.isSafeInteger(v)) throw new RangeError(`Expected safe integer, got ${n}`);
+  return v;
 }

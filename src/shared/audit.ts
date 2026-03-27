@@ -1,4 +1,4 @@
-import { appendFile, mkdir, stat, rename } from "node:fs/promises";
+import { appendFile, chmod, mkdir, stat, rename } from "node:fs/promises";
 import { join } from "node:path";
 import { PATHS } from "./constants.js";
 
@@ -45,22 +45,29 @@ function ensureFlushTimer(): void {
   if (flushTimer.unref) flushTimer.unref();
 }
 
+let flushing = false;
+
 async function flushBuffer(): Promise<void> {
-  if (buffer.length === 0) return;
+  if (buffer.length === 0 || flushing) return;
+  flushing = true;
   const lines = buffer.join("\n") + "\n";
   buffer = [];
   try {
     await ensureDir();
-    await appendFile(AUDIT_PATH, lines, "utf-8");
+    await appendFile(AUDIT_PATH, lines, { encoding: "utf-8", mode: 0o600 });
     await rotateIfNeeded();
   } catch {
     // non-critical
+  } finally {
+    flushing = false;
   }
 }
 
 async function rotateIfNeeded(): Promise<void> {
   try {
     const s = await stat(AUDIT_PATH);
+    // Ensure owner-only permissions on existing file
+    if ((s.mode & 0o777) !== 0o600) await chmod(AUDIT_PATH, 0o600);
     if (s.size > MAX_FILE_SIZE) {
       const rotated = AUDIT_PATH.replace(".jsonl", `.${Date.now()}.jsonl`);
       await rename(AUDIT_PATH, rotated);

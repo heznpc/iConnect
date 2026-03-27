@@ -1,17 +1,30 @@
 // JXA scripts for Finder automation (file search, tags, info).
 
-import { esc, escJxaShell } from "../shared/esc.js";
+import { esc, escJxaShell, safeInt } from "../shared/esc.js";
+
+/** Reject paths with directory traversal sequences to prevent path traversal attacks. */
+function assertSafePath(p: string): void {
+  if (/(?:^|[\\/])\.\.(?:[\\/]|$)/.test(p)) {
+    throw new Error('Path traversal ("..") is not allowed');
+  }
+}
+
+// JXA-runtime helper: escape a dynamic value for doShellScript double-quoted args.
+// Included in scripts that handle runtime-dynamic paths (e.g. mdfind/ls output).
+const JXA_SHELL_ESC_FN = `function _esc(s){return s.replace(/\\\\/g,'\\\\\\\\').replace(/"/g,'\\\\"').replace(/\\$/g,'\\\\$').replace(/\\\`/g,'\\\\\\\`');}`;
 
 export function searchFilesScript(folder: string, query: string, limit: number): string {
+  assertSafePath(folder);
+  const n = safeInt(limit);
   return `
     const app = Application.currentApplication();
     app.includeStandardAdditions = true;
-    const results = app.doShellScript('mdfind -onlyin "${escJxaShell(folder)}" "${escJxaShell(query)}" | head -${limit}');
+    ${JXA_SHELL_ESC_FN}
+    const results = app.doShellScript('mdfind -onlyin "${escJxaShell(folder)}" "${escJxaShell(query)}" | head -${n}');
     const paths = results.split(/[\\r\\n]+/).filter(p => p.length > 0);
     const result = paths.map(p => {
       try {
-        const escaped = p.replace(/\\\\/g, '\\\\\\\\').replace(/"/g, '\\\\"').replace(/\\$/g, '\\\\$').replace(/\`/g, '\\\\\`');
-        const stat = app.doShellScript('stat -f "%z %m" "' + escaped + '"');
+        const stat = app.doShellScript('stat -f "%z %m" "' + _esc(p) + '"');
         const parts = stat.split(' ');
         const size = parseInt(parts[0], 10);
         const mtime = parseInt(parts[1], 10);
@@ -28,6 +41,7 @@ export function searchFilesScript(folder: string, query: string, limit: number):
 }
 
 export function getFileInfoScript(path: string): string {
+  assertSafePath(path);
   return `
     const app = Application.currentApplication();
     app.includeStandardAdditions = true;
@@ -54,6 +68,7 @@ export function getFileInfoScript(path: string): string {
 }
 
 export function setTagsScript(path: string, tags: string[]): string {
+  assertSafePath(path);
   const tagArgs = tags.map((t) => `'${esc(t)}'`).join(", ");
   return `
     const app = Application.currentApplication();
@@ -67,11 +82,14 @@ export function setTagsScript(path: string, tags: string[]): string {
 }
 
 export function recentFilesScript(folder: string, days: number, limit: number): string {
+  assertSafePath(folder);
+  const d = safeInt(days);
+  const n = safeInt(limit);
   return `
     const app = Application.currentApplication();
     app.includeStandardAdditions = true;
-    const dateStr = new Date(Date.now() - ${days} * 86400000).toISOString().split('T')[0];
-    const results = app.doShellScript('mdfind -onlyin "${escJxaShell(folder)}" "kMDItemContentModificationDate >= $time.iso(' + dateStr + ')" | head -${limit}');
+    const dateStr = new Date(Date.now() - ${d} * 86400000).toISOString().split('T')[0];
+    const results = app.doShellScript('mdfind -onlyin "${escJxaShell(folder)}" "kMDItemContentModificationDate >= $time.iso(' + dateStr + ')" | head -${n}');
     const paths = results.split(/[\\r\\n]+/).filter(p => p.length > 0);
     const result = paths.map(p => ({path: p, name: p.split('/').pop()}));
     JSON.stringify({total: paths.length, files: result});
@@ -79,16 +97,18 @@ export function recentFilesScript(folder: string, days: number, limit: number): 
 }
 
 export function listDirectoryScript(path: string, limit: number): string {
+  assertSafePath(path);
+  const n = safeInt(limit);
   return `
     const app = Application.currentApplication();
     app.includeStandardAdditions = true;
-    const output = app.doShellScript('ls -1 "${escJxaShell(path)}" | head -${limit}');
+    ${JXA_SHELL_ESC_FN}
+    const output = app.doShellScript('ls -1 "${escJxaShell(path)}" | head -${n}');
     const fileNames = output.split(/[\\r\\n]+/).filter(n => n.length > 0);
     const result = fileNames.map(name => {
       try {
         const fullPath = '${esc(path)}' + '/' + name;
-        const escaped = fullPath.replace(/\\\\/g, '\\\\\\\\').replace(/"/g, '\\\\"').replace(/\\$/g, '\\\\$').replace(/\`/g, '\\\\\`');
-        const stat = app.doShellScript('stat -f "%z %m %HT" "' + escaped + '"');
+        const stat = app.doShellScript('stat -f "%z %m %HT" "' + _esc(fullPath) + '"');
         const parts = stat.split(' ');
         const size = parseInt(parts[0], 10);
         const mtime = parseInt(parts[1], 10);
@@ -106,6 +126,8 @@ export function listDirectoryScript(path: string, limit: number): string {
 }
 
 export function moveFileScript(source: string, destination: string): string {
+  assertSafePath(source);
+  assertSafePath(destination);
   return `
     const app = Application.currentApplication();
     app.includeStandardAdditions = true;
@@ -115,6 +137,7 @@ export function moveFileScript(source: string, destination: string): string {
 }
 
 export function trashFileScript(path: string): string {
+  assertSafePath(path);
   return `
     const Finder = Application('Finder');
     const posixFile = Path('${esc(path)}');
@@ -126,6 +149,7 @@ export function trashFileScript(path: string): string {
 }
 
 export function createFolderScript(path: string): string {
+  assertSafePath(path);
   return `
     const app = Application.currentApplication();
     app.includeStandardAdditions = true;

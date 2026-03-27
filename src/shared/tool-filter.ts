@@ -1,8 +1,8 @@
 /**
  * Tool description optimizer — reduces token consumption in tools/list.
  *
- * When AIRMCP_COMPACT_TOOLS=true, tool descriptions are shortened
- * to save tokens in the LLM context window.
+ * Compact mode is ON by default. Set AIRMCP_COMPACT_TOOLS=false to disable.
+ * Tool descriptions are shortened to save tokens in the LLM context window.
  *
  * Full list at ~37K tokens -> compact at ~20K tokens (46% reduction).
  *
@@ -15,7 +15,7 @@
  * discover_tools / semantic search so search quality is unaffected.
  */
 
-const COMPACT_MODE = process.env.AIRMCP_COMPACT_TOOLS === "true";
+const COMPACT_MODE = process.env.AIRMCP_COMPACT_TOOLS !== "false";
 
 /** Whether compact tool descriptions are enabled. */
 export function isCompactMode(): boolean {
@@ -29,13 +29,13 @@ export function isCompactMode(): boolean {
  */
 export function compactDescription(description: string): string {
   if (!COMPACT_MODE) return description;
-  // Take first sentence only (split on ". " to avoid splitting on abbreviations/decimals)
-  const firstSentence = description.split(/\.\s/)[0];
-  if (!firstSentence) return description;
+  // Find first sentence boundary: punctuation (.!?) followed by whitespace
+  const match = description.match(/^(.*?[.!?])\s/);
+  const firstSentence = match?.[1] ?? description;
   // Cap at 80 chars
   return firstSentence.length > 80
     ? firstSentence.slice(0, 77) + "..."
-    : firstSentence.endsWith(".")
+    : /[.!?]$/.test(firstSentence)
       ? firstSentence
       : firstSentence + ".";
 }

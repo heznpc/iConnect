@@ -1,6 +1,7 @@
 /**
  * Generic TTL cache — stores values with per-key expiration.
- * Supports optional max entry limit and automatic periodic pruning.
+ * Uses Map insertion order as LRU: accessed keys are moved to the end.
+ * Eviction is O(1) — removes the oldest (first) entry in the Map.
  */
 export class TtlCache {
   private store = new Map<string, { value: unknown; expiresAt: number }>();
@@ -17,7 +18,7 @@ export class TtlCache {
     }
   }
 
-  /** Get a cached value, or undefined if missing/expired. */
+  /** Get a cached value, or undefined if missing/expired. Touches the entry for LRU. */
   get<T = unknown>(key: string): T | undefined {
     const entry = this.store.get(key);
     if (!entry) return undefined;
@@ -25,11 +26,14 @@ export class TtlCache {
       this.store.delete(key);
       return undefined;
     }
+    this.store.delete(key);
+    this.store.set(key, entry);
     return entry.value as T;
   }
 
   /** Store a value with TTL in milliseconds. */
   set(key: string, value: unknown, ttlMs: number): void {
+    this.store.delete(key);
     this.store.set(key, { value, expiresAt: Date.now() + ttlMs });
     this.evictIfNeeded();
   }
@@ -51,6 +55,13 @@ export class TtlCache {
         throw err;
       });
     this.inflight.set(key, promise);
+    // Safety: clean up inflight entry if promise never settles (prevents memory leak)
+    const safetyTimeout = setTimeout(() => this.inflight.delete(key), Math.max(ttlMs, 60_000));
+    if (safetyTimeout.unref) safetyTimeout.unref();
+    promise.then(
+      () => clearTimeout(safetyTimeout),
+      () => clearTimeout(safetyTimeout),
+    );
     return promise;
   }
 
@@ -77,9 +88,10 @@ export class TtlCache {
     return this.store.size;
   }
 
-  /** Clear all entries and stop auto-prune timer. */
+  /** Clear all entries (including inflight) and stop auto-prune timer. */
   clear(): void {
     this.store.clear();
+    this.inflight.clear();
   }
 
   /** Stop the auto-prune timer. */
@@ -90,17 +102,17 @@ export class TtlCache {
     }
   }
 
-  /** Evict oldest entries when cache exceeds maxEntries. */
+  /** Evict LRU entries when cache exceeds maxEntries. O(1) per eviction. */
   private evictIfNeeded(): void {
     if (this.store.size <= this.maxEntries) return;
-    // First pass: remove expired
+    // First pass: remove expired (may free enough space)
     this.prune();
-    if (this.store.size <= this.maxEntries) return;
-    // Second pass: evict by earliest expiration (LRU-like)
-    const entries = [...this.store.entries()].sort((a, b) => a[1].expiresAt - b[1].expiresAt);
-    const toRemove = entries.length - this.maxEntries;
-    for (let i = 0; i < toRemove; i++) {
-      this.store.delete(entries[i]![0]);
+    // Second pass: evict oldest (first in Map = least recently used)
+    const iter = this.store.keys();
+    while (this.store.size > this.maxEntries) {
+      const oldest = iter.next();
+      if (oldest.done) break;
+      this.store.delete(oldest.value);
     }
   }
 }

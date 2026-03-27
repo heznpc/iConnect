@@ -1,21 +1,6 @@
 // JXA scripts for Apple Messages automation.
 
-import { esc } from "../shared/esc.js";
-
-/** Escape for AppleScript double-quoted strings */
-function escAS(str: string): string {
-  return (
-    str
-      .replace(/\0/g, "")
-      // eslint-disable-next-line no-control-regex
-      .replace(/[\x01-\x08\x0b\x0c\x0e-\x1f]/g, "")
-      .replace(/\\/g, "\\\\")
-      .replace(/"/g, '\\"')
-      .replace(/\n/g, "\\n")
-      .replace(/\r/g, "\\r")
-      .replace(/\t/g, "\\t")
-  );
-}
+import { esc, escAS } from "../shared/esc.js";
 
 export function listChatsScript(limit: number): string {
   return `
@@ -115,37 +100,32 @@ export function searchMessagesScript(query: string, limit: number): string {
   `;
 }
 
-export function sendMessageScript(target: string, text: string): string {
-  // macOS 26: JXA services() throws -1708; use AppleScript via runAppleScript().
-  // NOTE: Do not echo user input back in AppleScript return to avoid
-  // multi-layer escaping issues (AS→JSON). The tool handler has the input.
+// macOS 26: JXA services() throws -1708; use AppleScript via runAppleScript().
+// Do not echo user input back in the return to avoid multi-layer escaping issues (AS→JSON).
+function buildSendScript(target: string, sendLine: string, errPrefix: string): string {
   const t = escAS(target);
-  const m = escAS(text);
   return `tell application "Messages"
 try
 set targetService to 1st service whose service type = iMessage
 on error
 set targetService to 1st service
 end try
+try
 set targetBuddy to buddy "${t}" of targetService
-send "${m}" to targetBuddy
+${sendLine}
+on error errMsg number errNum
+error "${errPrefix}: " & errMsg number errNum
+end try
 end tell
 return "{\\"sent\\":true}"`;
 }
 
+export function sendMessageScript(target: string, text: string): string {
+  return buildSendScript(target, `send "${escAS(text)}" to targetBuddy`, "Message send failed");
+}
+
 export function sendFileScript(target: string, filePath: string): string {
-  const t = escAS(target);
-  const p = escAS(filePath);
-  return `tell application "Messages"
-try
-set targetService to 1st service whose service type = iMessage
-on error
-set targetService to 1st service
-end try
-set targetBuddy to buddy "${t}" of targetService
-send POSIX file "${p}" to targetBuddy
-end tell
-return "{\\"sent\\":true}"`;
+  return buildSendScript(target, `send POSIX file "${escAS(filePath)}" to targetBuddy`, "File send failed");
 }
 
 export function listParticipantsScript(chatId: string): string {

@@ -9,7 +9,46 @@ import { randomUUID, timingSafeEqual } from "node:crypto";
 import { NPM_PACKAGE_NAME } from "../shared/config.js";
 import { LIMITS, TIMEOUT } from "../shared/constants.js";
 import { printBanner } from "../shared/banner.js";
+import { auditLog } from "../shared/audit.js";
 import { createServer, type CreateServerOptions } from "./mcp-setup.js";
+
+// ── Per-IP rate limiter (token bucket, no external dependency) ────────
+const RATE_WINDOW_MS = 60_000;
+const RATE_MAX_REQUESTS = 120; // 120 requests/minute per IP
+
+interface RateBucket {
+  tokens: number;
+  lastRefill: number;
+}
+
+const rateBuckets = new Map<string, RateBucket>();
+
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now();
+  let bucket = rateBuckets.get(ip);
+  if (!bucket) {
+    bucket = { tokens: RATE_MAX_REQUESTS, lastRefill: now };
+    rateBuckets.set(ip, bucket);
+  }
+  // Refill tokens based on elapsed time
+  const elapsed = now - bucket.lastRefill;
+  if (elapsed > 0) {
+    bucket.tokens = Math.min(RATE_MAX_REQUESTS, bucket.tokens + (elapsed / RATE_WINDOW_MS) * RATE_MAX_REQUESTS);
+    bucket.lastRefill = now;
+  }
+  if (bucket.tokens < 1) return false;
+  bucket.tokens--;
+  return true;
+}
+
+// Clean stale rate buckets every minute (prevents accumulation from rotating IPs)
+const ratePruneTimer = setInterval(() => {
+  const cutoff = Date.now() - RATE_WINDOW_MS * 2;
+  for (const [ip, bucket] of rateBuckets) {
+    if (bucket.lastRefill < cutoff) rateBuckets.delete(ip);
+  }
+}, 60_000);
+if (ratePruneTimer.unref) ratePruneTimer.unref();
 
 export interface HttpServerOptions extends CreateServerOptions {
   port: number;
@@ -25,6 +64,25 @@ export async function startHttpServer(options: HttpServerOptions): Promise<void>
   const app = express();
   app.use(express.json({ limit: "1mb" }));
 
+  // Per-IP rate limiting — 120 requests/minute (with standard RateLimit headers)
+  app.use((req, res, next) => {
+    if (req.path === "/health") return next();
+    const ip = req.ip ?? req.socket.remoteAddress ?? "unknown";
+    if (!checkRateLimit(ip)) {
+      res.set("RateLimit-Limit", String(RATE_MAX_REQUESTS));
+      res.set("RateLimit-Remaining", "0");
+      res.set("Retry-After", "60");
+      res.status(429).json({ error: "Too many requests. Try again later." });
+      return;
+    }
+    const bucket = rateBuckets.get(ip);
+    if (bucket) {
+      res.set("RateLimit-Limit", String(RATE_MAX_REQUESTS));
+      res.set("RateLimit-Remaining", String(Math.floor(bucket.tokens)));
+    }
+    next();
+  });
+
   // Bearer token auth — required when --bind-all is used, optional otherwise
   if (httpToken) {
     app.use((req, res, next) => {
@@ -35,6 +93,12 @@ export async function startHttpServer(options: HttpServerOptions): Promise<void>
       const authBuf = Buffer.from(auth ?? "");
       const expBuf = Buffer.from(expected);
       if (authBuf.length !== expBuf.length || !timingSafeEqual(authBuf, expBuf)) {
+        auditLog({
+          timestamp: new Date().toISOString(),
+          tool: "__auth_failure",
+          args: { ip: req.ip ?? req.socket.remoteAddress ?? "unknown", path: req.path },
+          status: "error",
+        });
         res.status(401).json({ error: "Unauthorized: invalid or missing Bearer token" });
         return;
       }
@@ -42,8 +106,9 @@ export async function startHttpServer(options: HttpServerOptions): Promise<void>
     });
   } else if (bindAll) {
     console.error(
-      "[AirMCP] WARNING: --bind-all without AIRMCP_HTTP_TOKEN is insecure. Set AIRMCP_HTTP_TOKEN for authentication.",
+      "[AirMCP] FATAL: --bind-all requires AIRMCP_HTTP_TOKEN. Refusing to expose 262 tools without authentication.",
     );
+    process.exit(1);
   }
 
   interface Session {
@@ -68,19 +133,17 @@ export async function startHttpServer(options: HttpServerOptions): Promise<void>
       }
     }
   }, TIMEOUT.SESSION_CLEANUP);
+  if (cleanupInterval.unref) cleanupInterval.unref();
 
   process.on("exit", () => clearInterval(cleanupInterval));
 
   // Health check — for load balancers, monitoring, and readiness probes
+  // Note: session counts omitted to prevent information leakage
   app.get("/health", (_req, res) => {
     res.json({
       status: "ok",
       version: pkg.version,
       uptime: Math.floor(process.uptime()),
-      sessions: {
-        active: sessions.size,
-        limit: LIMITS.HTTP_SESSIONS,
-      },
     });
   });
 

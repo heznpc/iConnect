@@ -11,13 +11,13 @@ import { LIMITS } from "./constants.js";
 import { resourceCache } from "./cache.js";
 
 const CACHE_TTL = {
-  NOTES: 30_000, // 30s — notes change infrequently during a session
-  CALENDAR: 60_000, // 60s — events rarely change within a minute
-  REMINDERS: 30_000, // 30s
+  NOTES: 120_000, // 2min — notes change infrequently; event_subscribe invalidates on change
+  CALENDAR: 180_000, // 3min — events rarely change; event_subscribe invalidates on change
+  REMINDERS: 120_000, // 2min — event_subscribe invalidates on change
   MUSIC: 5_000, // 5s — now-playing changes often
-  MAIL: 30_000, // 30s
+  MAIL: 120_000, // 2min — inbox changes infrequently within a conversation
   CLIPBOARD: 2_000, // 2s — clipboard changes frequently
-  SNAPSHOT: 15_000, // 15s — composite, refresh more often
+  SNAPSHOT: 60_000, // 60s — composite; event_subscribe invalidates relevant keys
 } as const;
 
 // ── Resource registration factory ──
@@ -227,10 +227,10 @@ export function registerResources(server: McpServer, config?: AirMcpConfig): voi
     server,
     "context-snapshot",
     "context://snapshot",
-    "Unified context from all enabled Apple apps — calendar, reminders, notes, mail, music, system — in a single read. Default depth: standard.",
+    "Unified context from all enabled Apple apps — calendar, reminders, notes, mail, music, system — in a single read. Default depth: brief (~500 tokens). Use context://snapshot/{depth} for standard or full.",
     () =>
-      resourceCache.getOrSet("snapshot:standard", CACHE_TTL.SNAPSHOT, async () =>
-        JSON.parse(await buildSnapshot(enabled, DEPTH.standard!)),
+      resourceCache.getOrSet("snapshot:brief", CACHE_TTL.SNAPSHOT, async () =>
+        JSON.parse(await buildSnapshot(enabled, DEPTH.brief!)),
       ),
   );
 

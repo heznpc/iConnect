@@ -15,7 +15,9 @@ export const HOME = process.env.HOME ?? process.env.USERPROFILE ?? "";
 
 function envInt(key: string, fallback: number): number {
   const v = process.env[key];
-  return v ? parseInt(v, 10) : fallback;
+  if (!v) return fallback;
+  const parsed = parseInt(v, 10);
+  return Number.isNaN(parsed) ? fallback : parsed;
 }
 
 function envStr(key: string, fallback: string): string {
@@ -46,10 +48,10 @@ export const API = {
 // ══════════════════════════════════════════════════════════════════════
 
 export const MODELS = {
-  /** Gemini embedding model name */
-  GEMINI_EMBEDDING: envStr("AIRMCP_EMBEDDING_MODEL", "gemini-embedding-2-preview"),
-  /** Embedding output dimension (256/512/1024/2048/3072) */
-  EMBEDDING_DIM: envInt("AIRMCP_EMBEDDING_DIM", 3072),
+  /** Gemini embedding model name (GA — update when newer stable version is released) */
+  GEMINI_EMBEDDING: envStr("AIRMCP_EMBEDDING_MODEL", "gemini-embedding-2"),
+  /** Embedding output dimension (256/512/1024/2048/3072). 256 is optimal for tool/note search. */
+  EMBEDDING_DIM: envInt("AIRMCP_EMBEDDING_DIM", 256),
 } as const;
 
 // ══════════════════════════════════════════════════════════════════════
