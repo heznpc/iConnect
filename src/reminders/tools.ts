@@ -108,6 +108,22 @@ export function registerReminderTools(server: McpServer, _config: AirMcpConfig):
           .default(0)
           .describe("Number of reminders to skip for pagination (default: 0)"),
       },
+      outputSchema: {
+        total: z.number(),
+        offset: z.number(),
+        returned: z.number(),
+        reminders: z.array(
+          z.object({
+            id: z.string(),
+            name: z.string(),
+            completed: z.boolean(),
+            dueDate: z.string().nullable(),
+            priority: z.number(),
+            flagged: z.boolean(),
+            list: z.string(),
+          }),
+        ),
+      },
       annotations: {
         readOnlyHint: true,
         destructiveHint: false,
@@ -321,6 +337,20 @@ export function registerReminderTools(server: McpServer, _config: AirMcpConfig):
       inputSchema: {
         query: z.string().describe("Search keyword"),
         limit: z.number().int().min(1).max(500).optional().default(30).describe("Max results (default: 30)"),
+      },
+      outputSchema: {
+        returned: z.number(),
+        reminders: z.array(
+          z.object({
+            id: z.string(),
+            name: z.string(),
+            completed: z.boolean(),
+            dueDate: z.string().nullable(),
+            priority: z.number(),
+            flagged: z.boolean(),
+            list: z.string(),
+          }),
+        ),
       },
       annotations: {
         readOnlyHint: true,

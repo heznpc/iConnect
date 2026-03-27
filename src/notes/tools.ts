@@ -104,6 +104,20 @@ export function registerNoteTools(server: McpServer, config: AirMcpConfig): void
           .default(0)
           .describe("Number of notes to skip for pagination (default: 0)"),
       },
+      outputSchema: {
+        total: z.number(),
+        offset: z.number(),
+        returned: z.number(),
+        notes: z.array(
+          z.object({
+            id: z.string(),
+            name: z.string(),
+            folder: z.string(),
+            creationDate: z.string(),
+            modificationDate: z.string(),
+          }),
+        ),
+      },
       annotations: {
         readOnlyHint: true,
         destructiveHint: false,
@@ -140,6 +154,21 @@ export function registerNoteTools(server: McpServer, config: AirMcpConfig): void
           .optional()
           .default(0)
           .describe("Number of matching results to skip (for pagination)"),
+      },
+      outputSchema: {
+        total: z.number(),
+        returned: z.number(),
+        offset: z.number(),
+        notes: z.array(
+          z.object({
+            id: z.string(),
+            name: z.string(),
+            folder: z.string(),
+            preview: z.string(),
+            creationDate: z.string(),
+            modificationDate: z.string(),
+          }),
+        ),
       },
       annotations: {
         readOnlyHint: true,

@@ -64,6 +64,38 @@ export async function hasSwiftCommand(name: string): Promise<boolean> {
   return swiftCommands?.has(name) ?? false;
 }
 
+// ── Safe JSON parsing (prototype pollution prevention) ───────────────
+
+interface BridgeResponse {
+  id: string;
+  result?: unknown;
+  error?: string;
+}
+
+/**
+ * Parse a Swift bridge JSON response safely.
+ * Rejects payloads with __proto__, constructor, or prototype keys
+ * to prevent prototype pollution attacks.
+ */
+function safeParseBridgeResponse(raw: string): BridgeResponse | null {
+  const parsed: unknown = JSON.parse(raw);
+  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+  const obj = parsed as Record<string, unknown>;
+  if (typeof obj.id !== "string") return null;
+  // Reject payloads containing prototype pollution keys
+  const keys = Object.getOwnPropertyNames(obj);
+  if (keys.includes("__proto__") || keys.includes("constructor") || keys.includes("prototype")) return null;
+  if (obj.result !== undefined && typeof obj.result === "object" && obj.result !== null) {
+    const resultStr = JSON.stringify(obj.result);
+    if (/__proto__|constructor\s*:|prototype\s*:/.test(resultStr)) return null;
+  }
+  return {
+    id: obj.id,
+    result: obj.result,
+    error: typeof obj.error === "string" ? obj.error : undefined,
+  };
+}
+
 // ── Persistent process management ────────────────────────────────────
 
 interface PendingRequest {
@@ -93,10 +125,11 @@ function ensureProcess(): Promise<void> {
     proc.stdout!.setEncoding("utf-8");
     proc.stdout!.on("data", (chunk: string) => {
       buffer += chunk;
+      // Kill immediately if buffer grows too large (prevents OOM)
       if (buffer.length > BUFFER.SWIFT) {
         buffer = "";
         rejectAll(`Swift bridge persistent buffer exceeded ${BUFFER.SWIFT} bytes`);
-        proc.kill("SIGTERM");
+        proc.kill("SIGKILL");
         return;
       }
       const lines = buffer.split("\n");
@@ -105,8 +138,17 @@ function ensureProcess(): Promise<void> {
       for (const line of lines) {
         const trimmed = line.trim();
         if (!trimmed) continue;
+        // Per-line size guard — reject abnormally large single responses
+        if (trimmed.length > 1_048_576) {
+          console.error("[AirMCP Swift] Dropping oversized response line (>1MB)");
+          continue;
+        }
         try {
-          const msg = JSON.parse(trimmed) as { id: string; result?: unknown; error?: string };
+          const msg = safeParseBridgeResponse(trimmed);
+          if (!msg) {
+            console.error("[AirMCP Swift] Invalid response:", trimmed.slice(0, 200));
+            continue;
+          }
 
           // Handle readiness signal
           if (!ready && msg.id === "__ready__") {
@@ -278,7 +320,14 @@ function runSwiftSingleShot<T>(command: string, input: string): Promise<T> {
         return;
       }
       try {
-        resolve(JSON.parse(trimmed) as T);
+        const parsed: unknown = JSON.parse(trimmed);
+        // Prototype pollution guard for single-shot mode
+        const resultStr = JSON.stringify(parsed);
+        if (/__proto__|constructor\s*:|prototype\s*:/.test(resultStr)) {
+          reject(new Error("Swift bridge response rejected: suspicious payload"));
+          return;
+        }
+        resolve(parsed as T);
       } catch {
         reject(new Error(`Swift bridge returned invalid JSON: ${trimmed.slice(0, 200)}`));
       }

@@ -92,9 +92,14 @@ export function registerGoogleTools(server: McpServer, config: AirMcpConfig): vo
       if (!allowSendMail)
         return err("Sending mail is disabled. Set AIRMCP_ALLOW_SEND_MAIL=true or allowSendMail in config.json.");
       try {
+        // Sanitize header fields — strip CR/LF to prevent header injection
+        const safeTo = to.replace(/[\r\n]/g, "");
+        const safeSubject = subject.replace(/[\r\n]/g, "");
+        const safeCc = cc?.replace(/[\r\n]/g, "");
+
         // Build RFC 2822 raw message
-        let raw = `To: ${to}\nSubject: ${subject}\nContent-Type: text/plain; charset=utf-8\n`;
-        if (cc) raw += `Cc: ${cc}\n`;
+        let raw = `To: ${safeTo}\nSubject: ${safeSubject}\nContent-Type: text/plain; charset=utf-8\n`;
+        if (safeCc) raw += `Cc: ${safeCc}\n`;
         raw += `\n${body}`;
         const encoded = Buffer.from(raw).toString("base64url");
         return ok(await runGws("gmail", "users.messages", "send", { userId: "me" }, { raw: encoded }));
@@ -176,9 +181,9 @@ export function registerGoogleTools(server: McpServer, config: AirMcpConfig): vo
     async ({ query, maxResults }) => {
       try {
         // Drive API query language: single quotes delimit string literals.
-        // Backslash escaping is NOT supported — strip quotes to prevent
+        // Only allow alphanumeric, spaces, and common punctuation to prevent
         // query-language operator injection (e.g. "x' OR name contains 'y").
-        const safeQuery = query.replace(/['\\]/g, "");
+        const safeQuery = query.replace(/[^a-zA-Z0-9\u3131-\uD79D\u4E00-\u9FFF\s.,_\-@#]/g, "");
         return ok(
           await runGws("drive", "files", "list", {
             q: `fullText contains '${safeQuery}'`,

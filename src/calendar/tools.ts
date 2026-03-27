@@ -136,6 +136,21 @@ export function registerCalendarTools(server: McpServer, _config: AirMcpConfig):
           .describe("Max events to return (default: 100)"),
         offset: z.number().int().min(0).optional().default(0).describe("Number of events to skip (default: 0)"),
       },
+      outputSchema: {
+        total: z.number(),
+        offset: z.number(),
+        returned: z.number(),
+        events: z.array(
+          z.object({
+            id: z.string(),
+            summary: z.string(),
+            startDate: z.string(),
+            endDate: z.string(),
+            allDay: z.boolean(),
+            calendar: z.string(),
+          }),
+        ),
+      },
       annotations: {
         readOnlyHint: true,
         destructiveHint: false,
@@ -302,6 +317,19 @@ export function registerCalendarTools(server: McpServer, _config: AirMcpConfig):
         endDate: z.string().describe("End of range (ISO 8601, e.g. '2026-03-31T23:59:59Z')"),
         limit: z.number().int().min(1).max(500).optional().default(50).describe("Max results (default: 50)"),
       },
+      outputSchema: {
+        total: z.number(),
+        events: z.array(
+          z.object({
+            id: z.string(),
+            summary: z.string(),
+            startDate: z.string(),
+            endDate: z.string(),
+            allDay: z.boolean(),
+            calendar: z.string(),
+          }),
+        ),
+      },
       annotations: {
         readOnlyHint: true,
         destructiveHint: false,
@@ -334,6 +362,21 @@ export function registerCalendarTools(server: McpServer, _config: AirMcpConfig):
       inputSchema: {
         limit: z.number().int().min(1).max(500).optional().default(10).describe("Max events to return (default: 10)"),
       },
+      outputSchema: {
+        total: z.number(),
+        returned: z.number(),
+        events: z.array(
+          z.object({
+            id: z.string(),
+            summary: z.string(),
+            startDate: z.string(),
+            endDate: z.string(),
+            allDay: z.boolean(),
+            calendar: z.string(),
+            location: z.string(),
+          }),
+        ),
+      },
       annotations: {
         readOnlyHint: true,
         destructiveHint: false,
@@ -360,6 +403,20 @@ export function registerCalendarTools(server: McpServer, _config: AirMcpConfig):
       title: "Today's Events",
       description: "Get all calendar events for today.",
       inputSchema: {},
+      outputSchema: {
+        total: z.number(),
+        events: z.array(
+          z.object({
+            id: z.string(),
+            summary: z.string(),
+            startDate: z.string(),
+            endDate: z.string(),
+            allDay: z.boolean(),
+            calendar: z.string(),
+            location: z.string(),
+          }),
+        ),
+      },
       annotations: {
         readOnlyHint: true,
         destructiveHint: false,
