@@ -14,7 +14,7 @@ npm run build
 ### Requirements
 
 - macOS (required — Apple app automation only works on macOS)
-- Node.js >= 18
+- Node.js >= 20
 - For Swift bridge features: macOS 26+ with Apple Silicon
 
 ### Running Locally

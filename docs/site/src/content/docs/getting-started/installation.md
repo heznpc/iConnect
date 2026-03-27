@@ -6,7 +6,7 @@ description: How to install and set up AirMCP on your Mac.
 ## Prerequisites
 
 - **macOS** (AirMCP uses JXA and Apple frameworks -- it only runs on macOS)
-- **Node.js 18+** (LTS recommended)
+- **Node.js 20+** (LTS recommended)
 - **An MCP client** such as Claude Desktop, Claude Code, Cursor, or Windsurf
 
 ## Quick Install

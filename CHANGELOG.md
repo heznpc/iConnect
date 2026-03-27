@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.2] - 2026-03-27
+
+### Security
+- Path traversal defense — `assertSafePath()` blocks `..` in all Finder script functions
+- Embedding cache keys hashed with SHA-256 to prevent PII exposure
+- Rate limit bucket cleanup shortened (5min→1min) to mitigate IP rotation
+- Audit flush race condition fixed with flushing lock
+- `safeInt()` strengthened with `Number.isSafeInteger` (blocks extreme values)
+- Health endpoint no longer exposes session count
+- Gemini API error messages now redact API key fragments
+- `escAS()` now escapes `\u2028`/`\u2029` line separators (parity with `esc()`)
+
+### Fixed
+- `envInt()` returns fallback on NaN parse (was returning NaN)
+- Inflight promise memory leak — safety timeout cleans up entries that never settle
+- `TtlCache.clear()` now also resets inflight promise map
+- Session cleanup timer properly `.unref()`'d to prevent process hang
+
+### Changed
+- Messages send scripts deduplicated via shared `buildSendScript()` helper
+- Embedding cache key construction extracted to `embedCacheKey()` helper
+- `compactDescription()` recognizes `!` and `?` as sentence terminators
+- Resource cache TTLs tuned for `event_subscribe` invalidation
+- Rate bucket prune interval uses `RATE_WINDOW_MS` constant
+- Node.js minimum bumped from 18 to 20
+- Dependencies: MCP SDK 1.27→1.28, ext-apps 1.2→1.3.1
+
 ## [2.5.0] - 2026-03-26
 
 ### Added

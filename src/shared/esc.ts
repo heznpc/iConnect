@@ -27,6 +27,8 @@ export function escAS(str: string): string {
       .replace(/\n/g, "\\n")
       .replace(/\r/g, "\\r")
       .replace(/\t/g, "\\t")
+      .replace(/\u2028/g, "\\u2028")
+      .replace(/\u2029/g, "\\u2029")
   );
 }
 

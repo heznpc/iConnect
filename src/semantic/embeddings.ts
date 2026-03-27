@@ -37,6 +37,8 @@ function embedCacheKey(provider: EmbeddingProvider, language: string | undefined
   return `embed:${provider}:${language ?? ""}:${hashText(text)}`;
 }
 
+const NO_BACKEND_ERROR = "No embedding backend available. Set GEMINI_API_KEY or run 'npm run swift-build'.";
+
 // -- Max concurrent batch chunks to Gemini API --
 const BATCH_CONCURRENCY = 3;
 
@@ -192,7 +194,7 @@ export async function embedText(text: string, provider: EmbeddingProvider, langu
       case "hybrid":
         return hybridEmbed(text, language);
       default:
-        throw new Error("No embedding backend available. Set GEMINI_API_KEY or run 'npm run swift-build'.");
+        throw new Error(NO_BACKEND_ERROR);
     }
   });
 }
@@ -224,7 +226,7 @@ export async function embedBatch(texts: string[], provider: EmbeddingProvider, l
       newVectors = await hybridBatchEmbed(uncachedTexts, language);
       break;
     default:
-      throw new Error("No embedding backend available. Set GEMINI_API_KEY or run 'npm run swift-build'.");
+      throw new Error(NO_BACKEND_ERROR);
   }
 
   // Cache new vectors and merge into results

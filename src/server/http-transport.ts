@@ -41,13 +41,13 @@ function checkRateLimit(ip: string): boolean {
   return true;
 }
 
-// Clean stale rate buckets every minute (prevents accumulation from rotating IPs)
+// Clean stale rate buckets every window cycle (prevents accumulation from rotating IPs)
 const ratePruneTimer = setInterval(() => {
   const cutoff = Date.now() - RATE_WINDOW_MS * 2;
   for (const [ip, bucket] of rateBuckets) {
     if (bucket.lastRefill < cutoff) rateBuckets.delete(ip);
   }
-}, 60_000);
+}, RATE_WINDOW_MS);
 if (ratePruneTimer.unref) ratePruneTimer.unref();
 
 export interface HttpServerOptions extends CreateServerOptions {

@@ -88,7 +88,7 @@ export class TtlCache {
     return this.store.size;
   }
 
-  /** Clear all entries (including inflight) and stop auto-prune timer. */
+  /** Clear all entries and pending inflight promises. Does not stop the prune timer — call destroy() for full teardown. */
   clear(): void {
     this.store.clear();
     this.inflight.clear();

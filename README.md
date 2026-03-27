@@ -8,7 +8,7 @@
 [![npm](https://img.shields.io/npm/v/airmcp)](https://www.npmjs.com/package/airmcp)
 [![npm downloads](https://img.shields.io/npm/dm/airmcp)](https://www.npmjs.com/package/airmcp)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Node >= 18](https://img.shields.io/badge/node-%3E%3D18-green)](https://nodejs.org/)
+[![Node >= 20](https://img.shields.io/badge/node-%3E%3D20-green)](https://nodejs.org/)
 
 MCP server for the entire Apple ecosystem — Notes, Reminders, Calendar, Contacts, Mail, Messages, Music, Finder, Safari, System, Photos, Shortcuts, Apple Intelligence, TV, Screen Capture, Maps, Podcasts, Weather, Pages, Numbers, Keynote, Location, and Bluetooth. Connect any AI to your Mac.
 
