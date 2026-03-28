@@ -38,12 +38,16 @@ export function resolveTemplates(value: unknown, results: Map<string, unknown>):
   return value;
 }
 
+const DANGEROUS_KEYS = new Set(["__proto__", "constructor", "prototype"]);
+
 function resolvePath(path: string, results: Map<string, unknown>): unknown {
   const parts = path.split(".");
   const stepId = parts[0]!;
   let current: unknown = results.get(stepId);
   for (let i = 1; i < parts.length && current != null; i++) {
-    current = (current as Record<string, unknown>)[parts[i]!];
+    const key = parts[i]!;
+    if (DANGEROUS_KEYS.has(key)) return undefined;
+    current = (current as Record<string, unknown>)[key];
   }
   return current;
 }

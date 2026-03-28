@@ -46,12 +46,26 @@ export function escShell(str: string): string {
 
 /**
  * Escape for shell double-quoted arguments INSIDE a JXA single-quoted string.
- * Two layers: inner escShell for shell, outer esc for JXA single-quote context.
- * Use this whenever doShellScript("...${value}...") is inside a JXA '...' literal.
+ * Produces a string safe for: doShellScript('... "VALUE" ...') in JXA.
+ *
+ * Two layers applied in one pass (JXA single-quote wrapping shell double-quote):
+ *   raw \  → shell needs \\ → JXA needs \\\\
+ *   raw "  → shell needs \" → JXA needs \\\"
+ *   raw `  → shell needs \` → JXA needs \\`
+ *   raw $  → shell needs \$ → JXA needs \\$
+ *   raw '  → shell ignores  → JXA needs \\'
+ *   newline/CR → JXA \n/\r  → shell receives literal newline/CR (valid in double quotes)
  */
 export function escJxaShell(str: string): string {
-  const shellSafe = escShell(str);
-  return shellSafe.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+  return str
+    .replace(/\0/g, "")
+    .replace(/\\/g, "\\\\\\\\") // \ → \\\\ (4 backslashes in source = 2 literal)
+    .replace(/"/g, '\\\\\\"') // " → \\\"
+    .replace(/`/g, "\\\\`") // ` → \\`
+    .replace(/\$/g, "\\\\$") // $ → \\$
+    .replace(/'/g, "\\'") // ' → \'
+    .replace(/\n/g, "\\n") // newline → \n (JXA interprets as newline char)
+    .replace(/\r/g, "\\r"); // CR → \r (JXA interprets as CR char)
 }
 
 /** Ensure n is a finite integer — prevents shell injection if a non-number leaks through validation. */

@@ -28,6 +28,7 @@ async function ensureDir(): Promise<void> {
 
 /** Log a tool call to the audit log. Buffered — flushes every 5s. */
 export function auditLog(entry: AuditEntry): void {
+  if (auditDisabled) return;
   const sanitized = entry.args ? sanitizeArgs(entry.args) : undefined;
   let line = JSON.stringify({ ...entry, args: sanitized });
   if (line.length > MAX_ENTRY_SIZE) {
@@ -46,18 +47,39 @@ function ensureFlushTimer(): void {
 }
 
 let flushing = false;
+let consecutiveFlushFailures = 0;
+let auditDisabled = false;
+const MAX_FLUSH_FAILURES = 5;
 
 async function flushBuffer(): Promise<void> {
-  if (buffer.length === 0 || flushing) return;
+  if (buffer.length === 0 || flushing || auditDisabled) return;
   flushing = true;
-  const lines = buffer.join("\n") + "\n";
+  // Swap buffer reference before flushing so auditLog() writes to a fresh array
+  const toFlush = buffer;
   buffer = [];
+  const lines = toFlush.join("\n") + "\n";
   try {
     await ensureDir();
     await appendFile(AUDIT_PATH, lines, { encoding: "utf-8", mode: 0o600 });
     await rotateIfNeeded();
+    consecutiveFlushFailures = 0;
   } catch {
-    // non-critical
+    // Retry once
+    try {
+      await appendFile(AUDIT_PATH, lines, { encoding: "utf-8", mode: 0o600 });
+      consecutiveFlushFailures = 0;
+    } catch (retryErr) {
+      consecutiveFlushFailures++;
+      console.error(`[AirMCP Audit] flush failed (${consecutiveFlushFailures}/${MAX_FLUSH_FAILURES}): ${retryErr}`);
+      if (consecutiveFlushFailures >= MAX_FLUSH_FAILURES) {
+        auditDisabled = true;
+        if (flushTimer) {
+          clearInterval(flushTimer);
+          flushTimer = null;
+        }
+        console.error("[AirMCP Audit] Too many consecutive flush failures — audit logging disabled");
+      }
+    }
   } finally {
     flushing = false;
   }

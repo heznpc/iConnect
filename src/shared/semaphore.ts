@@ -24,6 +24,7 @@ export class Semaphore {
   release(): void {
     if (this.running <= 0) {
       console.error("[AirMCP] Semaphore double-release detected");
+      this.running = 0;
       return;
     }
     this.running--;

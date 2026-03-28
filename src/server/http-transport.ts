@@ -202,10 +202,22 @@ export async function startHttpServer(options: HttpServerOptions): Promise<void>
         },
         onsessionclosed: (id) => {
           const s = sessions.get(id);
-          if (s) s.server.close?.();
+          if (s) {
+            s.transport.close?.();
+            s.server.close?.();
+          }
           sessions.delete(id);
         },
       });
+
+      // Immediate cleanup when transport closes (don't wait for 60s cleanup interval)
+      transport.onclose = () => {
+        if (assignedSessionId) {
+          const s = sessions.get(assignedSessionId);
+          if (s) s.server.close?.();
+          sessions.delete(assignedSessionId);
+        }
+      };
 
       await server.connect(transport);
       await transport.handleRequest(req, res, req.body);

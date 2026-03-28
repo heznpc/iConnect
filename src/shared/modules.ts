@@ -84,8 +84,17 @@ export async function loadModuleRegistry(): Promise<ModuleRegistration[]> {
   });
 
   const results = await Promise.all(importPromises);
-  for (const mod of results) {
-    if (mod) registry.push(mod);
+  const failed: string[] = [];
+  for (let i = 0; i < results.length; i++) {
+    if (results[i]) {
+      registry.push(results[i]!);
+    } else {
+      failed.push(MANIFEST[i].name);
+    }
+  }
+
+  if (failed.length > 0) {
+    console.error(`[AirMCP] Failed to load ${failed.length} module(s): ${failed.join(", ")}`);
   }
 
   cache = registry;

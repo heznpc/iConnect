@@ -72,23 +72,23 @@ interface BridgeResponse {
   error?: string;
 }
 
+const DANGEROUS_KEYS = new Set(["__proto__", "constructor", "prototype"]);
+
 /**
  * Parse a Swift bridge JSON response safely.
- * Rejects payloads with __proto__, constructor, or prototype keys
- * to prevent prototype pollution attacks.
+ * Uses a reviver to reject payloads with __proto__, constructor, or prototype
+ * keys at any nesting depth, preventing prototype pollution attacks.
  */
 function safeParseBridgeResponse(raw: string): BridgeResponse | null {
-  const parsed: unknown = JSON.parse(raw);
+  let poisoned = false;
+  const parsed: unknown = JSON.parse(raw, (key, value) => {
+    if (DANGEROUS_KEYS.has(key)) poisoned = true;
+    return value;
+  });
+  if (poisoned) return null;
   if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) return null;
   const obj = parsed as Record<string, unknown>;
   if (typeof obj.id !== "string") return null;
-  // Reject payloads containing prototype pollution keys
-  const keys = Object.getOwnPropertyNames(obj);
-  if (keys.includes("__proto__") || keys.includes("constructor") || keys.includes("prototype")) return null;
-  if (obj.result !== undefined && typeof obj.result === "object" && obj.result !== null) {
-    const resultStr = JSON.stringify(obj.result);
-    if (/__proto__|constructor\s*:|prototype\s*:/.test(resultStr)) return null;
-  }
   return {
     id: obj.id,
     result: obj.result,
@@ -109,6 +109,10 @@ let buffer = "";
 const pending = new Map<string, PendingRequest>();
 let launching: Promise<void> | null = null;
 let launchFailed = false;
+let launchFailedAt = 0;
+let launchRetryCount = 0;
+const LAUNCH_COOLDOWN_MS = 30_000;
+const LAUNCH_MAX_RETRIES = 3;
 
 function ensureProcess(): Promise<void> {
   if (child && !child.killed && child.exitCode === null) return Promise.resolve();
@@ -185,6 +189,7 @@ function ensureProcess(): Promise<void> {
       if (!ready) {
         launching = null;
         launchFailed = true;
+        launchFailedAt = Date.now();
         reject(err);
       }
     });
@@ -195,6 +200,7 @@ function ensureProcess(): Promise<void> {
       launching = null;
       if (!ready) {
         launchFailed = true;
+        launchFailedAt = Date.now();
         reject(new Error(`Swift bridge exited during startup with code ${code}`));
       }
     });
@@ -205,6 +211,7 @@ function ensureProcess(): Promise<void> {
         proc.kill("SIGTERM");
         launching = null;
         launchFailed = true;
+        launchFailedAt = Date.now();
         reject(new Error("Swift bridge did not become ready within 10s"));
       }
     }, 10_000);
@@ -219,6 +226,7 @@ function rejectAll(message: string): void {
     entry.reject(new Error(message));
   }
   pending.clear();
+  buffer = "";
 }
 
 /** Gracefully shut down the persistent Swift process. */
@@ -238,16 +246,25 @@ export async function runSwift<T>(command: string, input: string): Promise<T> {
   const missing = await checkSwiftBridge();
   if (missing) throw new Error(missing);
 
-  // If persistent mode failed to launch, fall back to single-shot
+  // If persistent mode failed to launch, check if recovery is possible
   if (launchFailed) {
-    return runSwiftSingleShot<T>(command, input);
+    if (launchRetryCount >= LAUNCH_MAX_RETRIES) {
+      return runSwiftSingleShot<T>(command, input);
+    }
+    if (Date.now() - launchFailedAt < LAUNCH_COOLDOWN_MS) {
+      return runSwiftSingleShot<T>(command, input);
+    }
+    launchFailed = false;
+    launchRetryCount++;
   }
 
   try {
     await ensureProcess();
+    launchRetryCount = 0;
   } catch {
     // Persistent mode unavailable — fall back to single-shot
     launchFailed = true;
+    launchFailedAt = Date.now();
     return runSwiftSingleShot<T>(command, input);
   }
 
@@ -274,6 +291,7 @@ export async function runSwift<T>(command: string, input: string): Promise<T> {
       // Process may have died — reset and fall back
       child = null;
       launchFailed = true;
+      launchFailedAt = Date.now();
       reject(new Error(`Failed to write to Swift bridge: ${e}`));
     }
   });
