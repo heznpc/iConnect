@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.0] - 2026-03-28
+
+### Security
+- **`gws_raw` hardening** — service whitelist (11 allowed), destructive method blocking (delete/trash/remove/purge require opt-in)
+- JXA injection full audit — all 20 JXA-using modules verified safe (esc/escAS/escJxaShell applied)
+
+### Added
+- **Structured Tool Output ×17** — `outputSchema` added to contacts (4), system (6), mail (2), safari (2), music (1), finder (1) tools (total 12→29)
+- **73 new tests** — esc.ts (57), automation.ts (5), gws_raw security (6), jxa (1), server-init (2), http-transport (1), modules (1)
+- Test coverage 21.6% → 36.1% (exceeds 30% threshold)
+
+### Changed
+- `Promise<any>` replaced with typed responses in weather/api.ts and maps/api.ts
+- `gws_raw` service description derived from `GWS_ALLOWED_SERVICES` constant (prevents drift)
+- Contacts `zContactSummary` Zod schema extracted to shared constant (DRY)
+
 ## [2.5.2] - 2026-03-27
 
 ### Security
