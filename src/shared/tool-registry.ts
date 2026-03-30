@@ -36,7 +36,6 @@ interface RegisteredPromptEntry {
 class ToolRegistry {
   private tools = new Map<string, RegisteredToolEntry>();
   private prompts = new Map<string, RegisteredPromptEntry>();
-
   // ── Tool accessors ──────────────────────────────────────────────
 
   getToolCount(): number {

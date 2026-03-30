@@ -10,6 +10,7 @@ import { NPM_PACKAGE_NAME } from "../shared/config.js";
 import { LIMITS, TIMEOUT } from "../shared/constants.js";
 import { printBanner } from "../shared/banner.js";
 import { auditLog } from "../shared/audit.js";
+import { SERVER_ICON, WEBSITE_URL } from "../shared/icons.js";
 import { createServer, type CreateServerOptions } from "./mcp-setup.js";
 
 // ── Per-IP rate limiter (token bucket, no external dependency) ────────
@@ -50,6 +51,9 @@ const ratePruneTimer = setInterval(() => {
 }, RATE_WINDOW_MS);
 if (ratePruneTimer.unref) ratePruneTimer.unref();
 
+// Compiled once — used in Origin validation middleware
+const LOCALHOST_ORIGIN_RE = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/;
+
 export interface HttpServerOptions extends CreateServerOptions {
   port: number;
   bindAll: boolean;
@@ -63,6 +67,22 @@ export async function startHttpServer(options: HttpServerOptions): Promise<void>
   const express = (await import("express")).default;
   const app = express();
   app.use(express.json({ limit: "1mb" }));
+
+  // Origin validation — MCP spec 2025-11-25 requires 403 for invalid Origin
+  const allowedOrigins = new Set<string>((process.env.AIRMCP_ALLOWED_ORIGINS ?? "").split(",").filter(Boolean));
+  app.use((req, res, next) => {
+    if (req.path !== "/mcp") return next();
+    const origin = req.headers.origin;
+    if (!origin) return next();
+    if (LOCALHOST_ORIGIN_RE.test(origin)) return next();
+    if (allowedOrigins.has(origin)) return next();
+    // Reject unless bind-all with no explicit allow-list (operator chose open access)
+    if (!bindAll || allowedOrigins.size > 0) {
+      res.status(403).json({ error: "Forbidden: Origin not allowed" });
+      return;
+    }
+    next();
+  });
 
   // Per-IP rate limiting — 120 requests/minute (with standard RateLimit headers)
   app.use((req, res, next) => {
@@ -147,20 +167,21 @@ export async function startHttpServer(options: HttpServerOptions): Promise<void>
     });
   });
 
-  // MCP Server Card — discovery endpoint for Claude, VS Code Copilot, etc.
-  app.get("/.well-known/mcp.json", (_req, res) => {
-    res.json({
-      name: NPM_PACKAGE_NAME,
-      version: pkg.version,
-      description: "MCP server for the entire Apple ecosystem — 262 tools, 32 prompts across 25 modules. macOS only.",
-      transport: { type: "streamable-http", url: "/mcp" },
-      capabilities: {
-        tools: { listChanged: true, filtering: true },
-        prompts: true,
-        resources: true,
-      },
-    });
-  });
+  // MCP Server Card — spec 2025-11-25 .well-known discovery
+  const serverCard = {
+    name: NPM_PACKAGE_NAME,
+    version: pkg.version,
+    description: pkg.description,
+    websiteUrl: WEBSITE_URL,
+    icons: [SERVER_ICON],
+    transport: { type: "streamable-http", url: "/mcp" },
+    capabilities: {
+      tools: { listChanged: true },
+      prompts: { listChanged: true },
+      resources: { listChanged: true },
+    },
+  };
+  app.get("/.well-known/mcp.json", (_req, res) => res.json(serverCard));
 
   app.post("/mcp", async (req, res) => {
     try {

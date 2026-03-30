@@ -29,12 +29,13 @@ import { eventBus } from "../shared/event-bus.js";
 import { resourceCache } from "../shared/cache.js";
 import { checkSwiftBridge, runSwift } from "../shared/swift.js";
 import type { BannerInfo } from "../shared/banner.js";
+import { SERVER_ICON, WEBSITE_URL } from "../shared/icons.js";
 
 export interface CreateServerOptions {
   config: AirMcpConfig;
   hitlClient: HitlClient | null;
   osVersion: number;
-  pkg: { version: string };
+  pkg: { version: string; description?: string };
 }
 
 export async function createServer(
@@ -45,6 +46,9 @@ export async function createServer(
   const server = new SdkMcpServer({
     name: NPM_PACKAGE_NAME,
     version: pkg.version,
+    description: pkg.description,
+    websiteUrl: WEBSITE_URL,
+    icons: [SERVER_ICON],
   });
   // Cast to lightweight McpServer for module registration (avoids heavy generic inference)
   const lServer = server as unknown as LightMcpServer;

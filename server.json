@@ -3,6 +3,7 @@
   "name": "io.github.heznpc/airmcp",
   "description": "MCP server for the entire Apple ecosystem — 262 tools, 32 prompts across 25 modules. macOS only.",
   "version": "2.6.0",
+  "websiteUrl": "https://github.com/heznpc/AirMCP",
   "repository": {
     "url": "https://github.com/heznpc/AirMCP",
     "source": "github"

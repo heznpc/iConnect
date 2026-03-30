@@ -89,7 +89,7 @@ export async function loadModuleRegistry(): Promise<ModuleRegistration[]> {
     if (results[i]) {
       registry.push(results[i]!);
     } else {
-      failed.push(MANIFEST[i].name);
+      failed.push(MANIFEST[i]!.name);
     }
   }
 

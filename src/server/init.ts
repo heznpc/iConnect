@@ -16,13 +16,16 @@ import { usageTracker } from "../shared/usage-tracker.js";
 export interface ServerContext {
   config: AirMcpConfig;
   osVersion: number;
-  pkg: { version: string };
+  pkg: { version: string; description?: string };
   hitlClient: HitlClient | null;
 }
 
 export function initializeServer(): ServerContext {
   const __dirname = dirname(fileURLToPath(import.meta.url));
-  const pkg = JSON.parse(readFileSync(join(__dirname, "..", "..", "package.json"), "utf-8")) as { version: string };
+  const pkg = JSON.parse(readFileSync(join(__dirname, "..", "..", "package.json"), "utf-8")) as {
+    version: string;
+    description?: string;
+  };
 
   const config = parseConfig();
   const osVersion = getOsVersion();
