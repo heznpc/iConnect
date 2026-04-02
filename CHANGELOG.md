@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.2] - 2026-04-02
+
+### Added
+- **Debug pipeline** — `scripts/debug-pipeline.mjs` for module-isolated debugging (`npm run debug -- --module notes`); prevents 262-tool simultaneous load from exhausting memory
+- **Debug env vars** — `AIRMCP_DEBUG_MODULES` (whitelist) and `AIRMCP_DEBUG_SEQUENTIAL` (sequential loading) for targeted module debugging
+- **Embedding cache memory cap** — 256MB default limit with `AIRMCP_EMBED_CACHE_MAX_MB` override; fast-path size estimation for numeric arrays
+- **Audit flush interval config** — `AIRMCP_AUDIT_FLUSH_INTERVAL` env var (default raised from 5s to 30s)
+- **ESLint layer boundaries** — `no-restricted-imports` rules enforce Core → Bridge → Services dependency direction in `src/shared/`
+- **SDK signature validation** — `tool-registry.ts` validates callback position at runtime; logs warning and falls back gracefully on SDK mismatch
+- **57 new tests** — SDK integration tests for tool-registry (12), config parsing (7), audit logging (30), module loading (8); total 773→830
+
+### Fixed
+- **Module list sync** — `config.ts` `MODULE_NAMES` was missing `speech` and `health` modules (disable/enable config had no effect on them)
+- **Idle battery drain** — audit logger and usage tracker converted from `setInterval` to event-driven `setTimeout`; zero CPU wake-ups when no tools are active
+- **Cache eviction efficiency** — `evictIfNeeded()` now re-checks limits after pruning expired entries, avoiding unnecessary key-snapshot allocation
+
+### Changed
+- MCP SDK pinned to exact version `1.29.0` (was `^1.29.0`) to prevent silent monkey-patch breakage
+- `@modelcontextprotocol/ext-apps` pinned to exact `1.3.1`
+- `tool-registry.ts` reclassified from Bridge (Layer 2) to Services (Layer 3) to reflect actual dependencies
+- Validation blocks in tool-registry deduplicated via `validateCallback()` helper
+- `console.warn` standardized to `console.error` in tool-registry (MCP servers use stderr for logging)
+- Audit test helpers consolidated: `_testDrainBuffer` + `_testResetState` → single `_testReset`
+- Regenerated `llms-full.txt`
+
 ## [2.6.1] - 2026-04-02
 
 ### Security
