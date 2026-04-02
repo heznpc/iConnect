@@ -1,6 +1,6 @@
 {
   "name": "airmcp",
-  "version": "2.6.2",
+  "version": "2.6.3",
   "description": "MCP server for the entire Apple ecosystem — Notes, Reminders, Calendar, Contacts, Mail, Messages, Music, Finder, Safari, System, Photos, Shortcuts, Apple Intelligence, TV, Screen Capture, Maps, and Podcasts. Connect any AI to your Mac.",
   "keywords": [
     "mcp",
@@ -82,6 +82,9 @@
     "debug": "node scripts/debug-pipeline.mjs",
     "debug:all": "node scripts/debug-pipeline.mjs --all",
     "debug:list": "node scripts/debug-pipeline.mjs --list",
+    "dev:test": "node scripts/dev-test.mjs",
+    "dev:test:changed": "node scripts/dev-test.mjs --changed",
+    "dev:test:watch": "node scripts/dev-test.mjs --watch",
     "typecheck": "tsc --noEmit",
     "version:patch": "npm version patch --no-git-tag-version && node scripts/sync-version.mjs",
     "version:minor": "npm version minor --no-git-tag-version && node scripts/sync-version.mjs",

@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.3] - 2026-04-02
+
+### Added
+- **Dev test mode** — `scripts/dev-test.mjs` lightweight in-process developer testing (`npm run dev:test`); MockMcpServer harness calls tool handlers directly without MCP SDK, stdio transport, or child processes — 3x faster and 10x less memory than debug-pipeline
+- **Git-aware testing** — `npm run dev:test:changed` detects modified modules via `git diff` and tests only those; `src/shared/` changes trigger full test
+- **Watch mode** — `npm run dev:test:watch` rebuilds and re-tests on file changes with ESM cache-busting
+- **Single-tool testing** — `npm run dev:test -- --tool list_notes` finds and tests a single tool across all modules with reverse index lookup
+- **Memory reporting** — dev-test reports per-module heap delta and total memory usage
+
+### Changed
+- Updated CONTRIBUTING.md, docs/testing.md with dev-test workflow documentation
+- Module count corrected to 27 in README.md and server.json (was 25)
+- Regenerated llms.txt / llms-full.txt
+
 ## [2.6.2] - 2026-04-02
 
 ### Added
