@@ -87,6 +87,41 @@ if (process.argv.includes("--check")) {
     ]);
   } catch { /* optional */ }
 
+  // Check docs site and locale files for stale module counts
+  const docsModulePattern = [["modules", /(\d+) modules/, modules]];
+  const docsFiles = [
+    "docs/site/src/content/docs/modules/overview.md",
+    "docs/site/src/content/docs/architecture/overview.md",
+    "docs/site/src/content/docs/getting-started/installation.md",
+    "docs/site/src/content/docs/getting-started/configuration.md",
+    "docs/site/src/content/docs/contributing/testing.md",
+    "docs/skills.md",
+    "docs/TERMS_OF_SERVICE.md",
+  ];
+  for (const rel of docsFiles) {
+    try {
+      const content = readFileSync(join(ROOT, rel), "utf-8");
+      checkFile(rel, content, docsModulePattern);
+    } catch { /* file may not exist */ }
+  }
+
+  // Check locale files (various language patterns for module count)
+  const localeDir = join(ROOT, "docs", "locales");
+  try {
+    for (const f of readdirSync(localeDir).filter((f) => f.endsWith(".json"))) {
+      const content = readFileSync(join(localeDir, f), "utf-8");
+      // Match digits before common module-related words across languages
+      const m = content.match(/(\d+)[\s\u00a0]*(modules?|[모모]듈|モジュール|[模模]块|[模模]組|Modulen|módulos)/);
+      if (m) {
+        const found = parseInt(m[1]);
+        if (found !== modules) {
+          console.error(`docs/locales/${f}: says ${found} modules, source has ${modules}`);
+          ok = false;
+        }
+      }
+    }
+  } catch { /* locales dir may not exist */ }
+
   if (ok) {
     console.log(`Stats OK: ${tools} tools, ${prompts} prompts, ${resources} resources, ${modules} modules`);
   } else {
