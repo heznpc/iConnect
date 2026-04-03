@@ -2,7 +2,7 @@ import type { McpServer } from "../shared/mcp.js";
 import { z } from "zod";
 import { runJxa } from "../shared/jxa.js";
 import type { AirMcpConfig } from "../shared/config.js";
-import { ok, okLinked, okUntrusted, toolError } from "../shared/result.js";
+import { ok, okLinked, okUntrusted, okUntrustedStructured, toolError } from "../shared/result.js";
 import { zFilePath, resolveAndGuard } from "../shared/validate.js";
 import {
   searchFilesScript,
@@ -58,7 +58,7 @@ export function registerFinderTools(server: McpServer, _config: AirMcpConfig): v
     },
     async ({ path }) => {
       try {
-        return okUntrusted(await runJxa(getFileInfoScript(path)));
+        return okUntrustedStructured(await runJxa(getFileInfoScript(path)));
       } catch (e) {
         return toolError("get file info", e);
       }

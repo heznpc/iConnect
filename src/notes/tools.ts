@@ -3,7 +3,15 @@ import { z } from "zod";
 import { runJxa } from "../shared/jxa.js";
 import type { AirMcpConfig } from "../shared/config.js";
 import { LIMITS } from "../shared/constants.js";
-import { ok, okLinked, okUntrusted, err, toolError } from "../shared/result.js";
+import {
+  ok,
+  okLinked,
+  okLinkedStructured,
+  okUntrusted,
+  okUntrustedStructured,
+  err,
+  toolError,
+} from "../shared/result.js";
 import { filterSharedAccess, guardSharedAccess } from "../shared/share-guard.js";
 import type { Shareable, MutationResult, DeleteResult } from "../shared/types.js";
 import {
@@ -132,7 +140,7 @@ export function registerNoteTools(server: McpServer, config: AirMcpConfig): void
         );
         result.notes = filterSharedAccess(result.notes, config, "notes");
         result.returned = result.notes.length;
-        return okLinked("list_notes", result);
+        return okLinkedStructured("list_notes", result);
       } catch (e) {
         return toolError("list notes", e);
       }
@@ -184,7 +192,7 @@ export function registerNoteTools(server: McpServer, config: AirMcpConfig): void
         );
         result.notes = filterSharedAccess(result.notes, config, "notes");
         result.returned = result.notes.length;
-        return okUntrusted(result);
+        return okUntrustedStructured(result);
       } catch (e) {
         return toolError("search notes", e);
       }
