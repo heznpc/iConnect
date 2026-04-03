@@ -2,7 +2,7 @@ import type { McpServer } from "../shared/mcp.js";
 import { z } from "zod";
 import { runJxa } from "../shared/jxa.js";
 import type { AirMcpConfig } from "../shared/config.js";
-import { ok, okLinked, toolError } from "../shared/result.js";
+import { ok, okLinkedStructured, toolError } from "../shared/result.js";
 import {
   listPlaylistsScript,
   listTracksScript,
@@ -83,7 +83,7 @@ export function registerMusicTools(server: McpServer, _config: AirMcpConfig): vo
     },
     async () => {
       try {
-        return okLinked("now_playing", await runJxa(nowPlayingScript()));
+        return okLinkedStructured("now_playing", await runJxa(nowPlayingScript()));
       } catch (e) {
         return toolError("get now playing", e);
       }

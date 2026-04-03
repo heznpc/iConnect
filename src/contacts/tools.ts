@@ -2,7 +2,7 @@ import type { McpServer } from "../shared/mcp.js";
 import { z } from "zod";
 import { runAutomation } from "../shared/automation.js";
 import type { AirMcpConfig } from "../shared/config.js";
-import { ok, okLinked, okUntrusted, toolError } from "../shared/result.js";
+import { ok, okLinkedStructured, okUntrustedStructured, okStructured, toolError } from "../shared/result.js";
 import {
   listContactsScript,
   searchContactsScript,
@@ -124,7 +124,7 @@ export function registerContactTools(server: McpServer, _config: AirMcpConfig): 
           swift: { command: "list-contacts", input: { limit, offset } },
           jxa: () => listContactsScript(limit, offset),
         });
-        return okLinked("list_contacts", result);
+        return okLinkedStructured("list_contacts", result);
       } catch (e) {
         return toolError("list contacts", e);
       }
@@ -162,7 +162,7 @@ export function registerContactTools(server: McpServer, _config: AirMcpConfig): 
           swift: { command: "search-contacts", input: { query, limit } },
           jxa: () => searchContactsScript(query, limit),
         });
-        return ok(result);
+        return okStructured(result);
       } catch (e) {
         return toolError("search contacts", e);
       }
@@ -207,7 +207,7 @@ export function registerContactTools(server: McpServer, _config: AirMcpConfig): 
           swift: { command: "read-contact", input: { id } },
           jxa: () => readContactScript(id),
         });
-        return okUntrusted(result);
+        return okUntrustedStructured(result);
       } catch (e) {
         return toolError("read contact", e);
       }
@@ -391,7 +391,7 @@ export function registerContactTools(server: McpServer, _config: AirMcpConfig): 
           swift: { command: "list-group-members", input: { groupName, limit } },
           jxa: () => listGroupMembersScript(groupName, limit),
         });
-        return ok(result);
+        return okStructured(result);
       } catch (e) {
         return toolError("list group members", e);
       }

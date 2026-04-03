@@ -2,7 +2,7 @@ import type { McpServer } from "../shared/mcp.js";
 import { z } from "zod";
 import { runJxa } from "../shared/jxa.js";
 import type { AirMcpConfig } from "../shared/config.js";
-import { ok, okLinked, okUntrusted, err, toolError } from "../shared/result.js";
+import { ok, okLinked, okUntrusted, okStructured, err, toolError } from "../shared/result.js";
 import {
   listMailboxesScript,
   listMessagesScript,
@@ -40,7 +40,7 @@ export function registerMailTools(server: McpServer, config: AirMcpConfig): void
     },
     async () => {
       try {
-        return ok(await runJxa(listMailboxesScript()));
+        return okStructured(await runJxa(listMailboxesScript()));
       } catch (e) {
         return toolError("list mailboxes", e);
       }
@@ -178,7 +178,7 @@ export function registerMailTools(server: McpServer, config: AirMcpConfig): void
     },
     async () => {
       try {
-        return ok(await runJxa(getUnreadCountScript()));
+        return okStructured(await runJxa(getUnreadCountScript()));
       } catch (e) {
         return toolError("get unread count", e);
       }

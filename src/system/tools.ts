@@ -3,7 +3,7 @@ import { z } from "zod";
 import { runJxa } from "../shared/jxa.js";
 import { runAutomation } from "../shared/automation.js";
 import type { AirMcpConfig } from "../shared/config.js";
-import { ok, okUntrusted, toolError } from "../shared/result.js";
+import { ok, okUntrustedStructured, okStructured, toolError } from "../shared/result.js";
 import { zFilePath } from "../shared/validate.js";
 import {
   getClipboardScript,
@@ -70,7 +70,7 @@ export function registerSystemTools(server: McpServer, _config: AirMcpConfig): v
     },
     async () => {
       try {
-        return okUntrusted(
+        return okUntrustedStructured(
           await runAutomation<{ content: string; length: number; truncated: boolean }>({
             swift: { command: "get-clipboard" },
             jxa: () => getClipboardScript(),
@@ -103,7 +103,7 @@ export function registerSystemTools(server: McpServer, _config: AirMcpConfig): v
     },
     async ({ text }) => {
       try {
-        return ok(await runJxa<{ set: boolean; length: number }>(setClipboardScript(text)));
+        return okStructured(await runJxa<{ set: boolean; length: number }>(setClipboardScript(text)));
       } catch (e) {
         return toolError("set clipboard", e);
       }
@@ -130,7 +130,9 @@ export function registerSystemTools(server: McpServer, _config: AirMcpConfig): v
     },
     async () => {
       try {
-        return ok(await runJxa<{ outputVolume: number; inputVolume: number; outputMuted: boolean }>(getVolumeScript()));
+        return okStructured(
+          await runJxa<{ outputVolume: number; inputVolume: number; outputMuted: boolean }>(getVolumeScript()),
+        );
       } catch (e) {
         return toolError("get volume", e);
       }
@@ -159,7 +161,9 @@ export function registerSystemTools(server: McpServer, _config: AirMcpConfig): v
     },
     async ({ volume, muted }) => {
       try {
-        return ok(await runJxa<{ outputVolume: number; outputMuted: boolean }>(setVolumeScript(volume, muted)));
+        return okStructured(
+          await runJxa<{ outputVolume: number; outputMuted: boolean }>(setVolumeScript(volume, muted)),
+        );
       } catch (e) {
         return toolError("set volume", e);
       }
@@ -184,7 +188,7 @@ export function registerSystemTools(server: McpServer, _config: AirMcpConfig): v
     },
     async () => {
       try {
-        return ok(await runJxa<{ darkMode: boolean }>(toggleDarkModeScript()));
+        return okStructured(await runJxa<{ darkMode: boolean }>(toggleDarkModeScript()));
       } catch (e) {
         return toolError("toggle dark mode", e);
       }
@@ -211,7 +215,9 @@ export function registerSystemTools(server: McpServer, _config: AirMcpConfig): v
     },
     async () => {
       try {
-        return ok(await runJxa<{ name: string; bundleIdentifier: string; pid: number }>(getFrontmostAppScript()));
+        return okStructured(
+          await runJxa<{ name: string; bundleIdentifier: string; pid: number }>(getFrontmostAppScript()),
+        );
       } catch (e) {
         return toolError("get frontmost app", e);
       }

@@ -2,7 +2,7 @@ import type { McpServer } from "../shared/mcp.js";
 import { z } from "zod";
 import { runJxa } from "../shared/jxa.js";
 import type { AirMcpConfig } from "../shared/config.js";
-import { ok, okLinked, okUntrusted, err, toolError } from "../shared/result.js";
+import { ok, okLinkedStructured, okUntrusted, okStructured, err, toolError } from "../shared/result.js";
 import { auditLog } from "../shared/audit.js";
 import {
   listTabsScript,
@@ -40,7 +40,7 @@ export function registerSafariTools(server: McpServer, config: AirMcpConfig): vo
     },
     async () => {
       try {
-        return okLinked("list_tabs", await runJxa(listTabsScript()));
+        return okLinkedStructured("list_tabs", await runJxa(listTabsScript()));
       } catch (e) {
         return toolError("list tabs", e);
       }
@@ -89,7 +89,7 @@ export function registerSafariTools(server: McpServer, config: AirMcpConfig): vo
     },
     async () => {
       try {
-        return ok(await runJxa(getCurrentTabScript()));
+        return okStructured(await runJxa(getCurrentTabScript()));
       } catch (e) {
         return toolError("get current tab", e);
       }

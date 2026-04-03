@@ -32,10 +32,18 @@ export function okUntrusted(data: unknown) {
   };
 }
 
+/** Return a successful MCP tool response with untrusted markers and structured content. */
+export function okUntrustedStructured(data: unknown) {
+  return {
+    ...okUntrusted(data),
+    structuredContent: data,
+  };
+}
+
 /** Return a successful MCP tool response with both text and structured content. */
 export function okStructured(data: unknown) {
   return {
-    content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }],
+    ...ok(data),
     structuredContent: data,
   };
 }
