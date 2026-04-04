@@ -63,7 +63,7 @@ export function okLinkedStructured(toolName: string, data: unknown) {
   if (links.length > 0) {
     base.content.push({
       type: "text" as const,
-      text: JSON.stringify({ _links: links }, null, 2),
+      text: JSON.stringify({ _links: links }),
     });
   }
   return base;
