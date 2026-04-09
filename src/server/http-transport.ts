@@ -190,12 +190,13 @@ export async function startHttpServer(options: HttpServerOptions): Promise<void>
     description: pkg.description,
     websiteUrl: WEBSITE_URL,
     icons: [SERVER_ICON],
-    transport: { type: "streamable-http", url: "/mcp" },
+    transport: { type: "streamable-http" as const, url: "/mcp" },
     capabilities: {
       tools: { listChanged: true },
       prompts: { listChanged: true },
       resources: { listChanged: true },
     },
+    ...(httpToken ? { authorization: { type: "bearer" as const } } : {}),
   };
   app.get("/.well-known/mcp.json", (_req, res) => res.json(serverCard));
 
