@@ -30,6 +30,7 @@
 /* Menu - Config */
 "menu.copyClaudeConfig" = "Copy Claude Config";
 "menu.copyClaudeCodeConfig" = "Copy Claude Code Config";
+"menu.addWidget" = "Add Desktop Widget...";
 "menu.openDocumentation" = "Open Documentation";
 
 /* Menu - Logs */

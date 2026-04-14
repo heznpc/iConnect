@@ -2,6 +2,21 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+    <key>CFBundleURLTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleURLName</key>
+            <string>com.heznpc.AirMCP</string>
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <string>airmcp</string>
+            </array>
+        </dict>
+    </array>
+    <key>NSCalendarsFullAccessUsageDescription</key>
+    <string>AirMCP shows your calendar events in the Daily Briefing widget and enables AI-powered calendar management.</string>
+    <key>NSRemindersFullAccessUsageDescription</key>
+    <string>AirMCP shows your reminders in the Daily Briefing widget and enables AI-powered reminder management.</string>
     <key>NSServices</key>
     <array>
         <dict>

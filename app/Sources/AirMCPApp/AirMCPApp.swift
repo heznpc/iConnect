@@ -1,6 +1,7 @@
 import SwiftUI
 import UserNotifications
 import AppKit
+import WidgetKit
 
 @main
 struct AirMCPApp: App {
@@ -38,6 +39,14 @@ struct AirMCPApp: App {
             }
 
             NSApp?.servicesProvider = ServicesProvider()
+
+            // Register URL scheme handler (airmcp://)
+            NSAppleEventManager.shared().setEventHandler(
+                URLSchemeHandler.shared,
+                andSelector: #selector(URLSchemeHandler.handleURL(_:withReply:)),
+                forEventClass: AEEventClass(kInternetEventClass),
+                andEventID: AEEventID(kAEGetURL)
+            )
         }
     }
 
@@ -139,4 +148,25 @@ final class OnboardingWindowHolder: NSObject {
 
 extension Notification.Name {
     static let hitlNotificationResponse = Notification.Name("hitlNotificationResponse")
+}
+
+// MARK: - URL Scheme Handler (airmcp://)
+
+@MainActor
+final class URLSchemeHandler: NSObject {
+    static let shared = URLSchemeHandler()
+
+    @objc func handleURL(_ event: NSAppleEventDescriptor, withReply reply: NSAppleEventDescriptor) {
+        guard let urlString = event.paramDescriptor(forKeyword: keyDirectObject)?.stringValue,
+              let url = URL(string: urlString),
+              url.scheme == "airmcp"
+        else { return }
+
+        switch url.host {
+        case "briefing":
+            NSWorkspace.shared.open(URL(string: "x-apple-calevent://")!)
+        default:
+            NSApp.activate()
+        }
+    }
 }

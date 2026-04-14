@@ -30,6 +30,7 @@
 /* Menu - Config */
 "menu.copyClaudeConfig" = "Claude 설정 복사";
 "menu.copyClaudeCodeConfig" = "Claude Code 설정 복사";
+"menu.addWidget" = "데스크탑 위젯 추가...";
 "menu.openDocumentation" = "문서 열기";
 
 /* Menu - Logs */

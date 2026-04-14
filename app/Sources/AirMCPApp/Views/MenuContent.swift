@@ -461,6 +461,13 @@ struct MenuContent: View {
             AirMcpConstants.copyToClipboard("claude mcp add airmcp -- npx -y \(AirMcpConstants.npmPackageName)")
         }
 
+        Button(L("menu.addWidget")) {
+            // Open Notification Center widget gallery
+            if let url = URL(string: "x-apple-widget://add") {
+                NSWorkspace.shared.open(url)
+            }
+        }
+
         Divider()
 
         Button(L("menu.openDocumentation")) {

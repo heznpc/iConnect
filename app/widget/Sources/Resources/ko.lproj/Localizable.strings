@@ -1,0 +1,24 @@
+/* Widget - Small */
+"widget.next" = "다음 일정";
+"widget.allDay" = "하루 종일";
+"widget.noMoreEvents" = "남은 일정 없음";
+"widget.today" = "오늘";
+"widget.overdueCount" = "%d개 지연";
+"widget.reminderCount" = "%d개 리마인더";
+
+/* Widget - Medium */
+"widget.reminders" = "리마인더";
+"widget.noEventsToday" = "오늘 일정 없음";
+"widget.allClear" = "모두 완료";
+"widget.moreEvents" = "+%d개 더";
+"widget.accessRequired" = "접근 필요";
+"widget.calendarAccessRequired" = "캘린더 접근 필요";
+
+/* Widget - Large */
+"widget.dailyBriefing" = "오늘의 브리핑";
+"widget.todaySection" = "오늘";
+"widget.remindersSection" = "리마인더";
+"widget.tomorrowSection" = "내일";
+"widget.noEventsScheduled" = "예정된 일정 없음";
+"widget.moreEventsCount" = "+%d개 일정 더";
+"widget.grantAccess" = "시스템 설정 > 개인정보 보호에서\n캘린더·미리알림 접근 허용";

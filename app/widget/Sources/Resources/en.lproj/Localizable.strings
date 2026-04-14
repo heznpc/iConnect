@@ -1,0 +1,24 @@
+/* Widget - Small */
+"widget.next" = "Next";
+"widget.allDay" = "All day";
+"widget.noMoreEvents" = "No more events";
+"widget.today" = "today";
+"widget.overdueCount" = "%d overdue";
+"widget.reminderCount" = "%d reminders";
+
+/* Widget - Medium */
+"widget.reminders" = "Reminders";
+"widget.noEventsToday" = "No events today";
+"widget.allClear" = "All clear";
+"widget.moreEvents" = "+%d more";
+"widget.accessRequired" = "Access required";
+"widget.calendarAccessRequired" = "Calendar access required";
+
+/* Widget - Large */
+"widget.dailyBriefing" = "Daily Briefing";
+"widget.todaySection" = "Today";
+"widget.remindersSection" = "Reminders";
+"widget.tomorrowSection" = "Tomorrow";
+"widget.noEventsScheduled" = "No events scheduled";
+"widget.moreEventsCount" = "+%d more events";
+"widget.grantAccess" = "Grant Calendar & Reminders access\nin System Settings > Privacy";

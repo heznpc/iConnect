@@ -1,6 +1,14 @@
 import SwiftUI
 import WidgetKit
 
+private func WL(_ key: String) -> String {
+    NSLocalizedString(key, bundle: .module, comment: "")
+}
+
+private func WL(_ key: String, _ args: CVarArg...) -> String {
+    String(format: NSLocalizedString(key, bundle: .module, comment: ""), arguments: args)
+}
+
 // MARK: - Small Widget
 
 struct BriefingSmallView: View {
@@ -22,11 +30,11 @@ struct BriefingSmallView: View {
             Spacer(minLength: 2)
 
             if entry.overdueCount > 0 {
-                Label("\(entry.overdueCount) overdue", systemImage: "exclamationmark.circle.fill")
+                Label(WL("widget.overdueCount", entry.overdueCount), systemImage: "exclamationmark.circle.fill")
                     .font(.caption2)
                     .foregroundStyle(.red)
             } else if !entry.reminders.isEmpty {
-                Label("\(entry.reminders.count) reminders", systemImage: "checklist")
+                Label(WL("widget.reminderCount", entry.reminders.count), systemImage: "checklist")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }
@@ -51,7 +59,7 @@ struct BriefingSmallView: View {
 
     private func nextEventView(_ event: BriefingEvent) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text("Next")
+            Text(WL("widget.next"))
                 .font(.caption2)
                 .foregroundStyle(.secondary)
             HStack(spacing: 4) {
@@ -63,7 +71,7 @@ struct BriefingSmallView: View {
                         .font(.caption)
                         .fontWeight(.medium)
                         .lineLimit(2)
-                    Text(event.isAllDay ? "All day" : event.timeString)
+                    Text(event.isAllDay ? WL("widget.allDay") : event.timeString)
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
@@ -73,10 +81,10 @@ struct BriefingSmallView: View {
 
     private var noEventsView: some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text("No more events")
+            Text(WL("widget.noMoreEvents"))
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            Text("today")
+            Text(WL("widget.today"))
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
         }
@@ -86,7 +94,7 @@ struct BriefingSmallView: View {
         VStack(alignment: .leading, spacing: 2) {
             Image(systemName: "lock.shield")
                 .foregroundStyle(.secondary)
-            Text("Grant calendar access in System Settings")
+            Text(WL("widget.grantAccess"))
                 .font(.caption2)
                 .foregroundStyle(.secondary)
         }
@@ -111,11 +119,11 @@ struct BriefingMediumView: View {
                 dateHeader
                 if !entry.hasCalendarAccess {
                     Spacer()
-                    accessLabel("Calendar access required")
+                    accessLabel(WL("widget.calendarAccessRequired"))
                     Spacer()
                 } else if entry.events.isEmpty {
                     Spacer()
-                    Text("No events today")
+                    Text(WL("widget.noEventsToday"))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     Spacer()
@@ -124,7 +132,7 @@ struct BriefingMediumView: View {
                         eventRow(event)
                     }
                     if entry.events.count > 4 {
-                        Text("+\(entry.events.count - 4) more")
+                        Text(WL("widget.moreEvents", entry.events.count - 4))
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                     }
@@ -134,14 +142,14 @@ struct BriefingMediumView: View {
 
             // Right: Reminders summary
             VStack(alignment: .leading, spacing: 4) {
-                Label("Reminders", systemImage: "checklist")
+                Label(WL("widget.reminders"), systemImage: "checklist")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
 
                 if !entry.hasReminderAccess {
-                    accessLabel("Access required")
+                    accessLabel(WL("widget.accessRequired"))
                 } else if entry.reminders.isEmpty {
-                    Text("All clear")
+                    Text(WL("widget.allClear"))
                         .font(.caption)
                         .foregroundStyle(.green)
                 } else {
@@ -150,7 +158,7 @@ struct BriefingMediumView: View {
                             Image(systemName: "exclamationmark.circle.fill")
                                 .font(.caption2)
                                 .foregroundStyle(.red)
-                            Text("\(entry.overdueCount) overdue")
+                            Text(WL("widget.overdueCount", entry.overdueCount))
                                 .font(.caption2)
                                 .foregroundStyle(.red)
                         }
@@ -238,7 +246,7 @@ struct BriefingLargeView: View {
             HStack {
                 Image(systemName: "a.square.fill")
                     .foregroundStyle(.blue)
-                Text("Daily Briefing")
+                Text(WL("widget.dailyBriefing"))
                     .font(.subheadline)
                     .fontWeight(.semibold)
                 Spacer()
@@ -255,7 +263,7 @@ struct BriefingLargeView: View {
                     Image(systemName: "lock.shield")
                         .font(.title2)
                         .foregroundStyle(.secondary)
-                    Text("Grant Calendar & Reminders access\nin System Settings > Privacy")
+                    Text(WL("widget.grantAccess"))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
@@ -263,15 +271,10 @@ struct BriefingLargeView: View {
                 .frame(maxWidth: .infinity)
                 Spacer()
             } else {
-                // Events section
                 eventsSection
-
                 Divider()
-
-                // Reminders section
                 remindersSection
 
-                // Tomorrow preview
                 if !entry.tomorrowEvents.isEmpty {
                     Divider()
                     tomorrowSection
@@ -285,13 +288,13 @@ struct BriefingLargeView: View {
 
     private var eventsSection: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Label("Today", systemImage: "calendar")
+            Label(WL("widget.todaySection"), systemImage: "calendar")
                 .font(.caption)
                 .fontWeight(.medium)
                 .foregroundStyle(.secondary)
 
             if entry.events.isEmpty {
-                Text("No events scheduled")
+                Text(WL("widget.noEventsScheduled"))
                     .font(.caption)
                     .foregroundStyle(.tertiary)
                     .padding(.leading, 8)
@@ -300,7 +303,7 @@ struct BriefingLargeView: View {
                     largeEventRow(event)
                 }
                 if entry.events.count > 5 {
-                    Text("+\(entry.events.count - 5) more events")
+                    Text(WL("widget.moreEventsCount", entry.events.count - 5))
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                         .padding(.leading, 8)
@@ -312,13 +315,13 @@ struct BriefingLargeView: View {
     private var remindersSection: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
-                Label("Reminders", systemImage: "checklist")
+                Label(WL("widget.remindersSection"), systemImage: "checklist")
                     .font(.caption)
                     .fontWeight(.medium)
                     .foregroundStyle(.secondary)
                 if entry.overdueCount > 0 {
                     Spacer()
-                    Text("\(entry.overdueCount) overdue")
+                    Text(WL("widget.overdueCount", entry.overdueCount))
                         .font(.caption2)
                         .fontWeight(.medium)
                         .foregroundStyle(.red)
@@ -326,7 +329,7 @@ struct BriefingLargeView: View {
             }
 
             if entry.reminders.isEmpty {
-                Text("All clear")
+                Text(WL("widget.allClear"))
                     .font(.caption)
                     .foregroundStyle(.green)
                     .padding(.leading, 8)
@@ -340,7 +343,7 @@ struct BriefingLargeView: View {
 
     private var tomorrowSection: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Label("Tomorrow", systemImage: "sunrise")
+            Label(WL("widget.tomorrowSection"), systemImage: "sunrise")
                 .font(.caption)
                 .fontWeight(.medium)
                 .foregroundStyle(.secondary)
@@ -375,7 +378,7 @@ struct BriefingLargeView: View {
                     .lineLimit(1)
                 HStack(spacing: 4) {
                     if event.isAllDay {
-                        Text("All day")
+                        Text(WL("widget.allDay"))
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                     } else {
@@ -439,16 +442,23 @@ struct BriefingWidgetEntryView: View {
     @Environment(\.widgetFamily) var family
     let entry: BriefingEntry
 
+    private var destination: URL {
+        URL(string: "airmcp://briefing")!
+    }
+
     var body: some View {
-        switch family {
-        case .systemSmall:
-            BriefingSmallView(entry: entry)
-        case .systemMedium:
-            BriefingMediumView(entry: entry)
-        case .systemLarge, .systemExtraLarge:
-            BriefingLargeView(entry: entry)
-        @unknown default:
-            BriefingMediumView(entry: entry)
+        Group {
+            switch family {
+            case .systemSmall:
+                BriefingSmallView(entry: entry)
+            case .systemMedium:
+                BriefingMediumView(entry: entry)
+            case .systemLarge, .systemExtraLarge:
+                BriefingLargeView(entry: entry)
+            @unknown default:
+                BriefingMediumView(entry: entry)
+            }
         }
+        .widgetURL(destination)
     }
 }

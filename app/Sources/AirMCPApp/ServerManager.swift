@@ -1,4 +1,5 @@
 import Foundation
+import WidgetKit
 
 @MainActor
 @Observable
@@ -68,6 +69,7 @@ final class ServerManager {
                 stderrPipe = pipes?.stderr
                 try? await Task.sleep(nanoseconds: 1_000_000_000)
                 checkStatus()
+                WidgetCenter.shared.reloadAllTimelines()
             } else {
                 if let pipes, let logManager {
                     logManager.detachPipes(stdout: pipes.stdout, stderr: pipes.stderr)
@@ -95,6 +97,7 @@ final class ServerManager {
             Task {
                 try? await Task.sleep(nanoseconds: 500_000_000)
                 checkStatus()
+                WidgetCenter.shared.reloadAllTimelines()
             }
         } else {
             // Kill externally started processes
@@ -102,6 +105,7 @@ final class ServerManager {
                 await Self.performPkill()
                 try? await Task.sleep(nanoseconds: 500_000_000)
                 status = .stopped
+                WidgetCenter.shared.reloadAllTimelines()
             }
         }
     }

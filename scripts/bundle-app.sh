@@ -56,6 +56,13 @@ if [ -f "$WIDGET_DIR/Package.swift" ]; then
     cp "$WIDGET_BIN" "$APPEX_DIR/MacOS/AirMCPWidget"
     cp "$WIDGET_DIR/Info.plist" "$APPEX_DIR/Info.plist"
 
+    # Copy resource bundle (localization strings)
+    WIDGET_RESOURCE="$WIDGET_DIR/.build/release/AirMCPWidget_AirMCPWidget.bundle"
+    if [ -d "$WIDGET_RESOURCE" ]; then
+      mkdir -p "$APPEX_DIR/Resources"
+      cp -R "$WIDGET_RESOURCE" "$APPEX_DIR/Resources/"
+    fi
+
     # Ad-hoc sign the widget extension (required for WidgetKit)
     codesign --force --sign - --entitlements /dev/stdin "$APPEX_DIR/../" <<'ENTITLEMENTS_EOF'
 <?xml version="1.0" encoding="UTF-8"?>
