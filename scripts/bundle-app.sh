@@ -40,6 +40,41 @@ if [ -f "$APP_DIR/Sources/AirMCPApp/Resources/Info.plist" ]; then
   cp "$APP_DIR/Sources/AirMCPApp/Resources/Info.plist" "$BUNDLE_DIR/Contents/Info.plist"
 fi
 
+# ── Build and embed WidgetKit extension ──
+WIDGET_DIR="$APP_DIR/widget"
+if [ -f "$WIDGET_DIR/Package.swift" ]; then
+  echo "Building AirMCPWidget extension..."
+  cd "$WIDGET_DIR" && swift build -c release 2>&1 || {
+    echo "⚠ Widget build failed — skipping widget extension"
+  }
+
+  WIDGET_BIN="$WIDGET_DIR/.build/release/AirMCPWidget"
+  if [ -f "$WIDGET_BIN" ]; then
+    APPEX_DIR="$BUNDLE_DIR/Contents/PlugIns/AirMCPWidget.appex/Contents"
+    mkdir -p "$APPEX_DIR/MacOS"
+
+    cp "$WIDGET_BIN" "$APPEX_DIR/MacOS/AirMCPWidget"
+    cp "$WIDGET_DIR/Info.plist" "$APPEX_DIR/Info.plist"
+
+    # Ad-hoc sign the widget extension (required for WidgetKit)
+    codesign --force --sign - --entitlements /dev/stdin "$APPEX_DIR/../" <<'ENTITLEMENTS_EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>com.apple.security.app-sandbox</key>
+	<false/>
+	<key>com.apple.security.personal-information.calendars</key>
+	<true/>
+	<key>com.apple.security.personal-information.reminders</key>
+	<true/>
+</dict>
+</plist>
+ENTITLEMENTS_EOF
+    echo "  ✓ Widget extension embedded"
+  fi
+fi
+
 # Add minimal required keys to Info.plist if it exists, or create one
 PLIST="$BUNDLE_DIR/Contents/Info.plist"
 if [ ! -f "$PLIST" ]; then
@@ -68,6 +103,9 @@ fi
 /usr/libexec/PlistBuddy -c "Add :LSUIElement bool true" "$PLIST"
 /usr/libexec/PlistBuddy -c "Delete :NSMicrophoneUsageDescription" "$PLIST" 2>/dev/null || true
 /usr/libexec/PlistBuddy -c "Add :NSMicrophoneUsageDescription string AirMCP uses the microphone for speech recognition." "$PLIST"
+
+# Ad-hoc sign the main app (must happen AFTER embedding extensions)
+codesign --force --sign - "$BUNDLE_DIR" 2>/dev/null || true
 
 echo ""
 echo "✓ AirMCP.app created at: $BUNDLE_DIR"

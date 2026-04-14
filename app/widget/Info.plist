@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleIdentifier</key>
+	<string>com.heznpc.AirMCP.Widget</string>
+	<key>CFBundleExecutable</key>
+	<string>AirMCPWidget</string>
+	<key>CFBundleName</key>
+	<string>AirMCPWidget</string>
+	<key>CFBundleDisplayName</key>
+	<string>AirMCP Briefing</string>
+	<key>CFBundlePackageType</key>
+	<string>XPC!</string>
+	<key>CFBundleShortVersionString</key>
+	<string>2.7.1</string>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+	<key>NSExtension</key>
+	<dict>
+		<key>NSExtensionPointIdentifier</key>
+		<string>com.apple.widgetkit-extension</string>
+	</dict>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>AirMCP shows your calendar events in the Daily Briefing widget.</string>
+	<key>NSRemindersFullAccessUsageDescription</key>
+	<string>AirMCP shows your reminders in the Daily Briefing widget.</string>
+</dict>
+</plist>
