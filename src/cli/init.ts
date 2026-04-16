@@ -12,6 +12,7 @@ import { MODULE_NAMES, STARTER_MODULES, NPM_PACKAGE_NAME, MCP_CLIENTS } from "..
 import { PATHS } from "../shared/constants.js";
 import { LOGO_LINES, typeLine, sleep, writeOut } from "../shared/banner.js";
 import { isPlainObject } from "../shared/validate.js";
+import { formatError } from "../shared/errors.js";
 import { selectOne, selectMulti, type SelectOption, type MultiOption } from "./select.js";
 
 // ── Module metadata ──────────────────────────────────────────────────
@@ -398,9 +399,7 @@ export async function runInit(): Promise<void> {
   try {
     writeFileSync(PATHS.CONFIG, JSON.stringify(configPayload, null, 2) + "\n");
   } catch (err) {
-    console.error(
-      `\n  ${YELLOW}\u2716${RESET} Failed to write config: ${err instanceof Error ? err.message : String(err)}`,
-    );
+    console.error(`\n  ${YELLOW}\u2716${RESET} Failed to write config: ${formatError(err)}`);
     process.exit(1);
   }
   console.log(` ${GREEN}\u2713${RESET} ${PATHS.CONFIG}`);

@@ -3,6 +3,7 @@ import { execFileSync } from "node:child_process";
 import { join } from "node:path";
 import { release } from "node:os";
 import { HOME, PATHS } from "./constants.js";
+import { formatError } from "./errors.js";
 
 /**
  * Return the macOS major version number.
@@ -174,6 +175,8 @@ interface LoadResult {
   config: FileConfig;
   /** true if config.json was found and parsed successfully */
   fileExists: boolean;
+  /** Raw parsed object for validation warnings (avoids re-reading the file) */
+  rawObj?: Record<string, unknown>;
 }
 
 function loadFileConfig(): LoadResult {
@@ -225,13 +228,11 @@ function loadFileConfig(): LoadResult {
         circuitBreakerOpenMs: typeof p.circuitBreakerOpenMs === "number" ? p.circuitBreakerOpenMs : undefined,
       };
     }
-    return { config, fileExists: true };
+    return { config, fileExists: true, rawObj: obj };
   } catch (err) {
     // Distinguish "file not found" from "file exists but parse failed"
     if (err instanceof SyntaxError || (err instanceof Error && err.message.includes("JSON"))) {
-      console.error(
-        `[AirMCP] Failed to parse config.json: ${err instanceof Error ? err.message : String(err)} — using defaults`,
-      );
+      console.error(`[AirMCP] Failed to parse config.json: ${formatError(err)} — using defaults`);
       return { config: {}, fileExists: true };
     }
     return { config: {}, fileExists: false };
@@ -255,7 +256,7 @@ function envBool(envKey: string, fileValue: boolean | undefined, defaultValue: b
 }
 
 export function parseConfig(): AirMcpConfig {
-  const { config: file, fileExists } = loadFileConfig();
+  const { config: file, fileExists, rawObj } = loadFileConfig();
   const fullMode = process.env.AIRMCP_FULL === "true" || process.argv.includes("--full");
 
   // Validate disabledModules: warn about unknown module names
@@ -275,18 +276,12 @@ export function parseConfig(): AirMcpConfig {
   }
 
   // Validate boolean fields: warn if non-boolean values are present in the raw config
-  if (fileExists) {
-    try {
-      const rawData = readFileSync(PATHS.CONFIG, "utf-8");
-      const rawObj = JSON.parse(rawData) as Record<string, unknown>;
-      const boolFields = ["includeShared", "allowSendMessages", "allowSendMail", "allowRunJavascript"] as const;
-      for (const field of boolFields) {
-        if (field in rawObj && typeof rawObj[field] !== "boolean") {
-          console.error(`[AirMCP] Config field "${field}" should be boolean, got ${typeof rawObj[field]} — ignored`);
-        }
+  if (rawObj) {
+    const boolFields = ["includeShared", "allowSendMessages", "allowSendMail", "allowRunJavascript"] as const;
+    for (const field of boolFields) {
+      if (field in rawObj && typeof rawObj[field] !== "boolean") {
+        console.error(`[AirMCP] Config field "${field}" should be boolean, got ${typeof rawObj[field]} — ignored`);
       }
-    } catch {
-      // Already handled in loadFileConfig
     }
   }
 
