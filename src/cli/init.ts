@@ -269,6 +269,19 @@ const PRESETS: Record<string, { desc: string; modules: string[] }> = {
 import { DIM, RESET, BOLD, WHITE, GREEN, YELLOW } from "./style.js";
 
 export async function runInit(): Promise<void> {
+  // Guard: interactive prompts require a TTY
+  if (!process.stdin.isTTY) {
+    console.error(
+      "[AirMCP] init requires an interactive terminal.\n" +
+        "  For non-interactive setup, create the config manually:\n" +
+        `    mkdir -p ${PATHS.CONFIG_DIR}\n` +
+        `    echo '{}' > ${PATHS.CONFIG}\n` +
+        "  Or use the starter preset with all defaults:\n" +
+        "    AIRMCP_FULL=true npx airmcp",
+    );
+    process.exit(1);
+  }
+
   // Animated logo
   writeOut("\n");
   for (const line of LOGO_LINES) {

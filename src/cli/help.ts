@@ -17,6 +17,7 @@ export function runHelp(): void {
   console.log(`    ${GREEN}$${RESET} npx airmcp                  ${DIM}Start MCP server (stdio)${RESET}`);
   console.log(`    ${GREEN}$${RESET} npx airmcp ${BOLD}--http${RESET}          ${DIM}Start as HTTP server${RESET}`);
   console.log(`    ${GREEN}$${RESET} npx airmcp ${BOLD}--full${RESET}          ${DIM}Enable all modules${RESET}`);
+  console.log(`    ${GREEN}$${RESET} npx airmcp ${BOLD}--version${RESET}       ${DIM}Print version and exit${RESET}`);
   console.log(
     `    ${GREEN}$${RESET} npx airmcp ${BOLD}--http --port${RESET} N  ${DIM}Custom port (default: 3847)${RESET}`,
   );

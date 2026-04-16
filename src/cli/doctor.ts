@@ -94,6 +94,8 @@ export async function runDoctor(): Promise<void> {
       /* ignore */
     }
     if (current === latest) ok("AirMCP Version", `v${current} ${DIM}(latest)${RESET}`);
+    else if (current !== "unknown" && latest && current > latest)
+      ok("AirMCP Version", `v${current} ${DIM}(ahead of npm v${latest})${RESET}`);
     else meh("AirMCP Version", `v${current} → v${latest} available`);
   } catch {
     meh("AirMCP Version", "Could not check npm registry");

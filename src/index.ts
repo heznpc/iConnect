@@ -7,6 +7,15 @@ if (!process.env.HOME && !process.env.USERPROFILE) {
 
 // CLI subcommands: route before heavy imports
 const _sub = process.argv[2];
+if (_sub === "--version" || _sub === "-v" || _sub === "-V") {
+  const { readFileSync } = await import("node:fs");
+  const { dirname, join } = await import("node:path");
+  const { fileURLToPath } = await import("node:url");
+  const __d = dirname(fileURLToPath(import.meta.url));
+  const v = JSON.parse(readFileSync(join(__d, "..", "package.json"), "utf-8")).version;
+  console.log(v);
+  process.exit(0);
+}
 if (_sub === "init" || _sub === "doctor" || _sub === "--help" || _sub === "-h" || _sub === "help") {
   if (_sub === "init") {
     const mod = await import("./cli/init.js");
@@ -19,6 +28,11 @@ if (_sub === "init" || _sub === "doctor" || _sub === "--help" || _sub === "-h" |
     mod.runHelp();
   }
   process.exit(0);
+}
+// Reject unknown subcommands (anything that doesn't start with --)
+if (_sub && !_sub.startsWith("--")) {
+  console.error(`[AirMCP] Unknown command: "${_sub}". Run 'npx airmcp --help' for usage.`);
+  process.exit(1);
 }
 
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";

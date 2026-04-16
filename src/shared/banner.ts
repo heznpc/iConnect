@@ -3,11 +3,12 @@
  * Outputs to stderr so it doesn't interfere with MCP stdio transport.
  */
 
-const DIM = "\x1b[2m";
-const RESET = "\x1b[0m";
-const BOLD = "\x1b[1m";
-const WHITE = "\x1b[97m"; // bright white
-const YELLOW = "\x1b[33m";
+const nc = "NO_COLOR" in process.env;
+const DIM = nc ? "" : "\x1b[2m";
+const RESET = nc ? "" : "\x1b[0m";
+const BOLD = nc ? "" : "\x1b[1m";
+const WHITE = nc ? "" : "\x1b[97m";
+const YELLOW = nc ? "" : "\x1b[33m";
 
 export const LOGO_LINES = [
   `${WHITE}     ___   _      __  __  ___  ___${RESET}`,

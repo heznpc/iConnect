@@ -3,20 +3,22 @@
  * All CLI output goes through these for a consistent look.
  */
 
-// ── ANSI codes ───────────────────────────────────────────────────────
+// ── ANSI codes (respect NO_COLOR: https://no-color.org/) ─────────────
 
-export const DIM = "\x1b[2m";
-export const RESET = "\x1b[0m";
-export const BOLD = "\x1b[1m";
-export const WHITE = "\x1b[97m";
-export const GREEN = "\x1b[32m";
-export const RED = "\x1b[31m";
-export const YELLOW = "\x1b[33m";
-export const CYAN = "\x1b[36m";
-export const HIDE_CURSOR = "\x1b[?25l";
-export const SHOW_CURSOR = "\x1b[?25h";
-export const CLEAR_LINE = "\x1b[2K\r";
-export const MOVE_UP = (n: number) => `\x1b[${n}A`;
+const nc = "NO_COLOR" in process.env;
+
+export const DIM = nc ? "" : "\x1b[2m";
+export const RESET = nc ? "" : "\x1b[0m";
+export const BOLD = nc ? "" : "\x1b[1m";
+export const WHITE = nc ? "" : "\x1b[97m";
+export const GREEN = nc ? "" : "\x1b[32m";
+export const RED = nc ? "" : "\x1b[31m";
+export const YELLOW = nc ? "" : "\x1b[33m";
+export const CYAN = nc ? "" : "\x1b[36m";
+export const HIDE_CURSOR = nc ? "" : "\x1b[?25l";
+export const SHOW_CURSOR = nc ? "" : "\x1b[?25h";
+export const CLEAR_LINE = nc ? "\r" : "\x1b[2K\r";
+export const MOVE_UP = (n: number) => (nc ? "" : `\x1b[${n}A`);
 
 // ── Symbols ──────────────────────────────────────────────────────────
 
