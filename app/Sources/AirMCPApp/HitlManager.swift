@@ -324,7 +324,14 @@ final class HitlManager {
     static func requestNotificationPermission() {
         UNUserNotificationCenter.current().requestAuthorization(
             options: [.alert, .sound]
-        ) { _, _ in }
+        ) { granted, error in
+            if let error {
+                NSLog("[AirMCP] Notification permission error: \(error.localizedDescription)")
+            }
+            if !granted {
+                NSLog("[AirMCP] Notification permission denied — HITL approval requests will auto-deny on timeout")
+            }
+        }
     }
 
     static func registerNotificationCategory() {

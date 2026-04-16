@@ -159,7 +159,7 @@ struct MenuContent: View {
     @ViewBuilder
     private var serverStatusSection: some View {
         Label(serverManager.statusLabel, systemImage: serverManager.statusIcon)
-            .foregroundStyle(serverManager.status == .running ? .green : .secondary)
+            .foregroundStyle(serverStatusColor)
 
         toolCountLabel
 
@@ -180,7 +180,7 @@ struct MenuContent: View {
             } label: {
                 Label(L("menu.stopServer"), systemImage: "stop.circle")
             }
-        case .stopped:
+        case .stopped, .error:
             Button {
                 serverManager.startServer()
             } label: {
@@ -189,6 +189,14 @@ struct MenuContent: View {
         case .checking:
             Button(L("menu.checking")) {}
                 .disabled(true)
+        }
+    }
+
+    private var serverStatusColor: Color {
+        switch serverManager.status {
+        case .running: .green
+        case .error: .red
+        default: .secondary
         }
     }
 
@@ -246,7 +254,13 @@ struct MenuContent: View {
 
     @ViewBuilder
     private var quickSetupSection: some View {
-        let showGetStarted = serverManager.status == .stopped
+        let isStopped: Bool = {
+            switch serverManager.status {
+            case .stopped, .error: return true
+            default: return false
+            }
+        }()
+        let showGetStarted = isStopped
             && !setupManager.isRunning
             && setupManager.state == .idle
 
@@ -483,7 +497,14 @@ struct MenuContent: View {
 
         Button(L("menu.quit")) {
             serverManager.stopServer()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            Task {
+                // Wait for the server process to actually terminate, up to 5 seconds
+                let deadline = Date().addingTimeInterval(5.0)
+                while Date() < deadline {
+                    if case .stopped = serverManager.status { break }
+                    if case .error = serverManager.status { break }
+                    try? await Task.sleep(nanoseconds: 200_000_000)
+                }
                 NSApplication.shared.terminate(nil)
             }
         }

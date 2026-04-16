@@ -3,6 +3,9 @@
  * Outputs to stderr so it doesn't interfere with MCP stdio transport.
  */
 
+import { existsSync } from "node:fs";
+import { PATHS } from "./constants.js";
+
 const nc = "NO_COLOR" in process.env;
 const DIM = nc ? "" : "\x1b[2m";
 const RESET = nc ? "" : "\x1b[0m";
@@ -147,6 +150,11 @@ export async function printBanner(info: BannerInfo): Promise<void> {
     await typeLine(`  ${WHITE}▶${RESET} Server running on ${BOLD}http://localhost:${info.port}/mcp${RESET}`, 8);
   } else {
     await typeLine(`  ${WHITE}▶${RESET} Server running on ${BOLD}stdio${RESET}`, 8);
+  }
+
+  // First-time user hint
+  if (!existsSync(PATHS.CONFIG)) {
+    write(`  ${DIM}First time? Run: npx airmcp init${RESET}\n`);
   }
 
   write("\n");

@@ -372,7 +372,7 @@ export async function runInit(): Promise<void> {
         existingConfig = parsed;
       }
     } catch {
-      // Corrupt existing config — overwrite from scratch
+      console.warn(`\n  ${YELLOW}\u26A0${RESET} Existing config.json is corrupt JSON — overwriting`);
     }
   }
   const existingHitl = isPlainObject(existingConfig.hitl) ? existingConfig.hitl : {};
@@ -395,7 +395,14 @@ export async function runInit(): Promise<void> {
       proactiveContext: featureSelected.has("proactiveContext"),
     },
   };
-  writeFileSync(PATHS.CONFIG, JSON.stringify(configPayload, null, 2) + "\n");
+  try {
+    writeFileSync(PATHS.CONFIG, JSON.stringify(configPayload, null, 2) + "\n");
+  } catch (err) {
+    console.error(
+      `\n  ${YELLOW}\u2716${RESET} Failed to write config: ${err instanceof Error ? err.message : String(err)}`,
+    );
+    process.exit(1);
+  }
   console.log(` ${GREEN}\u2713${RESET} ${PATHS.CONFIG}`);
 
   // --- Step 3: Auto-detect and patch MCP client configs ---

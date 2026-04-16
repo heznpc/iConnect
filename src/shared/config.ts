@@ -226,7 +226,14 @@ function loadFileConfig(): LoadResult {
       };
     }
     return { config, fileExists: true };
-  } catch {
+  } catch (err) {
+    // Distinguish "file not found" from "file exists but parse failed"
+    if (err instanceof SyntaxError || (err instanceof Error && err.message.includes("JSON"))) {
+      console.error(
+        `[AirMCP] Failed to parse config.json: ${err instanceof Error ? err.message : String(err)} — using defaults`,
+      );
+      return { config: {}, fileExists: true };
+    }
     return { config: {}, fileExists: false };
   }
 }
@@ -250,6 +257,38 @@ function envBool(envKey: string, fileValue: boolean | undefined, defaultValue: b
 export function parseConfig(): AirMcpConfig {
   const { config: file, fileExists } = loadFileConfig();
   const fullMode = process.env.AIRMCP_FULL === "true" || process.argv.includes("--full");
+
+  // Validate disabledModules: warn about unknown module names
+  if (file.disabledModules) {
+    for (const mod of file.disabledModules) {
+      if (!(MODULE_NAMES as readonly string[]).includes(mod)) {
+        console.error(`[AirMCP] Unknown module in disabledModules: "${mod}" — ignored`);
+      }
+    }
+  }
+
+  // Validate hitl.level: warn if not a valid level
+  if (file.hitl?.level !== undefined && !HITL_LEVELS.includes(file.hitl.level)) {
+    console.error(
+      `[AirMCP] Invalid hitl.level "${file.hitl.level}" — expected one of: ${HITL_LEVELS.join(", ")}. Using default "destructive-only"`,
+    );
+  }
+
+  // Validate boolean fields: warn if non-boolean values are present in the raw config
+  if (fileExists) {
+    try {
+      const rawData = readFileSync(PATHS.CONFIG, "utf-8");
+      const rawObj = JSON.parse(rawData) as Record<string, unknown>;
+      const boolFields = ["includeShared", "allowSendMessages", "allowSendMail", "allowRunJavascript"] as const;
+      for (const field of boolFields) {
+        if (field in rawObj && typeof rawObj[field] !== "boolean") {
+          console.error(`[AirMCP] Config field "${field}" should be boolean, got ${typeof rawObj[field]} — ignored`);
+        }
+      }
+    } catch {
+      // Already handled in loadFileConfig
+    }
+  }
 
   // Disabled modules: env vars override, then JSON fallback, then starter preset
   const disabledModules = new Set<string>();

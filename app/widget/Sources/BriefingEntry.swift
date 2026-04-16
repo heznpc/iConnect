@@ -22,7 +22,7 @@ struct BriefingEvent: Sendable {
     }
 
     var timeString: String {
-        if isAllDay { return "All day" }
+        if isAllDay { return NSLocalizedString("widget.allDay", bundle: .module, comment: "") }
         return Self.timeFormatter.string(from: startDate)
     }
 
