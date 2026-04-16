@@ -736,6 +736,7 @@ Modules with OS requirements (e.g., Intelligence requires macOS 26+) are automat
 ### Architecture & Security
 
 - **JXA/AppleScript dependency** — Core automation relies on Apple's scripting dictionaries. While these have been stable for 10+ years, macOS updates can theoretically break individual modules. Circuit breaker (3 failures → 60s auto-disable) isolates failures. UI Automation tools (6 tools) are inherently more brittle and separated into their own module.
+- **Input sanitization** — `run_javascript` blocks `javascript:` and `data:` URL schemes to prevent code injection. `escJxaShell` strips control characters from shell arguments.
 - **Read data exposure** — Destructive operations require HITL approval, but read operations (mail, messages, contacts) are not rate-limited. When connected to cloud LLMs, sensitive data passes through the LLM provider. Mitigations: PII scrubbing in logs, pagination limits, sensitive modules (mail, messages) require explicit opt-in.
 - **IPC overhead** — Multi-process path (Client → Node.js → osascript/Swift CLI → macOS app). Each JXA call adds ~50ms overhead. Pagination prevents bulk data transfers. Swift bridge path bypasses JXA for EventKit/PhotoKit operations.
 - **Scope** — 262 tools across 27 modules follow 5 repeating patterns (JXA CRUD, Swift bridge, HTTP API, System Events, CLI wrapper), keeping maintenance proportional to pattern count, not tool count.
@@ -773,6 +774,7 @@ Modules with OS requirements (e.g., Intelligence requires macOS 26+) are automat
 
 ### Safari
 - Reading page content requires "Allow JavaScript from Apple Events" in Safari Developer menu.
+- `run_javascript` rejects `javascript:` and `data:` URLs to prevent injection attacks.
 - **macOS 26+:** Bookmark and Reading List tools (`list_bookmarks`, `list_reading_list`, `add_bookmark`) use `Bookmarks.plist` instead of JXA (Apple removed bookmark scripting). Requires **Full Disk Access** for your terminal in System Settings > Privacy & Security. `add_bookmark` is not supported on macOS 26+.
 
 ### Podcasts

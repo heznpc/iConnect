@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.7.2] - 2026-04-16
+
+### Security
+- **Block `javascript:` and `data:` URL schemes in `run_javascript`** — prevents XSS via crafted tab URLs. Extends the existing `file:`/`about:`/`blob:` blocklist added in v2.7.1.
+- **`escJxaShell()` control character stripping** — now strips `\x01-\x1f` (except `\t`, `\n`, `\r`) matching `esc()` and `escAS()`. Previously, control characters passed through to shell arguments inside JXA strings.
+- **Extract shared `RE_CTRL` regex constant** — the control-character regex was duplicated across `esc()`, `escAS()`, and `escJxaShell()`; now defined once.
+
+### Fixed
+- **`resetTriggers()` now resets `listenerInstalled` flag** — previously, calling `eventBus.stop()` followed by a restart would permanently disable skill trigger dispatch because the singleton guard was never cleared.
+- **`cross/tools.ts` JSON.parse fallback** — wrapped in try/catch so a malformed snapshot doesn't crash the daily briefing tool; falls back to raw text.
+
+### Testing (880 → 1121 tests, coverage 36.1% → 46.9%)
+- **safety-annotations.test.js** — validates all 262 tools have correct `readOnlyHint`/`destructiveHint`/`idempotentHint`/`openWorldHint` annotations
+- **executor.ts** — 54% → 99% (conditionals, loops, parallel steps, template resolution, error paths)
+- **hitl-guard.ts** — → 100% (elicitation, managed clients, telemetry, env vars)
+- **hitl.ts** — → 100% (socket errors, timeouts, buffer overflow, chunked responses, reconnection)
+- **swift.ts** — 10% → 95% (NDJSON parsing, prototype pollution defense, single-shot fallback)
+- **skills engine** — 0% → 99% (loader, register, triggers, index)
+- **tool-registry.ts** — 3% → 80% (SDK integration, search, callTool)
+- event-bus, esc, safari-scripts, server-init, http-transport edge cases expanded
+- Coverage thresholds raised to statements 46% / branches 40% / functions 42% / lines 46%
+
 ## [2.7.1] - 2026-04-11
 
 ### Fixed
