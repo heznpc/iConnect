@@ -1,5 +1,6 @@
 import { getToolLinks, withLinks } from "./tool-links.js";
 import { usageTracker } from "./usage-tracker.js";
+import { CATEGORY_RETRYABLE, type ErrorCategory, type ErrorOrigin, type ToolErrorPayload } from "./error-categories.js";
 
 /** Return a successful MCP tool response with JSON-formatted data. */
 export function ok(data: unknown) {
@@ -121,4 +122,114 @@ export function toolError(action: string, e: unknown) {
     return err(`[not_found] Failed to ${action}: ${msg}`);
   }
   return err(`[internal_error] Failed to ${action}: ${msg}`);
+}
+
+// ─── RFC 0001: typed error helpers ────────────────────────────────────────────
+//
+// These helpers let tool handlers emit categorised errors without changing the
+// wire format that existing tools already use (`[category] message`). New
+// handlers can opt into `toolErr()` directly; legacy handlers keep calling
+// `err()` / `toolError()` and are still compliant with the convention.
+//
+// Each helper returns the same shape as `err()` so call sites remain
+// one-liners inside tool handlers.
+
+/**
+ * Options accepted by {@link toolErr}. Matches {@link ToolErrorPayload} minus
+ * `category` and `message` (which are positional arguments).
+ */
+export interface ToolErrorOptions {
+  /** Overrides the default retryability for the chosen category. */
+  retryable?: boolean;
+  /** Suggested backoff in milliseconds. Implies retryable=true if unset. */
+  retryAfterMs?: number;
+  /** One-line actionable hint for the caller. */
+  hint?: string;
+  /** Upstream / origin hint. */
+  cause?: { code?: string; origin?: ErrorOrigin };
+}
+
+/**
+ * Build a categorised tool error response.
+ *
+ * Wire format (backward compatible with `err()` / `toolError()`):
+ *   - `content[0].text` is `"[category] message"` + optional hint line.
+ *   - `isError: true`.
+ *   - `structuredContent` carries the full {@link ToolErrorPayload}, for
+ *     clients that parse structured errors (added per MCP `outputSchema` trend).
+ */
+export function toolErr(category: ErrorCategory, message: string, opts: ToolErrorOptions = {}) {
+  const retryable = opts.retryable ?? (opts.retryAfterMs !== undefined ? true : CATEGORY_RETRYABLE[category]);
+
+  const payload: ToolErrorPayload = {
+    category,
+    message,
+    retryable,
+    ...(opts.retryAfterMs !== undefined ? { retryAfterMs: opts.retryAfterMs } : {}),
+    ...(opts.hint ? { hint: opts.hint } : {}),
+    ...(opts.cause ? { cause: opts.cause } : {}),
+  };
+
+  const lines = [`[${category}] ${message}`];
+  if (opts.hint) lines.push(`Hint: ${opts.hint}`);
+
+  return {
+    content: [{ type: "text" as const, text: lines.join("\n") }],
+    structuredContent: { error: payload },
+    isError: true as const,
+  };
+}
+
+/** Caller provided invalid or missing arguments. Not retryable without fix. */
+export function errInvalidInput(message: string, opts?: ToolErrorOptions) {
+  return toolErr("invalid_input", message, opts);
+}
+
+/** The requested resource does not exist. */
+export function errNotFound(message: string, opts?: ToolErrorOptions) {
+  return toolErr("not_found", message, opts);
+}
+
+/** Permission was denied by the OS, the app, or a HITL guard. */
+export function errPermission(message: string, opts?: ToolErrorOptions) {
+  return toolErr("permission_denied", message, opts);
+}
+
+/**
+ * An upstream call (AppleScript app, Swift helper, network API) failed.
+ * Defaults to origin:"unknown" if not specified.
+ */
+export function errUpstream(message: string, opts?: ToolErrorOptions) {
+  return toolErr("upstream_error", message, opts);
+}
+
+/** JXA execution failed. Sets cause.origin = "jxa" if caller didn't. */
+export function errJxa(message: string, opts?: ToolErrorOptions) {
+  const cause = opts?.cause ?? {};
+  return toolErr("jxa_error", message, {
+    ...opts,
+    cause: { origin: "jxa", ...cause },
+  });
+}
+
+/** Swift helper execution failed. Sets cause.origin = "swift" if caller didn't. */
+export function errSwift(message: string, opts?: ToolErrorOptions) {
+  const cause = opts?.cause ?? {};
+  return toolErr("swift_error", message, {
+    ...opts,
+    cause: { origin: "swift", ...cause },
+  });
+}
+
+/**
+ * Tool is deprecated and will be removed. Clients should migrate. Response is
+ * still `isError: true` — callers should surface the hint to the user.
+ */
+export function errDeprecated(message: string, opts?: ToolErrorOptions) {
+  return toolErr("deprecated", message, opts);
+}
+
+/** Tool requires a macOS version that is not present. */
+export function errUnsupportedOS(message: string, opts?: ToolErrorOptions) {
+  return toolErr("unsupported_os", message, opts);
 }
