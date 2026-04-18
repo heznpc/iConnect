@@ -1,0 +1,50 @@
+name: Release Please
+
+# Generates a version-bump PR from Conventional Commits on main.
+#
+# What this does:
+#   1. On every push to main, parse commits since the last release tag.
+#   2. If there are user-facing changes, open (or update) a PR titled
+#      "chore(release): v<next>" that bumps package.json + package-lock.json
+#      and writes a new CHANGELOG.md section.
+#   3. When that PR is merged, release-please tags the release (v<version>)
+#      and auto-release.yml / cd.yml picks it up from there.
+#
+# Why: keeps CHANGELOG.md ↔ package.json ↔ git tag from drifting — the
+# RELEASE_CHECKLIST doc sync step (docs/RELEASE_CHECKLIST.md §2.1) becomes
+# a review of the generated PR instead of manual editing.
+#
+# Bootstrap note: the initial PR will be based on .release-please-manifest.json
+# (seeded with the current live version). release-please will refuse to bump
+# backward, so the manifest must match package.json at setup time.
+
+on:
+  push:
+    branches: [main]
+  # Allow manual re-runs if commits land while the workflow was disabled.
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  # Only one release-please run at a time — prevents racing PR updates.
+  group: release-please-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@v4
+        with:
+          # "manifest-pr" = create/update the release PR only.
+          # Tag + GitHub Release creation stays in the existing
+          # auto-release.yml → cd.yml chain so we don't race it.
+          # Once we're comfortable, we can promote this to the default
+          # "manifest" command and retire auto-release.yml.
+          command: manifest-pr
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+          token: ${{ secrets.GITHUB_TOKEN }}
