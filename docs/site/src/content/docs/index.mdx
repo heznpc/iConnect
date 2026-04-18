@@ -1,9 +1,9 @@
 ---
 title: AirMCP Documentation
-description: MCP server for the entire Apple ecosystem. Connect any AI to your Mac.
+description: Better Siri, powered by open source. The MCP server that connects your Apple ecosystem to any AI client — 27 modules, 262 tools.
 template: splash
 hero:
-  tagline: MCP server for the entire Apple ecosystem — Notes, Reminders, Calendar, Contacts, Mail, Messages, Music, Finder, Safari, System, Photos, Shortcuts, and more. Connect any AI to your Mac.
+  tagline: Better Siri, powered by open source. The MCP server that connects your Apple ecosystem to any AI client — 27 modules, 262 tools, from Notes to Health.
   actions:
     - text: Get Started
       link: /getting-started/installation/
@@ -18,17 +18,17 @@ import { Card, CardGrid } from '@astrojs/starlight/components';
 
 ## What is AirMCP?
 
-AirMCP is a [Model Context Protocol](https://modelcontextprotocol.io/) server that exposes the entire Apple ecosystem to AI assistants. It bridges LLMs like Claude, GPT, and Gemini to native macOS applications through JXA (JavaScript for Automation), a Swift bridge, and direct system APIs.
+AirMCP is a [Model Context Protocol](https://modelcontextprotocol.io/) server that exposes the Apple ecosystem to any MCP-compatible AI client. It bridges LLMs like Claude, GPT, and Gemini to native macOS applications through JXA (JavaScript for Automation), a Swift bridge, and direct system APIs — so the AI reads, writes, and acts on top of your Apple data. AirMCP is the connector; the AI is the thinker.
 
 <CardGrid stagger>
-  <Card title="25 Modules" icon="puzzle">
-    Notes, Reminders, Calendar, Contacts, Mail, Messages, Music, Finder, Safari, System, Photos, Shortcuts, Intelligence, TV, UI, Screen, Maps, Podcasts, Weather, Pages, Numbers, Keynote, Location, Bluetooth, and Google.
+  <Card title="27 Modules" icon="puzzle">
+    Notes, Reminders, Calendar, Contacts, Mail, Messages, Music, Finder, Safari, System, Photos, Shortcuts, Intelligence, TV, UI, Screen, Maps, Podcasts, Weather, Pages, Numbers, Keynote, Location, Bluetooth, Google, Speech, and Health.
   </Card>
   <Card title="262 Tools" icon="setting">
     Read, create, update, and delete across every supported app. Full CRUD for Notes, Reminders, Calendar, and Contacts. Read-only access for Photos, Music, and more.
   </Card>
   <Card title="Semantic Search" icon="magnifier">
-    On-device vector embeddings via the Swift bridge or Gemini API. Search notes and reminders by meaning, not just keywords.
+    On-device vector embeddings via the Swift bridge (NLContextualEmbedding) or Gemini API. Search notes and reminders by meaning, not just keywords.
   </Card>
   <Card title="Works Everywhere" icon="laptop">
     Compatible with Claude Desktop, Claude Code, Cursor, Windsurf, Cline, and any MCP-compliant client. Supports both stdio and HTTP transports.
