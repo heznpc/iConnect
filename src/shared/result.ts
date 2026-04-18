@@ -1,5 +1,6 @@
 import { getToolLinks, withLinks } from "./tool-links.js";
 import { usageTracker } from "./usage-tracker.js";
+import { CATEGORY_RETRYABLE, type ErrorCategory, type ErrorOrigin, type ToolErrorPayload } from "./error-categories.js";
 
 /** Return a successful MCP tool response with JSON-formatted data. */
 export function ok(data: unknown) {
@@ -113,12 +114,116 @@ export function err(message: string) {
   };
 }
 
-/** Standardized catch-block helper for tool handlers. Classifies the error automatically. */
+// ─── RFC 0001: typed error helpers ────────────────────────────────────────────
+
+export interface ToolErrorOptions {
+  retryable?: boolean;
+  retryAfterMs?: number;
+  hint?: string;
+  cause?: { code?: string; origin?: ErrorOrigin };
+}
+
+export function toolErr(category: ErrorCategory, message: string, opts: ToolErrorOptions = {}) {
+  const retryable = opts.retryable ?? (opts.retryAfterMs !== undefined ? true : CATEGORY_RETRYABLE[category]);
+
+  const payload: ToolErrorPayload = {
+    category,
+    message,
+    retryable,
+    ...(opts.retryAfterMs !== undefined ? { retryAfterMs: opts.retryAfterMs } : {}),
+    ...(opts.hint ? { hint: opts.hint } : {}),
+    ...(opts.cause ? { cause: opts.cause } : {}),
+  };
+
+  const lines = [`[${category}] ${message}`];
+  if (opts.hint) lines.push(`Hint: ${opts.hint}`);
+
+  return {
+    content: [{ type: "text" as const, text: lines.join("\n") }],
+    structuredContent: { error: payload },
+    isError: true as const,
+  };
+}
+
+export function errInvalidInput(message: string, opts?: ToolErrorOptions) {
+  return toolErr("invalid_input", message, opts);
+}
+
+export function errNotFound(message: string, opts?: ToolErrorOptions) {
+  return toolErr("not_found", message, opts);
+}
+
+export function errPermission(message: string, opts?: ToolErrorOptions) {
+  return toolErr("permission_denied", message, opts);
+}
+
+export function errUpstream(message: string, opts?: ToolErrorOptions) {
+  return toolErr("upstream_error", message, opts);
+}
+
+export function errJxa(message: string, opts?: ToolErrorOptions) {
+  const cause = opts?.cause ?? {};
+  return toolErr("jxa_error", message, {
+    ...opts,
+    cause: { origin: "jxa", ...cause },
+  });
+}
+
+export function errSwift(message: string, opts?: ToolErrorOptions) {
+  const cause = opts?.cause ?? {};
+  return toolErr("swift_error", message, {
+    ...opts,
+    cause: { origin: "swift", ...cause },
+  });
+}
+
+export function errDeprecated(message: string, opts?: ToolErrorOptions) {
+  return toolErr("deprecated", message, opts);
+}
+
+export function errUnsupportedOS(message: string, opts?: ToolErrorOptions) {
+  return toolErr("unsupported_os", message, opts);
+}
+
+/**
+ * Standardized catch-block helper for tool handlers. Classifies the error
+ * automatically and delegates to {@link toolErr} so every legacy caller also
+ * gets the RFC 0001 `structuredContent.error` payload for free.
+ *
+ * Wire format is unchanged: `content[0].text` is still `"[category] Failed to <action>: <msg>"`.
+ *
+ * Classification heuristic (order matters):
+ *   1. `not found` in the message → `not_found`
+ *   2. `permission` / `denied` / `not authorized` → `permission_denied`
+ *   3. `timed out` / `timeout` → `upstream_timeout`
+ *   4. `rate limit` / `too many requests` / HTTP 429 → `rate_limited`
+ *   5. anything else → `internal_error`
+ *
+ * SECURITY NOTE: the classification is a *convenience hint* for clients
+ * and UX, **not** a security boundary. A misclassified error never hides
+ * information — the full (PII-scrubbed) message is still included in both
+ * `content[0].text` and `structuredContent.error.message`. Do not gate
+ * access-control or retry decisions on the category alone; treat it as
+ * advisory and fall back to the message text when the distinction matters.
+ */
 export function toolError(action: string, e: unknown) {
   const msg = e instanceof Error ? e.message : String(e);
   const lower = msg.toLowerCase();
+
+  let category: ErrorCategory = "internal_error";
   if (lower.includes("not found")) {
-    return err(`[not_found] Failed to ${action}: ${msg}`);
+    category = "not_found";
+  } else if (
+    lower.includes("not authorized") ||
+    lower.includes("permission denied") ||
+    lower.includes("permission_denied")
+  ) {
+    category = "permission_denied";
+  } else if (lower.includes("timed out") || lower.includes("timeout")) {
+    category = "upstream_timeout";
+  } else if (lower.includes("rate limit") || lower.includes("too many requests") || lower.includes(" 429")) {
+    category = "rate_limited";
   }
-  return err(`[internal_error] Failed to ${action}: ${msg}`);
+
+  return toolErr(category, `Failed to ${action}: ${msg}`);
 }

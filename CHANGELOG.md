@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Dev MCP scripts** — `npm run dev:mcp`, `dev:mcp:watch`, `dev:connect` for wiring the local checkout into Claude Desktop / Claude Code / Cursor without hand-editing config paths. (`scripts/dev-mcp.mjs`, `scripts/dev-connect.mjs`, CONTRIBUTING.md "Wiring up an MCP client" section).
+- **release-please workflow (PR-only mode)** — auto-generates `chore(release): v<next>` PRs bumping `package.json` + `CHANGELOG.md` from Conventional Commits, preventing TODO ↔ CHANGELOG drift. Tag creation stays in the existing auto-release + cd.yml chain. (`.github/workflows/release-please.yml`, `release-please-config.json`, `.release-please-manifest.json`).
+- **RFC 0001 foundation** — `src/shared/error-categories.ts` with `ERROR_CATEGORIES` enum + `ToolErrorPayload` + `toolErr()` / `errNotFound()` / `errJxa()` / `errDeprecated()` helpers in `result.ts`. Backward compatible with legacy `err()` / `toolError()`. (21 new unit tests.)
+- **RFC 0004 foundation** — `src/shared/compatibility.ts` with `resolveModuleCompatibility()` + `summarizeCompatibility()`; `ModuleRegistration.compatibility` field threaded through `MANIFEST`. Annotated `intelligence` (beta + apple-silicon) and `health` (apple-silicon + healthkit). Runtime behaviour unchanged; data is informational only for now. (21 new unit tests.)
+- **RFC 0001 Wave 0 — toolError delegation** — the legacy `toolError(action, e)` helper now wraps `toolErr()` and classifies `not_found` / `permission_denied` / `upstream_timeout` / `rate_limited` / `internal_error` from the thrown message. Every existing tool that catches with `toolError()` automatically gains `structuredContent.error`; text wire format is unchanged.
+- **RFC 0001 Wave 1 — notes migration** — share-guard blocks in `src/notes/tools.ts` now emit typed `permission_denied` errors via `errPermission()` with a `[permission_denied]` text prefix + `structuredContent.error`.
+- **RFC 0004 runtime activation** — `mcp-setup.ts` routes every module through `resolveModuleCompatibility()` instead of checking `minMacosVersion` alone; banner now surfaces `deprecated:` and `broken:` module groups alongside `unavailable:`. `airmcp doctor` gains a `[Compatibility]` section that shows the resolver's decision per module for the current host.
+- **`getCompatibilityEnv()` factory** — `src/shared/config.ts` exposes a plain `CompatibilityEnv` snapshot (`osVersion`, `cpu`, `healthkitAvailable`) for the resolver.
+- **`print-compat-report` script** — `npm run compat:report` (text or `--json`) renders the manifest × host decisions. `MODULE_MANIFEST` is now exported so doctor / scripts can read compat metadata without loading modules.
+- **RFC 0003 Phase 1 — moderate audit advisory** — `scripts/summarize-audit.mjs` summarises moderate+ `npm audit` findings; CI runs it as a non-fatal step right after the hard `npm audit --audit-level=high` gate. `SECURITY.md` gets a new Dependency Advisory SLAs table.
+- **outputSchema Wave 1 drift guards** — `tests/output-schema-wave1.test.js` runs `list_notes`, `list_reminders`, `list_events` against mocked runtimes and validates the returned `structuredContent` against each tool's own `outputSchema` via `z.object().strict().safeParse()`.
+- **Release checklist & RFC process docs** — `docs/RELEASE_CHECKLIST.md`, `docs/rfc/README.md`, RFCs 0001/0002/0003/0004 (Draft).
+- **Quality diagnosis report** — `QUALITY_DIAGNOSIS_2026-04-17.md` with maturity snapshot, risk matrix, KPI proposals.
+
+### Changed
+- `TODO.md` re-synced to the v2.7.3 baseline — checked off work completed in v2.7.0–v2.7.3, refreshed coverage numbers (46.9%, gate 46%).
+- `BannerInfo` gains optional `modulesDeprecated` / `modulesBroken` fields. Existing fields are unchanged.
+
 ## [2.7.3] - 2026-04-16
 
 ### Added
