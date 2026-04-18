@@ -1,5 +1,6 @@
 import { getToolLinks, withLinks } from "./tool-links.js";
 import { usageTracker } from "./usage-tracker.js";
+import { CATEGORY_RETRYABLE, type ErrorCategory, type ErrorOrigin, type ToolErrorPayload } from "./error-categories.js";
 
 /** Return a successful MCP tool response with JSON-formatted data. */
 export function ok(data: unknown) {
@@ -111,6 +112,77 @@ export function err(message: string) {
     content: [{ type: "text" as const, text: message }],
     isError: true,
   };
+}
+
+// ─── RFC 0001: typed error helpers ────────────────────────────────────────────
+
+export interface ToolErrorOptions {
+  retryable?: boolean;
+  retryAfterMs?: number;
+  hint?: string;
+  cause?: { code?: string; origin?: ErrorOrigin };
+}
+
+export function toolErr(category: ErrorCategory, message: string, opts: ToolErrorOptions = {}) {
+  const retryable = opts.retryable ?? (opts.retryAfterMs !== undefined ? true : CATEGORY_RETRYABLE[category]);
+
+  const payload: ToolErrorPayload = {
+    category,
+    message,
+    retryable,
+    ...(opts.retryAfterMs !== undefined ? { retryAfterMs: opts.retryAfterMs } : {}),
+    ...(opts.hint ? { hint: opts.hint } : {}),
+    ...(opts.cause ? { cause: opts.cause } : {}),
+  };
+
+  const lines = [`[${category}] ${message}`];
+  if (opts.hint) lines.push(`Hint: ${opts.hint}`);
+
+  return {
+    content: [{ type: "text" as const, text: lines.join("\n") }],
+    structuredContent: { error: payload },
+    isError: true as const,
+  };
+}
+
+export function errInvalidInput(message: string, opts?: ToolErrorOptions) {
+  return toolErr("invalid_input", message, opts);
+}
+
+export function errNotFound(message: string, opts?: ToolErrorOptions) {
+  return toolErr("not_found", message, opts);
+}
+
+export function errPermission(message: string, opts?: ToolErrorOptions) {
+  return toolErr("permission_denied", message, opts);
+}
+
+export function errUpstream(message: string, opts?: ToolErrorOptions) {
+  return toolErr("upstream_error", message, opts);
+}
+
+export function errJxa(message: string, opts?: ToolErrorOptions) {
+  const cause = opts?.cause ?? {};
+  return toolErr("jxa_error", message, {
+    ...opts,
+    cause: { origin: "jxa", ...cause },
+  });
+}
+
+export function errSwift(message: string, opts?: ToolErrorOptions) {
+  const cause = opts?.cause ?? {};
+  return toolErr("swift_error", message, {
+    ...opts,
+    cause: { origin: "swift", ...cause },
+  });
+}
+
+export function errDeprecated(message: string, opts?: ToolErrorOptions) {
+  return toolErr("deprecated", message, opts);
+}
+
+export function errUnsupportedOS(message: string, opts?: ToolErrorOptions) {
+  return toolErr("unsupported_os", message, opts);
 }
 
 /**
