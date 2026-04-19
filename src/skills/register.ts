@@ -1,9 +1,43 @@
 import type { McpServer } from "../shared/mcp.js";
-import type { SkillDefinition } from "./types.js";
+import type { SkillDefinition, SkillInput } from "./types.js";
 import { executeSkill } from "./executor.js";
 import { userPrompt } from "../shared/prompt.js";
 import { ok, err } from "../shared/result.js";
 import { toolRegistry } from "../shared/tool-registry.js";
+import { z } from "zod";
+
+/**
+ * Convert a skill's declared `inputs` into a Zod `inputSchema` record that
+ * `server.registerTool` accepts. Mirrors the MCP convention:
+ *   - `required: true`      → non-optional Zod field
+ *   - `default: <value>`    → `.default(value)` (implicitly optional)
+ *   - otherwise             → `.optional()`
+ */
+function buildSkillInputSchema(inputs: Record<string, SkillInput>): Record<string, z.ZodTypeAny> {
+  const schema: Record<string, z.ZodTypeAny> = {};
+  for (const [name, spec] of Object.entries(inputs)) {
+    let field: z.ZodTypeAny;
+    switch (spec.type) {
+      case "string":
+        field = z.string();
+        break;
+      case "number":
+        field = z.number();
+        break;
+      case "boolean":
+        field = z.boolean();
+        break;
+    }
+    if (spec.description) field = field.describe(spec.description);
+    if (spec.default !== undefined) {
+      field = (field as z.ZodString | z.ZodNumber | z.ZodBoolean).default(spec.default as never);
+    } else if (!spec.required) {
+      field = field.optional();
+    }
+    schema[name] = field;
+  }
+  return schema;
+}
 
 function generatePromptText(skill: SkillDefinition): string {
   const lines = [`Execute the following workflow "${skill.title}" using AirMCP tools:`];
@@ -27,17 +61,18 @@ function registerAsPrompt(server: McpServer, skill: SkillDefinition): void {
 }
 
 function registerAsTool(server: McpServer, skill: SkillDefinition): void {
+  const inputSchema = skill.inputs ? buildSkillInputSchema(skill.inputs) : {};
   server.registerTool(
     `skill_${skill.name}`,
     {
       title: skill.title,
       description: `[Skill] ${skill.description}`,
-      inputSchema: {},
+      inputSchema,
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
-    async () => {
+    async (args: Record<string, unknown> = {}) => {
       try {
-        const result = await executeSkill(server, skill);
+        const result = await executeSkill(server, skill, args);
         if (!result.success) {
           const failedStep = result.steps.find((s) => s.status === "error");
           return err(`Skill "${skill.name}" failed at step "${failedStep?.id}": ${failedStep?.error}`);
