@@ -142,10 +142,13 @@ export async function createServer(
   // Personal Skills Engine (YAML-based workflows)
   await registerSkillEngine(lServer);
 
-  // MCP Apps — interactive UI views (Calendar week, Music player)
+  // MCP Apps — interactive UI views (Calendar week, Music player, Timeline)
   registerApps(lServer, {
     calendar: enabled.includes("calendar"),
     music: enabled.includes("music"),
+    // Timeline fuses calendar + reminders into a single day-axis view, so
+    // we only register it when both modules are enabled.
+    timeline: enabled.includes("calendar") && enabled.includes("reminders"),
   });
 
   // discover_tools: SEP-1821-inspired dynamic tool discovery
