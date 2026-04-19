@@ -16,23 +16,49 @@ import { z } from "zod";
 function buildSkillInputSchema(inputs: Record<string, SkillInput>): Record<string, z.ZodTypeAny> {
   const schema: Record<string, z.ZodTypeAny> = {};
   for (const [name, spec] of Object.entries(inputs)) {
+    // Build + finalise each branch independently so TypeScript keeps the
+    // narrowed string|number|boolean type when applying `.default()` —
+    // calling `.default()` on a `ZodString | ZodNumber | ZodBoolean`
+    // union is not valid because the overload signatures diverge per
+    // member, so we resolve the default before widening to ZodTypeAny.
     let field: z.ZodTypeAny;
     switch (spec.type) {
-      case "string":
-        field = z.string();
+      case "string": {
+        let f = z.string();
+        if (spec.description) f = f.describe(spec.description);
+        if (spec.default !== undefined) {
+          field = f.default(spec.default as string);
+        } else if (!spec.required) {
+          field = f.optional();
+        } else {
+          field = f;
+        }
         break;
-      case "number":
-        field = z.number();
+      }
+      case "number": {
+        let f = z.number();
+        if (spec.description) f = f.describe(spec.description);
+        if (spec.default !== undefined) {
+          field = f.default(spec.default as number);
+        } else if (!spec.required) {
+          field = f.optional();
+        } else {
+          field = f;
+        }
         break;
-      case "boolean":
-        field = z.boolean();
+      }
+      case "boolean": {
+        let f = z.boolean();
+        if (spec.description) f = f.describe(spec.description);
+        if (spec.default !== undefined) {
+          field = f.default(spec.default as boolean);
+        } else if (!spec.required) {
+          field = f.optional();
+        } else {
+          field = f;
+        }
         break;
-    }
-    if (spec.description) field = field.describe(spec.description);
-    if (spec.default !== undefined) {
-      field = (field as z.ZodString | z.ZodNumber | z.ZodBoolean).default(spec.default as never);
-    } else if (!spec.required) {
-      field = field.optional();
+      }
     }
     schema[name] = field;
   }
