@@ -5,8 +5,9 @@ import { z } from "zod";
 import { registerAppTool, registerAppResource, RESOURCE_MIME_TYPE } from "@modelcontextprotocol/ext-apps/server";
 import { runJxa } from "../shared/jxa.js";
 import { EXT_APPS } from "../shared/constants.js";
-import { listEventsScript } from "../calendar/scripts.js";
+import { listEventsScript, todayEventsScript } from "../calendar/scripts.js";
 import { nowPlayingScript } from "../music/scripts.js";
+import { listRemindersScript } from "../reminders/scripts.js";
 
 // Derived once at module load — keeps the CSP origin in sync with the import URL.
 // If the CDN constant changes (e.g. local mirror), both the <script> import and
@@ -54,6 +55,87 @@ function render(d){
     h+="</div>"}
   h+="</div>";document.getElementById("content").innerHTML=h}
 function esc(s){const d=document.createElement("div");d.textContent=s||"";return d.innerHTML}
+await app.connect();
+</script></body></html>`;
+
+// Timeline view — fuses today's calendar events and dueDate-carrying
+// reminders onto a single 6am–10pm vertical axis. Events with no start
+// time and reminders without a dueDate collapse into an "unscheduled"
+// rail on the right so they don't disappear.
+const TIMELINE_HTML = `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-sans,system-ui,-apple-system,sans-serif);background:var(--color-background-primary,#fff);color:var(--color-text-primary,#111)}
+.header{padding:16px;font-size:18px;font-weight:600;border-bottom:1px solid var(--color-border-primary,#e5e5e5);display:flex;justify-content:space-between;align-items:baseline}
+.header .sub{font-size:12px;color:var(--color-text-secondary,#888);font-weight:400}
+.body{display:grid;grid-template-columns:1fr 200px;gap:16px;padding:12px}
+.axis{position:relative;min-height:640px}
+.row{position:relative;height:40px;border-top:1px dashed var(--color-border-primary,#eee)}
+.row .h{position:absolute;left:0;top:-8px;font-size:10px;color:var(--color-text-tertiary,#aaa);width:44px;text-align:right;padding-right:6px}
+.track{position:absolute;left:48px;right:0;top:0;bottom:0}
+.ev{position:absolute;left:0;right:8px;background:#007aff;color:#fff;border-radius:4px;padding:4px 8px;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;box-shadow:0 1px 2px rgba(0,0,0,.1)}
+.rm{background:#ff9500}
+.rail{padding:8px}
+.rail h3{font-size:11px;text-transform:uppercase;color:var(--color-text-secondary,#888);letter-spacing:.5px;margin-bottom:6px}
+.chip{display:block;padding:6px 8px;background:var(--color-background-secondary,#f5f5f5);border-radius:6px;margin-bottom:4px;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chip.rm{border-left:3px solid #ff9500}
+.chip.ev{color:var(--color-text-primary,#111);background:var(--color-background-secondary,#f5f5f5);border-left:3px solid #007aff}
+.empty{color:var(--color-text-tertiary,#bbb);font-size:11px;padding:8px 0}
+.loading{display:flex;align-items:center;justify-content:center;height:200px;color:var(--color-text-secondary,#999)}
+</style></head><body>
+<div class="header" id="hdr"><span>Timeline</span><span class="sub" id="sub"></span></div>
+<div id="content"><div class="loading">Loading timeline\u2026</div></div>
+<script type="module">
+import{App}from"${EXT_APPS.CDN_URL}";
+const app=new App({name:"AirMCP Timeline",version:"1.0.0"});
+app.onhostcontextchanged=ctx=>{
+  if(ctx.styles?.variables)Object.entries(ctx.styles.variables).forEach(([k,v])=>document.documentElement.style.setProperty(k,v));
+};
+app.ontoolresult=r=>{try{
+  const t=r.content?.find(c=>c.type==="text")?.text;
+  if(t)render(JSON.parse(t));
+}catch(e){document.getElementById("content").innerHTML='<div class="loading">Error</div>'}};
+function esc(s){const d=document.createElement("div");d.textContent=s||"";return d.innerHTML}
+function hhmm(iso){const d=new Date(iso);return d.getHours()*60+d.getMinutes()}
+// 6am → 10pm axis = 16 hours × 40px slots
+const START_H=6,END_H=22,SLOT_PX=40;
+function render(d){
+  const{events=[],reminders=[],date}=d;
+  document.getElementById("sub").textContent=date||new Date().toISOString().slice(0,10);
+  const scheduled={events:[],reminders:[]},unscheduled={events:[],reminders:[]};
+  for(const e of events){
+    if(!e.startDate||e.allDay){unscheduled.events.push(e);continue}
+    const mins=hhmm(e.startDate);
+    if(mins<START_H*60||mins>=END_H*60){unscheduled.events.push(e);continue}
+    scheduled.events.push({...e,_offset:(mins-START_H*60)/60*SLOT_PX,_mins:mins});
+  }
+  for(const r of reminders){
+    if(!r.dueDate){unscheduled.reminders.push(r);continue}
+    const mins=hhmm(r.dueDate);
+    if(mins<START_H*60||mins>=END_H*60){unscheduled.reminders.push(r);continue}
+    scheduled.reminders.push({...r,_offset:(mins-START_H*60)/60*SLOT_PX});
+  }
+  let axis='<div class="axis">';
+  for(let h=START_H;h<END_H;h++){
+    const label=h<12?h+' AM':h===12?'12 PM':(h-12)+' PM';
+    axis+='<div class="row"><span class="h">'+label+'</span></div>';
+  }
+  axis+='<div class="track">';
+  for(const e of scheduled.events){
+    axis+='<div class="ev" style="top:'+e._offset+'px;height:32px" title="'+esc(e.summary)+'">'+esc(e.summary)+'</div>';
+  }
+  for(const r of scheduled.reminders){
+    axis+='<div class="ev rm" style="top:'+r._offset+'px;height:32px" title="'+esc(r.name)+'">'+esc(r.name)+'</div>';
+  }
+  axis+='</div></div>';
+  let rail='<div class="rail"><h3>Unscheduled</h3>';
+  if(!unscheduled.events.length&&!unscheduled.reminders.length){rail+='<div class="empty">Nothing pending</div>'}
+  for(const e of unscheduled.events){rail+='<span class="chip ev" title="'+esc(e.summary)+'">'+esc(e.summary)+'</span>'}
+  for(const r of unscheduled.reminders){rail+='<span class="chip rm" title="'+esc(r.name)+'">'+esc(r.name)+'</span>'}
+  rail+='</div>';
+  document.getElementById("content").innerHTML='<div class="body">'+axis+rail+'</div>';
+}
 await app.connect();
 </script></body></html>`;
 
@@ -113,8 +195,8 @@ function getWeekMonday(dateStr?: string): string {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-export function registerApps(server: McpServer, opts: { calendar: boolean; music: boolean }): void {
-  if (!opts.calendar && !opts.music) return;
+export function registerApps(server: McpServer, opts: { calendar: boolean; music: boolean; timeline?: boolean }): void {
+  if (!opts.calendar && !opts.music && !opts.timeline) return;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- ext-apps SDK expects full McpServer generics
   const s = server as any;
 
@@ -214,4 +296,76 @@ export function registerApps(server: McpServer, opts: { calendar: boolean; music
       }),
     );
   } // music
+
+  if (opts.timeline) {
+    // Timeline view — today's calendar events + dueDate-carrying reminders
+    // laid out on a 6am–10pm vertical axis, with an "unscheduled" rail
+    // for items that don't fit a time slot (all-day events, reminders
+    // without a due time). This is the first built-in App that fuses
+    // two data sources into a single UI.
+    registerAppTool(
+      s,
+      "timeline_today",
+      {
+        title: "Timeline (Today)",
+        description:
+          "Display today's events and due reminders on a single day-axis timeline. " +
+          "Fuses Calendar + Reminders; items without a start/due time fall into an 'Unscheduled' rail.",
+        inputSchema: {},
+        annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+        _meta: { ui: { resourceUri: "ui://airmcp/timeline-today" } },
+      },
+      async () => {
+        // Gather in parallel — a slow source shouldn't block the render.
+        // Both can independently fail (app not running, permission denied)
+        // and we still want to show whichever side succeeded.
+        const [eventsRaw, remindersRaw] = await Promise.allSettled([
+          runJxa(todayEventsScript()),
+          runJxa(listRemindersScript(50, 0, undefined, false)),
+        ]);
+        const eventsParsed =
+          eventsRaw.status === "fulfilled"
+            ? typeof eventsRaw.value === "string"
+              ? (JSON.parse(eventsRaw.value) as { events?: unknown[] })
+              : (eventsRaw.value as { events?: unknown[] })
+            : { events: [] };
+        const remindersParsed =
+          remindersRaw.status === "fulfilled"
+            ? typeof remindersRaw.value === "string"
+              ? (JSON.parse(remindersRaw.value) as { reminders?: unknown[] })
+              : (remindersRaw.value as { reminders?: unknown[] })
+            : { reminders: [] };
+        const today = new Date().toISOString().slice(0, 10);
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify({
+                date: today,
+                events: eventsParsed.events ?? [],
+                reminders: remindersParsed.reminders ?? [],
+              }),
+            },
+          ],
+        };
+      },
+    );
+
+    registerAppResource(
+      s,
+      "Timeline (Today)",
+      "ui://airmcp/timeline-today",
+      { description: "Interactive day-axis timeline fusing calendar events and due reminders" },
+      async () => ({
+        contents: [
+          {
+            uri: "ui://airmcp/timeline-today",
+            mimeType: RESOURCE_MIME_TYPE,
+            text: TIMELINE_HTML,
+            _meta: { ui: { csp: { resourceDomains: [EXT_APPS_ORIGIN] } } },
+          },
+        ],
+      }),
+    );
+  } // timeline
 }
