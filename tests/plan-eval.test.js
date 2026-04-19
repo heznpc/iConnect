@@ -197,8 +197,20 @@ describe('scorePlan', () => {
 
 // ── GOLDEN_PLANS metadata sanity ───────────────────────────────────
 describe('GOLDEN_PLANS', () => {
-  test('has at least 20 entries covering diverse workflows', () => {
-    expect(GOLDEN_PLANS.length).toBeGreaterThanOrEqual(20);
+  test('has at least 30 entries covering diverse workflows', () => {
+    expect(GOLDEN_PLANS.length).toBeGreaterThanOrEqual(30);
+  });
+
+  test('includes at least 3 negative (mustAvoid) cases', () => {
+    const negatives = GOLDEN_PLANS.filter((g) => Array.isArray(g.mustAvoid) && g.mustAvoid.length > 0);
+    expect(negatives.length).toBeGreaterThanOrEqual(3);
+  });
+
+  test('includes coverage for audit-introspection goals', () => {
+    const usesAudit = GOLDEN_PLANS.some(
+      (g) => g.mustInclude.includes('audit_log') || g.mustInclude.includes('audit_summary'),
+    );
+    expect(usesAudit).toBe(true);
   });
 
   test('every entry has a non-empty goal and mustInclude', () => {

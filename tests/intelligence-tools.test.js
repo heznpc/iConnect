@@ -35,8 +35,8 @@ describe('Intelligence tools registration', () => {
     registerIntelligenceTools(server, {});
   });
 
-  test('registers all 12 intelligence tools', () => {
-    expect(server.tools.size).toBe(12);
+  test('registers all 13 intelligence tools', () => {
+    expect(server.tools.size).toBe(13);
     const expectedTools = [
       'summarize_text',
       'rewrite_text',
@@ -48,6 +48,7 @@ describe('Intelligence tools registration', () => {
       'generate_image',
       'scan_document',
       'generate_plan',
+      'ai_plan_metrics',
       'ai_status',
       'ai_agent',
     ];
@@ -176,5 +177,63 @@ describe('Intelligence tool handlers', () => {
     const result = await server.callTool('summarize_text', { text: 'test' });
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toContain('Foundation Models not available');
+  });
+
+  test('ai_plan_metrics bails when the swift bridge is unavailable', async () => {
+    mockCheckSwiftBridge.mockResolvedValue('Swift bridge not found');
+    const result = await server.callTool('ai_plan_metrics', { limit: 2, seed: 42 });
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain('Swift bridge required');
+    expect(mockRunSwift).not.toHaveBeenCalled();
+  });
+
+  test('ai_plan_metrics aggregates parseable scores from the model', async () => {
+    mockCheckSwiftBridge.mockResolvedValue(null);
+    // Mock returns a 1-step plan for every case. Whether mustInclude
+    // matches depends on the sampled case, but parse-rate should be 1.0.
+    mockRunSwift.mockResolvedValue({
+      output: JSON.stringify([{ step: 1, tool: 'today_events', args: {}, purpose: 'glance at today' }]),
+    });
+
+    const result = await server.callTool('ai_plan_metrics', { limit: 3, seed: 1 });
+    expect(result.isError).toBeUndefined();
+    const sc = JSON.parse(result.content[0].text);
+    expect(sc.sampled).toBe(3);
+    expect(sc.parseRate).toBe(1);
+    expect(sc.averageScore).toBeGreaterThan(0);
+    expect(sc.perCase).toHaveLength(3);
+    expect(mockRunSwift).toHaveBeenCalledTimes(3);
+  });
+
+  test('ai_plan_metrics tolerates per-case failures without sinking the batch', async () => {
+    mockCheckSwiftBridge.mockResolvedValue(null);
+    mockRunSwift
+      .mockRejectedValueOnce(new Error('model timeout'))
+      .mockResolvedValueOnce({ output: 'not json at all' })
+      .mockResolvedValueOnce({
+        output: JSON.stringify([{ step: 1, tool: 'today_events', args: {}, purpose: 'x' }]),
+      });
+
+    const result = await server.callTool('ai_plan_metrics', { limit: 3, seed: 1 });
+    expect(result.isError).toBeUndefined();
+    const sc = JSON.parse(result.content[0].text);
+    expect(sc.sampled).toBe(3);
+    // 1/3 produced a parseable plan
+    expect(sc.parseRate).toBeCloseTo(1 / 3, 4);
+    expect(mockRunSwift).toHaveBeenCalledTimes(3);
+  });
+
+  test('ai_plan_metrics with a fixed seed is reproducible', async () => {
+    mockCheckSwiftBridge.mockResolvedValue(null);
+    mockRunSwift.mockResolvedValue({ output: '[]' });
+
+    const a = await server.callTool('ai_plan_metrics', { limit: 4, seed: 7 });
+    const aNames = JSON.parse(a.content[0].text).perCase.map((c) => c.name);
+
+    mockRunSwift.mockResolvedValue({ output: '[]' });
+    const b = await server.callTool('ai_plan_metrics', { limit: 4, seed: 7 });
+    const bNames = JSON.parse(b.content[0].text).perCase.map((c) => c.name);
+
+    expect(bNames).toEqual(aNames);
   });
 });

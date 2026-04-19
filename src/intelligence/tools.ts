@@ -4,7 +4,15 @@ import type { AirMcpConfig } from "../shared/config.js";
 import { ok, okUntrusted, err, toolError } from "../shared/result.js";
 import { runSwift, checkSwiftBridge } from "../shared/swift.js";
 import { zFilePath } from "../shared/validate.js";
-import { buildPlanPrompt, DEFAULT_PLAN_TOOLS } from "./plan-eval.js";
+import {
+  buildPlanPrompt,
+  DEFAULT_PLAN_TOOLS,
+  GOLDEN_PLANS,
+  parsePlanOutput,
+  scorePlan,
+  type PlanExpectation,
+  type PlanScore,
+} from "./plan-eval.js";
 
 interface TextResult {
   output: string;
@@ -396,6 +404,124 @@ export function registerIntelligenceTools(server: McpServer, _config: AirMcpConf
     },
   );
 
+  // --- Plan accuracy metrics ---
+  //
+  // `ai_plan_metrics` runs a batch of GOLDEN_PLANS cases against the live
+  // on-device planner and aggregates the scores. Users can call it after
+  // a macOS update / Foundation Models refresh to see whether planner
+  // quality regressed. It's intentionally built on the same scoring
+  // primitives that `tests/plan-eval.test.js` uses in CI — same math,
+  // real model instead of fixtures.
+  server.registerTool(
+    "ai_plan_metrics",
+    {
+      title: "AI Plan Metrics",
+      description:
+        "Run a sample of planner goals against the on-device Foundation Model and report the aggregate score. " +
+        "Useful after macOS / Apple Intelligence updates to catch planner regressions. Requires macOS 26+ " +
+        "with Apple Silicon. Each case makes one model call, so keep `limit` small for interactive use.",
+      inputSchema: {
+        limit: z
+          .number()
+          .int()
+          .min(1)
+          .max(50)
+          .optional()
+          .default(5)
+          .describe("Number of cases to sample from GOLDEN_PLANS (default: 5, max: 50)."),
+        seed: z
+          .number()
+          .int()
+          .optional()
+          .describe(
+            "Deterministic seed for case selection (default: time-based). Fixing this is useful when comparing runs before/after a change.",
+          ),
+      },
+      outputSchema: {
+        sampled: z.number(),
+        averageScore: z.number(),
+        parseRate: z.number(),
+        expectedCoverageAvg: z.number(),
+        leakedForbiddenTotal: z.number(),
+        perCase: z.array(
+          z.object({
+            name: z.string(),
+            total: z.number(),
+            matchedExpected: z.array(z.string()),
+            leakedForbidden: z.array(z.string()),
+            stepCount: z.number(),
+            unknownTools: z.array(z.string()),
+          }),
+        ),
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: false,
+      },
+    },
+    async ({ limit, seed }) => {
+      const bridgeErr = await checkSwiftBridge();
+      if (bridgeErr) return err(`Swift bridge required: ${bridgeErr}`);
+
+      try {
+        const cases = sampleCases(GOLDEN_PLANS, limit ?? 5, seed);
+        const results: Array<{ expectation: PlanExpectation; score: PlanScore }> = [];
+
+        for (const expectation of cases) {
+          const prompt = buildPlanPrompt(expectation.goal, expectation.context, DEFAULT_PLAN_TOOLS);
+          let raw = "";
+          try {
+            const result = await runSwift<StructuredResult>(
+              "generate-structured",
+              JSON.stringify({
+                prompt,
+                systemInstruction:
+                  "You are an action planner. Analyze the goal and available tools, then output a JSON array of steps to achieve the goal. Be practical and concise.",
+              }),
+            );
+            raw = result.output ?? "";
+          } catch {
+            // Swift/model failure leaves raw="", which scorePlan treats as
+            // a zero-score unparseable result. We record it and move on so
+            // a flaky single case doesn't sink the whole batch.
+          }
+          const plan = parsePlanOutput(raw);
+          const score = scorePlan(plan, expectation, DEFAULT_PLAN_TOOLS);
+          results.push({ expectation, score });
+        }
+
+        const sampled = results.length;
+        const totals = results.map((r) => r.score.total);
+        const averageScore = sampled > 0 ? +(totals.reduce((a, b) => a + b, 0) / sampled).toFixed(2) : 0;
+        const parseRate =
+          sampled > 0 ? +(results.filter((r) => r.score.parts.parseable > 0).length / sampled).toFixed(4) : 0;
+        const expectedCoverageAvg =
+          sampled > 0 ? +(results.reduce((sum, r) => sum + r.score.parts.expectedCoverage, 0) / sampled).toFixed(2) : 0;
+        const leakedForbiddenTotal = results.reduce((sum, r) => sum + r.score.leakedForbidden.length, 0);
+
+        return ok({
+          sampled,
+          averageScore,
+          parseRate,
+          expectedCoverageAvg,
+          leakedForbiddenTotal,
+          perCase: results.map((r) => ({
+            name: r.expectation.name,
+            total: r.score.total,
+            matchedExpected: r.score.matchedExpected,
+            leakedForbidden: r.score.leakedForbidden,
+            stepCount: r.score.validation.stepCount,
+            unknownTools: r.score.validation.unknownTools,
+          })),
+        });
+      } catch (e) {
+        return toolError("ai plan metrics", e);
+      }
+    },
+  );
+
   // --- AI Status ---
 
   server.registerTool(
@@ -456,4 +582,33 @@ export function registerIntelligenceTools(server: McpServer, _config: AirMcpConf
       }
     },
   );
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────
+
+/** Seedable LCG — gives `ai_plan_metrics` reproducible case selection
+ *  when the caller provides a seed, so runs before/after a change can
+ *  be compared on the exact same slice of GOLDEN_PLANS. */
+function lcg(seed: number): () => number {
+  let state = seed >>> 0 || 1;
+  return () => {
+    state = (state * 1_664_525 + 1_013_904_223) >>> 0;
+    return state / 0x1_0000_0000;
+  };
+}
+
+/** Fisher–Yates sample of `limit` items from `pool`, reproducible when
+ *  `seed` is provided. Returns a fresh array so the caller can iterate
+ *  without worrying about shared state. */
+function sampleCases<T>(pool: readonly T[], limit: number, seed?: number): T[] {
+  const arr = [...pool];
+  const rng = lcg(seed ?? Date.now());
+  // Shuffle in-place, then slice. For small `limit` vs large `pool`
+  // this is overkill but the pool size is bounded (<100) so readability
+  // wins over a partial Fisher–Yates optimisation.
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [arr[i]!, arr[j]!] = [arr[j]!, arr[i]!];
+  }
+  return arr.slice(0, Math.min(limit, arr.length));
 }
