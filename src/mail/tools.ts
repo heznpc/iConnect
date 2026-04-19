@@ -3,6 +3,10 @@ import { z } from "zod";
 import { runJxa } from "../shared/jxa.js";
 import type { AirMcpConfig } from "../shared/config.js";
 import { ok, okLinked, okUntrusted, okStructured, err, toolError } from "../shared/result.js";
+// Side-effect import: register the mail_unread poller with the shared registry
+// at module load time. The poller itself only starts when startPollers() is
+// invoked by the cross/event observer tool.
+import "./poller.js";
 import {
   listMailboxesScript,
   listMessagesScript,

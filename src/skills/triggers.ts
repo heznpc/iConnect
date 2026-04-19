@@ -11,6 +11,35 @@ interface TriggerBinding {
 
 const bindings = new Map<string, TriggerBinding[]>();
 
+// Retry policy for failed trigger dispatches. Exponential backoff (2s → 4s
+// → 8s …) with jitter avoids thundering-herd retries when many triggers fire
+// on the same event (e.g. a burst of `calendar_changed`). Override via env
+// for tests / aggressive polling setups.
+const TRIGGER_MAX_RETRIES = Math.max(0, parseInt(process.env.AIRMCP_TRIGGER_MAX_RETRIES ?? "2", 10));
+const TRIGGER_BASE_BACKOFF_MS = Math.max(100, parseInt(process.env.AIRMCP_TRIGGER_BASE_BACKOFF_MS ?? "2000", 10));
+const TRIGGER_MAX_BACKOFF_MS = Math.max(
+  TRIGGER_BASE_BACKOFF_MS,
+  parseInt(process.env.AIRMCP_TRIGGER_MAX_BACKOFF_MS ?? "60000", 10),
+);
+
+function computeBackoff(attempt: number): number {
+  // attempt is 1-indexed: the 1st retry waits BASE, the 2nd waits 2×BASE, …
+  const exp = Math.min(TRIGGER_MAX_BACKOFF_MS, TRIGGER_BASE_BACKOFF_MS * 2 ** (attempt - 1));
+  const jitter = Math.floor(Math.random() * (exp * 0.25));
+  return exp + jitter;
+}
+
+function runWithRetry(server: McpServer, skill: SkillDefinition, attempt: number): void {
+  executeSkill(server, skill).catch((e) => {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error(`[AirMCP] Trigger ${skill.name} failed (attempt ${attempt}): ${msg}`);
+    if (attempt >= 1 + TRIGGER_MAX_RETRIES) return;
+    const delay = computeBackoff(attempt);
+    const t = setTimeout(() => runWithRetry(server, skill, attempt + 1), delay);
+    t.unref?.();
+  });
+}
+
 /** Reset all registered trigger bindings and listener state. Called by
  *  registerSkillEngine before re-registering, so per-session createServer
  *  calls don't accumulate duplicate bindings. Also resets the listener
@@ -48,19 +77,10 @@ function dispatch(evt: AirMCPEvent): void {
     if (now - binding.lastFired < binding.debounceMs) continue;
     binding.lastFired = now;
 
-    // Fire and forget — don't block the event loop. Retry once on failure.
-    executeSkill(server, binding.skill).catch((e) => {
-      console.error(
-        `[AirMCP] Trigger ${binding.skill.name} failed (attempt 1): ${e instanceof Error ? e.message : String(e)}`,
-      );
-      setTimeout(() => {
-        executeSkill(server, binding.skill).catch((e2) => {
-          console.error(
-            `[AirMCP] Trigger ${binding.skill.name} failed (attempt 2): ${e2 instanceof Error ? e2.message : String(e2)}`,
-          );
-        });
-      }, 2000);
-    });
+    // Fire and forget — don't block the event loop. `runWithRetry` handles
+    // exponential backoff with jitter so bursty events (e.g. many calendar
+    // updates in quick succession) don't line their retries up.
+    runWithRetry(server, binding.skill, 1);
   }
 }
 

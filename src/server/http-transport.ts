@@ -12,6 +12,7 @@ import { printBanner } from "../shared/banner.js";
 import { auditLog } from "../shared/audit.js";
 import { SERVER_ICON, WEBSITE_URL } from "../shared/icons.js";
 import { createServer, type CreateServerOptions } from "./mcp-setup.js";
+import { registerShutdownHook } from "./shutdown.js";
 
 // ── Per-IP rate limiter (token bucket, no external dependency) ────────
 const RATE_WINDOW_MS = 60_000;
@@ -342,9 +343,31 @@ export async function startHttpServer(options: HttpServerOptions): Promise<void>
 
   // Release the listening socket and per-process timers on shutdown so
   // in-flight requests are not left dangling and the port can be reused.
+  // The "exit" hook only handles synchronous teardown (Node disallows async
+  // work there); graceful shutdown of active sessions runs via the shutdown
+  // hook installed below, which is bounded by GRACEFUL_SHUTDOWN_TIMEOUT.
   process.on("exit", () => {
     clearInterval(cleanupInterval);
     clearInterval(ratePruneTimer);
     httpServer.close();
+  });
+
+  registerShutdownHook(async () => {
+    clearInterval(cleanupInterval);
+    clearInterval(ratePruneTimer);
+    // Tear down active sessions so SSE streams close cleanly and HITL
+    // timers stop. `destroySession` is idempotent — duplicate calls from
+    // transport.onclose / onsessionclosed racing with this path are safe.
+    for (const [id, s] of [...sessions.entries()]) destroySession(id, s);
+    await new Promise<void>((resolve) => {
+      let settled = false;
+      const done = () => {
+        if (settled) return;
+        settled = true;
+        resolve();
+      };
+      httpServer.close(() => done());
+      setTimeout(done, 3000);
+    });
   });
 }

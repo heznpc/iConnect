@@ -782,3 +782,132 @@ describe('executeSkill – parallel steps', () => {
     expect(result.steps[1].error).toBe('string thrown');
   });
 });
+
+describe('executeSkill – on_error', () => {
+  beforeEach(() => {
+    mockCallTool.mockReset();
+  });
+
+  test('on_error: "continue" runs later steps and exposes the error via templates', async () => {
+    mockCallTool
+      .mockResolvedValueOnce(errorResponse('boom'))
+      .mockResolvedValueOnce(okResponse({ ok: true }));
+
+    const skill = {
+      name: 'continue-past-failure',
+      steps: [
+        { id: 'first', tool: 'failing_tool', args: {}, on_error: 'continue' },
+        { id: 'second', tool: 'log_tool', args: { reason: '{{first.error}}' } },
+      ],
+    };
+    const result = await executeSkill(fakeServer, skill);
+
+    expect(result.success).toBe(true);
+    expect(result.partial).toBe(true);
+    expect(result.failedSteps).toEqual(['first']);
+    expect(result.steps[0].status).toBe('error');
+    expect(result.steps[1].status).toBe('ok');
+    // The second tool should have received the first step's error text via the template.
+    expect(mockCallTool).toHaveBeenNthCalledWith(2, 'log_tool', { reason: 'boom' });
+  });
+
+  test('on_error: "skip_remaining" halts but keeps accumulated results', async () => {
+    mockCallTool
+      .mockResolvedValueOnce(okResponse({ value: 1 }))
+      .mockResolvedValueOnce(errorResponse('stop'));
+
+    const skill = {
+      name: 'skip-remaining',
+      steps: [
+        { id: 'a', tool: 'ok_tool', args: {} },
+        { id: 'b', tool: 'fail_tool', args: {}, on_error: 'skip_remaining' },
+        { id: 'c', tool: 'never_called', args: {} },
+      ],
+    };
+    const result = await executeSkill(fakeServer, skill);
+
+    expect(result.success).toBe(false);
+    expect(result.partial).toBe(true);
+    expect(result.failedSteps).toEqual(['b']);
+    expect(result.steps).toHaveLength(2); // step c never runs
+    expect(mockCallTool).toHaveBeenCalledTimes(2);
+  });
+
+  test('on_error defaults to "abort" and stops the skill on failure', async () => {
+    mockCallTool
+      .mockResolvedValueOnce(errorResponse('first failed'))
+      .mockResolvedValueOnce(okResponse({ ok: true }));
+
+    const skill = {
+      name: 'abort-default',
+      steps: [
+        { id: 'a', tool: 'fail', args: {} },
+        { id: 'b', tool: 'never', args: {} },
+      ],
+    };
+    const result = await executeSkill(fakeServer, skill);
+
+    expect(result.success).toBe(false);
+    expect(result.failedSteps).toEqual(['a']);
+    expect(result.steps).toHaveLength(1);
+    expect(mockCallTool).toHaveBeenCalledTimes(1);
+  });
+
+  test('loop with on_error: "continue" records per-iteration errors and finishes', async () => {
+    mockCallTool
+      .mockResolvedValueOnce(okResponse({ idx: 0 }))
+      .mockResolvedValueOnce(errorResponse('item 1 failed'))
+      .mockResolvedValueOnce(okResponse({ idx: 2 }));
+
+    const skill = {
+      name: 'loop-continue',
+      steps: [
+        { id: 'seed', tool: 'seed', args: {} },
+        {
+          id: 'each',
+          tool: 'process_item',
+          args: { index: '{{_index}}' },
+          loop: '{{seed}}',
+          on_error: 'continue',
+        },
+      ],
+    };
+    mockCallTool.mockReset();
+    mockCallTool
+      .mockResolvedValueOnce(okResponse([10, 20, 30]))
+      .mockResolvedValueOnce(okResponse({ idx: 0 }))
+      .mockResolvedValueOnce(errorResponse('item 1 failed'))
+      .mockResolvedValueOnce(okResponse({ idx: 2 }));
+
+    const result = await executeSkill(fakeServer, skill);
+
+    expect(result.success).toBe(true);
+    expect(result.steps[1].status).toBe('ok');
+    expect(Array.isArray(result.steps[1].data)).toBe(true);
+    expect(result.steps[1].data).toHaveLength(3);
+    expect(result.steps[1].data[1]).toEqual({ error: 'item 1 failed' });
+  });
+
+  test('parallel group with on_error: "continue" lets sibling steps succeed and skill continues', async () => {
+    mockCallTool
+      .mockResolvedValueOnce(errorResponse('p1 failed'))
+      .mockResolvedValueOnce(okResponse({ ok: true }))
+      .mockResolvedValueOnce(okResponse({ next: true }));
+
+    const skill = {
+      name: 'parallel-continue',
+      steps: [
+        { id: 'p1', tool: 'fail_tool', args: {}, parallel: true, on_error: 'continue' },
+        { id: 'p2', tool: 'ok_tool', args: {}, parallel: true },
+        { id: 'after', tool: 'post', args: { from: '{{p1.error}}' } },
+      ],
+    };
+    const result = await executeSkill(fakeServer, skill);
+
+    expect(result.success).toBe(true);
+    expect(result.partial).toBe(true);
+    expect(result.failedSteps).toEqual(['p1']);
+    expect(result.steps[2].status).toBe('ok');
+    expect(mockCallTool).toHaveBeenNthCalledWith(3, 'post', { from: 'p1 failed' });
+  });
+});

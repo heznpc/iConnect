@@ -227,15 +227,30 @@ async function callTool(
   _server: McpServer,
   toolName: string,
   args: Record<string, unknown>,
-): Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }> {
+): Promise<{
+  content: Array<{ type: string; text: string }>;
+  isError?: boolean;
+  structuredContent?: unknown;
+}> {
   return toolRegistry.callTool(toolName, args);
 }
 
 const MAX_TOOL_RESPONSE_SIZE = 1_048_576; // 1MB
 
-function parseToolResponse(response: { content: Array<{ type: string; text: string }>; isError?: boolean }): unknown {
+function parseToolResponse(response: {
+  content: Array<{ type: string; text: string }>;
+  isError?: boolean;
+  structuredContent?: unknown;
+}): unknown {
   if (response.isError) {
     throw new Error(response.content[0]?.text ?? "Tool returned an error");
+  }
+  // Prefer structuredContent (outputSchema-validated) when present — it
+  // preserves types the text representation would flatten (e.g. nested
+  // arrays, numbers stored as numbers not strings). Fall back to parsing
+  // the text content only when no structured payload is provided.
+  if (response.structuredContent !== undefined) {
+    return response.structuredContent;
   }
   const text = response.content[0]?.text;
   if (!text) return null;
@@ -282,6 +297,7 @@ async function executeOneStep(
     }
 
     const loopResults: unknown[] = [];
+    let loopHadFailure = false;
     // Use step-scoped loop variables to avoid clobbering shared results in parallel execution
     const loopScope = new Map(results);
     for (let idx = 0; idx < items.length; idx++) {
@@ -292,11 +308,24 @@ async function executeOneStep(
         const response = await callTool(server, step.tool, resolvedArgs);
         loopResults.push(parseToolResponse(response));
       } catch (e) {
+        const error = e instanceof Error ? e.message : String(e);
+        if (step.on_error === "continue") {
+          loopResults.push({ error });
+          loopHadFailure = true;
+          continue;
+        }
         return {
-          stepResult: { id: step.id, status: "error", error: e instanceof Error ? e.message : String(e) },
+          stepResult: { id: step.id, status: "error", error },
           data: loopResults,
         };
       }
+    }
+    if (loopHadFailure) {
+      // Loop finished but at least one iteration failed under `continue`
+      // — surface it as a partial success so downstream steps / callers see
+      // the mix. `data` still contains all iteration results (including
+      // `{ error }` entries) so templates can filter on success/failure.
+      return { stepResult: { id: step.id, status: "ok", data: loopResults }, data: loopResults };
     }
     return { stepResult: { id: step.id, status: "ok", data: loopResults }, data: loopResults };
   }
@@ -315,7 +344,19 @@ async function executeOneStep(
 export async function executeSkill(server: McpServer, skill: SkillDefinition): Promise<SkillResult> {
   const results = new Map<string, unknown>();
   const stepResults: StepResult[] = [];
+  const failedSteps: string[] = [];
   let i = 0;
+
+  // Build once: the terminal result shape when we need to bail early. Keeps
+  // the two exit paths (hard abort / skip_remaining) in sync.
+  const finalize = (success: boolean): SkillResult => {
+    const res: SkillResult = { skill: skill.name, steps: stepResults, success };
+    if (failedSteps.length > 0) {
+      res.partial = !success || failedSteps.length > 0;
+      res.failedSteps = [...failedSteps];
+    }
+    return res;
+  };
 
   while (i < skill.steps.length) {
     const step = skill.steps[i]!;
@@ -329,36 +370,60 @@ export async function executeSkill(server: McpServer, skill: SkillDefinition): P
 
       const settled = await Promise.allSettled(group.map((s) => executeOneStep(server, s, results)));
 
-      let failed = false;
+      let sawAbort = false;
+      let sawSkipRemaining = false;
       for (let j = 0; j < group.length; j++) {
         const r = settled[j]!;
+        const s = group[j]!;
+        let stepResult: StepResult;
+        let data: unknown;
         if (r.status === "fulfilled") {
-          const { stepResult, data } = r.value;
-          results.set(group[j]!.id, data);
-          stepResults.push(stepResult);
-          if (stepResult.status === "error") failed = true;
+          stepResult = r.value.stepResult;
+          data = r.value.data;
         } else {
           const error = r.reason instanceof Error ? r.reason.message : String(r.reason);
-          results.set(group[j]!.id, null);
-          stepResults.push({ id: group[j]!.id, status: "error", error });
-          failed = true;
+          stepResult = { id: s.id, status: "error", error };
+          data = null;
         }
+        if (stepResult.status === "error") {
+          failedSteps.push(s.id);
+          const policy = s.on_error ?? "abort";
+          if (policy === "abort") sawAbort = true;
+          else if (policy === "skip_remaining") sawSkipRemaining = true;
+          // `continue`: expose `{ error }` to subsequent steps via templates.
+          results.set(s.id, policy === "continue" ? { error: stepResult.error } : data);
+        } else {
+          results.set(s.id, data);
+        }
+        stepResults.push(stepResult);
       }
 
-      if (failed) return { skill: skill.name, steps: stepResults, success: false };
+      if (sawAbort) return finalize(false);
+      if (sawSkipRemaining) return finalize(false);
       continue;
     }
 
     const result = await executeOneStep(server, step, results);
-    results.set(step.id, result.data);
     stepResults.push(result.stepResult);
 
     if (result.stepResult.status === "error") {
-      return { skill: skill.name, steps: stepResults, success: false };
+      failedSteps.push(step.id);
+      const policy = step.on_error ?? "abort";
+      if (policy === "continue") {
+        // Make the error available to later steps via `{{stepId.error}}`.
+        results.set(step.id, { error: result.stepResult.error });
+        i++;
+        continue;
+      }
+      // "abort" and "skip_remaining" both stop here; the difference is purely
+      // semantic in the result (partial flag is identical either way).
+      results.set(step.id, null);
+      return finalize(false);
     }
 
+    results.set(step.id, result.data);
     i++;
   }
 
-  return { skill: skill.name, steps: stepResults, success: true };
+  return finalize(true);
 }

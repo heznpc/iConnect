@@ -7,9 +7,21 @@ jest.unstable_mockModule('../dist/skills/executor.js', () => ({
 }));
 
 // ─── Mock result helpers ────────────────────────────────────────────────
+// Include every export touched by the transitive import graph so ESM
+// strict-mode "missing export" errors do not surface when register.ts
+// pulls in tool-registry (which uses withResultSizeHint for size hints).
 jest.unstable_mockModule('../dist/shared/result.js', () => ({
   ok: jest.fn((data) => ({ content: [{ type: 'text', text: JSON.stringify(data) }] })),
   err: jest.fn((msg) => ({ content: [{ type: 'text', text: msg }], isError: true })),
+  withResultSizeHint: jest.fn((result) => result),
+}));
+
+// ─── Mock tool-registry (register.ts consults it for name collisions) ──
+jest.unstable_mockModule('../dist/shared/tool-registry.js', () => ({
+  toolRegistry: {
+    getPromptNames: jest.fn(() => []),
+    getToolNames: jest.fn(() => []),
+  },
 }));
 
 // ─── Mock prompt helper ─────────────────────────────────────────────────
@@ -61,7 +73,7 @@ describe('registerSkills', () => {
 
     const result = registerSkills(server, [skill]);
 
-    expect(result).toEqual({ prompts: 0, tools: 1 });
+    expect(result).toEqual({ prompts: 0, tools: 1, skipped: 0 });
     expect(server.registerTool).toHaveBeenCalledTimes(1);
     expect(server.registerTool).toHaveBeenCalledWith(
       'skill_test-skill',
@@ -85,7 +97,7 @@ describe('registerSkills', () => {
 
     const result = registerSkills(server, [skill]);
 
-    expect(result).toEqual({ prompts: 1, tools: 0 });
+    expect(result).toEqual({ prompts: 1, tools: 0, skipped: 0 });
     expect(server.prompt).toHaveBeenCalledTimes(1);
     expect(server.prompt).toHaveBeenCalledWith(
       'test-skill',
@@ -101,7 +113,7 @@ describe('registerSkills', () => {
 
     const result = registerSkills(server, [toolSkill, promptSkill, toolSkill2]);
 
-    expect(result).toEqual({ prompts: 1, tools: 2 });
+    expect(result).toEqual({ prompts: 1, tools: 2, skipped: 0 });
     expect(server.registerTool).toHaveBeenCalledTimes(2);
     expect(server.prompt).toHaveBeenCalledTimes(1);
   });
@@ -109,7 +121,7 @@ describe('registerSkills', () => {
   test('returns zero counts for empty skills array', () => {
     const result = registerSkills(server, []);
 
-    expect(result).toEqual({ prompts: 0, tools: 0 });
+    expect(result).toEqual({ prompts: 0, tools: 0, skipped: 0 });
     expect(server.registerTool).not.toHaveBeenCalled();
     expect(server.prompt).not.toHaveBeenCalled();
   });

@@ -8,6 +8,20 @@ export const SkillStepSchema = z.object({
   skip_if: z.string().optional(),
   parallel: z.boolean().optional(),
   loop: z.string().optional(),
+  /**
+   * Failure strategy for this step:
+   *   - "abort"          (default) — stop the skill as soon as this step fails.
+   *   - "continue"       — record the error, store `{ error: string }` under
+   *                        the step id so later steps can reference it via
+   *                        `{{stepId.error}}`, then continue.
+   *   - "skip_remaining" — stop executing further steps but mark the skill
+   *                        result `partial: true` with accumulated data intact.
+   *
+   * Inside a `loop` step, `continue` applies per-iteration — individual
+   * failed iterations leave a `{ error: string }` slot in the loop result
+   * array and execution moves to the next item.
+   */
+  on_error: z.enum(["abort", "continue", "skip_remaining"]).optional(),
 });
 
 export const SkillDefinitionSchema = z.object({
@@ -46,4 +60,11 @@ export interface SkillResult {
   skill: string;
   steps: StepResult[];
   success: boolean;
+  /** True when at least one step failed but the skill continued running
+   *  because of `on_error: "continue"` or `"skip_remaining"`. Callers can
+   *  use this to surface partial progress without treating the run as a
+   *  hard failure. */
+  partial?: boolean;
+  /** IDs of steps that errored out. Empty when `success` is true. */
+  failedSteps?: string[];
 }

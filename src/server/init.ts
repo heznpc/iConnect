@@ -12,6 +12,13 @@ import { setShareGuardHitlClient } from "../shared/share-guard.js";
 import { closeSkillsWatcher } from "../skills/index.js";
 import { closeSwiftBridge } from "../shared/swift.js";
 import { usageTracker } from "../shared/usage-tracker.js";
+import { runShutdownHooks } from "./shutdown.js";
+
+// Re-export so callers that depend on `init.js` do not need to know about
+// the shutdown module layout. New transport code should prefer importing
+// `registerShutdownHook` directly from `./shutdown.js` — that module has no
+// heavy transitive dependencies, which keeps test mocks shallow.
+export { registerShutdownHook } from "./shutdown.js";
 
 export interface ServerContext {
   config: AirMcpConfig;
@@ -54,14 +61,22 @@ export function initializeServer(): ServerContext {
       setShareGuardHitlClient(null);
     }
   }
+  async function gracefulShutdown(code: number): Promise<void> {
+    if (exited) return;
+    // Run async hooks first (bounded by shutdown.ts's timeout), then the
+    // synchronous onExit cleanup, then finally exit. Keeping hook ownership
+    // in a separate module means transport code can register cleanup
+    // without pulling in init's heavy dependency graph.
+    await runShutdownHooks();
+    onExit();
+    process.exit(code);
+  }
   process.on("exit", onExit);
   process.on("SIGINT", () => {
-    onExit();
-    process.exit(0);
+    void gracefulShutdown(0);
   });
   process.on("SIGTERM", () => {
-    onExit();
-    process.exit(0);
+    void gracefulShutdown(0);
   });
 
   // Catch unhandled errors to prevent silent crashes
@@ -70,8 +85,7 @@ export function initializeServer(): ServerContext {
   });
   process.on("uncaughtException", (error) => {
     console.error("[AirMCP] Uncaught exception:", error);
-    onExit();
-    process.exit(1);
+    void gracefulShutdown(1);
   });
 
   return { config, osVersion, pkg, hitlClient };
