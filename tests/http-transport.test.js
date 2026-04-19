@@ -157,3 +157,48 @@ describe('validateNetworkPolicy', () => {
     err.mockRestore();
   });
 });
+
+describe('resolveAllowNetwork integration with doctor', () => {
+  // Doctor imports resolveAllowNetwork dynamically at runtime, so the
+  // existing export surface is all that needs to stay stable. This
+  // guards against accidental removal or rename.
+  let mod;
+  beforeAll(async () => {
+    mod = await import('../dist/server/http-transport.js');
+  });
+
+  test('exports resolveAllowNetwork and validateNetworkPolicy as functions', () => {
+    expect(typeof mod.resolveAllowNetwork).toBe('function');
+    expect(typeof mod.validateNetworkPolicy).toBe('function');
+  });
+
+  test('all four policy values roundtrip through resolve+validate cleanly', () => {
+    // with-token+origin needs origins, with-token needs token, loopback-only
+    // stands alone, unauthenticated is self-consistent.
+    const cases = [
+      { policy: 'loopback-only', bindAll: false, httpToken: '', origins: 0 },
+      { policy: 'with-token', bindAll: true, httpToken: 't', origins: 0 },
+      { policy: 'with-token+origin', bindAll: true, httpToken: 't', origins: 1 },
+      { policy: 'unauthenticated', bindAll: true, httpToken: '', origins: 0 },
+    ];
+    const err = jest.spyOn(console, 'error').mockImplementation(() => {});
+    for (const c of cases) {
+      const p = mod.resolveAllowNetwork({
+        explicit: c.policy,
+        bindAll: c.bindAll,
+        httpToken: c.httpToken,
+        allowedOriginsCount: c.origins,
+      });
+      expect(p).toBe(c.policy);
+      expect(() =>
+        mod.validateNetworkPolicy({
+          policy: p,
+          bindAll: c.bindAll,
+          httpToken: c.httpToken,
+          allowedOriginsCount: c.origins,
+        }),
+      ).not.toThrow();
+    }
+    err.mockRestore();
+  });
+});
