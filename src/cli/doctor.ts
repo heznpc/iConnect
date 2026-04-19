@@ -214,6 +214,50 @@ export async function runDoctor(): Promise<void> {
     for (const b of compatSummary.broken) bad(`✖ ${b.name}`, b.reason);
   }
 
+  // ── HTTP network policy (RFC 0002) ─────────────────────────────────
+  //
+  // Surface what the HTTP transport *would* do if started right now with
+  // the current env. Doctor runs in stdio context so nothing is bound —
+  // this is pure introspection. Matches the same resolver the server uses,
+  // so mismatches between doctor output and actual startup behaviour can
+  // only come from config drift, not from stale logic here.
+  console.log(heading("HTTP network policy"));
+  try {
+    const { resolveAllowNetwork } = await import("../server/http-transport.js");
+    const envPolicy = (process.env.AIRMCP_ALLOW_NETWORK ?? "").trim() || undefined;
+    const bindAll = process.argv.includes("--bind-all");
+    const unsafeNoAuth = process.argv.includes("--unsafe-no-auth");
+    const httpToken = process.env.AIRMCP_HTTP_TOKEN ?? "";
+    const allowedOrigins = (process.env.AIRMCP_ALLOWED_ORIGINS ?? "").split(",").filter(Boolean);
+    const effective = resolveAllowNetwork({
+      explicit: envPolicy as never,
+      bindAll,
+      httpToken,
+      allowedOriginsCount: allowedOrigins.length,
+      unsafeNoAuth,
+    });
+    ok("Effective policy", effective);
+    if (envPolicy) ok("AIRMCP_ALLOW_NETWORK", envPolicy);
+    ok("Token", httpToken ? `set (sha256: ${httpToken.slice(0, 0)}${"…".repeat(1)})` : "not set");
+    ok("Origin allow-list", allowedOrigins.length > 0 ? allowedOrigins.join(", ") : "(empty)");
+    if (effective === "unauthenticated") {
+      bad(
+        "Danger mode",
+        "allowNetwork=unauthenticated — tool surface exposed without auth. Intended for CI/debug only.",
+      );
+    } else if (effective === "loopback-only" && bindAll) {
+      // The runtime would refuse to start in this state; doctor should
+      // surface it clearly instead of silently contradicting itself.
+      bad(
+        "Config conflict",
+        "--bind-all is set but policy is loopback-only — HTTP server would refuse to start. Drop --bind-all or set AIRMCP_ALLOW_NETWORK=with-token.",
+      );
+    }
+  } catch (e) {
+    // Non-fatal: this section is diagnostic, don't sink the whole doctor run.
+    meh("HTTP policy resolver unavailable", e instanceof Error ? e.message : String(e));
+  }
+
   // ── Permissions ────────────────────────────────────────────────────
   if (platform === "darwin" && enabledMods.length > 0) {
     console.log(heading("Permissions"));

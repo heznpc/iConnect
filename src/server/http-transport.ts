@@ -344,6 +344,53 @@ export async function startHttpServer(options: HttpServerOptions): Promise<void>
     next();
   });
 
+  // Reverse-proxy header soft-detection (RFC 0002 Phase 2).
+  //
+  // Loopback-only servers behind a misconfigured reverse proxy are the
+  // motivating threat: AirMCP sees 127.0.0.1 and skips auth while the
+  // proxy has actually exposed the server on a public interface. If we
+  // see `X-Forwarded-*` or a non-loopback Host header, surface it once
+  // per process to stderr + audit so operators get a clear nudge to
+  // move to `with-token` (or explicitly acknowledge the proxy with an
+  // origin allow-list).
+  let proxyWarned = false;
+  app.use((req, _res, next) => {
+    if (proxyWarned || allowNetwork !== "loopback-only") return next();
+    const forwardedFor = req.headers["x-forwarded-for"];
+    const forwardedHost = req.headers["x-forwarded-host"];
+    const realIp = req.headers["x-real-ip"];
+    const host = (req.headers.host as string | undefined) ?? "";
+    const hostIsRemote =
+      host !== "" &&
+      !/^localhost(:\d+)?$/.test(host) &&
+      !/^127\.0\.0\.1(:\d+)?$/.test(host) &&
+      !/^\[::1\](:\d+)?$/.test(host);
+    if (forwardedFor || forwardedHost || realIp || hostIsRemote) {
+      proxyWarned = true;
+      const signals = [
+        forwardedFor && `X-Forwarded-For=${String(forwardedFor).slice(0, 64)}`,
+        forwardedHost && `X-Forwarded-Host=${String(forwardedHost).slice(0, 64)}`,
+        realIp && `X-Real-IP=${String(realIp).slice(0, 64)}`,
+        hostIsRemote && `Host=${host}`,
+      ]
+        .filter(Boolean)
+        .join(", ");
+      console.error(
+        `[AirMCP] ⚠️  Proxy signal detected on a loopback-only server (${signals}). ` +
+          "If AirMCP is reachable from outside this machine, move to " +
+          'AIRMCP_ALLOW_NETWORK="with-token" (or "with-token+origin") + AIRMCP_HTTP_TOKEN. ' +
+          "This warning fires once per process.",
+      );
+      auditLog({
+        timestamp: new Date().toISOString(),
+        tool: "__proxy_signal_detected",
+        args: { signals, policy: allowNetwork },
+        status: "ok",
+      });
+    }
+    next();
+  });
+
   app.post("/mcp", async (req, res) => {
     try {
       const sessionId = req.headers["mcp-session-id"] as string | undefined;
