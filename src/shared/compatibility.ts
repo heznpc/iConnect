@@ -167,13 +167,30 @@ export function resolveModuleCompatibility(
   return { decision: "register" };
 }
 
+// Tracks which "cpu unknown" warnings we've already emitted so the resolver
+// doesn't spam the same complaint for every cpu-gated module on startup.
+// Reset per requirement kind; a separate "cpu unknown" situation for
+// apple-silicon vs intel would be independently worth surfacing.
+const warnedUnknownCpu = new Set<HardwareRequirement>();
+
 /** Is a single hardware requirement satisfied? */
 function isHardwareAvailable(req: HardwareRequirement, env: CompatibilityEnv): boolean {
   switch (req) {
     case "apple-silicon":
-      return env.cpu === "arm64" || env.cpu === "aarch64";
     case "intel":
-      return env.cpu === "x64" || env.cpu === "x86_64";
+      if (!env.cpu) {
+        if (!warnedUnknownCpu.has(req)) {
+          warnedUnknownCpu.add(req);
+          console.error(
+            `[AirMCP compatibility] cpu arch unknown (env.cpu is undefined); ` +
+              `treating "${req}" requirement as unavailable. Modules that require it will be skipped.`,
+          );
+        }
+        return false;
+      }
+      return req === "apple-silicon"
+        ? env.cpu === "arm64" || env.cpu === "aarch64"
+        : env.cpu === "x64" || env.cpu === "x86_64";
     case "healthkit":
       return env.healthkitAvailable === true;
   }

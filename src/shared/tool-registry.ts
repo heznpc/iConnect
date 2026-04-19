@@ -104,15 +104,38 @@ class ToolRegistry {
   /**
    * Invoke a registered tool by name, as the skill executor needs.
    * Throws if the tool is not found or is disabled.
+   *
+   * Passes through `structuredContent` (outputSchema-validated JSON) and
+   * `_meta` so callers that chain tools together — the skill executor in
+   * particular — can consume the typed payload directly instead of
+   * re-parsing the text content. The wire format for normal MCP clients
+   * is unaffected because this method is only reached via direct in-process
+   * calls.
    */
   async callTool(
     name: string,
     args: Record<string, unknown>,
-  ): Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }> {
+  ): Promise<{
+    content: Array<{ type: string; text: string }>;
+    isError?: boolean;
+    structuredContent?: unknown;
+    _meta?: Record<string, unknown>;
+  }> {
     const tool = this.tools.get(name);
     if (!tool) throw new Error(`Tool "${name}" not found`);
     if (!tool.enabled) throw new Error(`Tool "${name}" is disabled`);
-    return (await tool.handler(args, {})) as { content: Array<{ type: string; text: string }>; isError?: boolean };
+    const raw = (await tool.handler(args, {})) as {
+      content?: Array<{ type: string; text: string }>;
+      isError?: boolean;
+      structuredContent?: unknown;
+      _meta?: Record<string, unknown>;
+    };
+    return {
+      content: raw.content ?? [],
+      ...(raw.isError !== undefined ? { isError: raw.isError } : {}),
+      ...(raw.structuredContent !== undefined ? { structuredContent: raw.structuredContent } : {}),
+      ...(raw._meta !== undefined ? { _meta: raw._meta } : {}),
+    };
   }
 
   // ── Prompt accessors ────────────────────────────────────────────

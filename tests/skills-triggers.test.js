@@ -248,8 +248,9 @@ describe('startTriggerListener and event dispatch', () => {
       expect.stringContaining('failed (attempt 1)'),
     );
 
-    // Advance past the 2000ms retry delay
-    await jest.advanceTimersByTimeAsync(2100);
+    // Exponential backoff: base 2000ms + up to 25% jitter → bounded by 2500ms.
+    // Advance past the worst-case upper bound so the retry timer has fired.
+    await jest.advanceTimersByTimeAsync(2600);
 
     expect(mockExecuteSkill).toHaveBeenCalledTimes(2);
 
@@ -282,7 +283,8 @@ describe('startTriggerListener and event dispatch', () => {
       expect.stringContaining('failed (attempt 1)'),
     );
 
-    await jest.advanceTimersByTimeAsync(2100);
+    // See note on exponential-backoff bounds in the prior test.
+    await jest.advanceTimersByTimeAsync(2600);
     expect(console.error).toHaveBeenCalledWith(
       expect.stringContaining('failed (attempt 2)'),
     );

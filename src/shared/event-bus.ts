@@ -55,8 +55,19 @@ class EventBus extends EventEmitter {
       const event: AirMCPEvent = { type: obj.event, data, timestamp };
       this.emit("event", event);
       this.emit(event.type, event);
-    } catch {
-      // Not an event line — ignore
+    } catch (e) {
+      // Regular output (progress messages, debug prints, non-JSON chatter)
+      // is interleaved with event lines on the same stream, so a silent
+      // ignore is the default. BUT if the line *looks* like an event
+      // attempt — mentions an "event" or "type" key — surface the parse
+      // failure so protocol drift between the Swift side and Node side
+      // does not go undetected.
+      if (line.includes('"event"') || line.includes('"type"')) {
+        const msg = e instanceof Error ? e.message : String(e);
+        console.error(
+          `[AirMCP event-bus] Malformed event line dropped: ${msg} — ${line.slice(0, 120)}${line.length > 120 ? "…" : ""}`,
+        );
+      }
     }
   }
 

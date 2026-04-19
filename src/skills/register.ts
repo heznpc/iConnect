@@ -3,6 +3,7 @@ import type { SkillDefinition } from "./types.js";
 import { executeSkill } from "./executor.js";
 import { userPrompt } from "../shared/prompt.js";
 import { ok, err } from "../shared/result.js";
+import { toolRegistry } from "../shared/tool-registry.js";
 
 function generatePromptText(skill: SkillDefinition): string {
   const lines = [`Execute the following workflow "${skill.title}" using AirMCP tools:`];
@@ -49,20 +50,63 @@ function registerAsTool(server: McpServer, skill: SkillDefinition): void {
   );
 }
 
-export function registerSkills(server: McpServer, skills: SkillDefinition[]): { prompts: number; tools: number } {
+/**
+ * Graceful pre-flight check: if the name is already registered (e.g. a
+ * built-in prompt/tool in another module beat us to it), log a warning and
+ * skip this skill instead of letting the MCP SDK throw and take the whole
+ * server down.
+ *
+ * This is the runtime counterpart to tests/skill-name-collision.test.js —
+ * the test catches the issue pre-publish; this guard ensures that even if
+ * a collision slips through, the process degrades gracefully instead of
+ * crashing on startup (see v2.8.0 "Prompt weekly-review is already
+ * registered" incident).
+ */
+function isPromptNameTaken(name: string): boolean {
+  return toolRegistry.getPromptNames().includes(name);
+}
+
+function isToolNameTaken(name: string): boolean {
+  return toolRegistry.getToolNames().includes(name);
+}
+
+export function registerSkills(
+  server: McpServer,
+  skills: SkillDefinition[],
+): { prompts: number; tools: number; skipped: number } {
   let prompts = 0;
   let tools = 0;
+  let skipped = 0;
   for (const skill of skills) {
     switch (skill.expose_as) {
-      case "prompt":
+      case "prompt": {
+        if (isPromptNameTaken(skill.name)) {
+          console.error(
+            `[AirMCP] Skill "${skill.name}" collides with an already-registered prompt — skipping. ` +
+              `Rename the skill in its YAML to resolve.`,
+          );
+          skipped++;
+          break;
+        }
         registerAsPrompt(server, skill);
         prompts++;
         break;
-      case "tool":
+      }
+      case "tool": {
+        const toolName = `skill_${skill.name}`;
+        if (isToolNameTaken(toolName)) {
+          console.error(
+            `[AirMCP] Skill "${skill.name}" collides with an already-registered tool "${toolName}" — skipping. ` +
+              `Rename the skill in its YAML to resolve.`,
+          );
+          skipped++;
+          break;
+        }
         registerAsTool(server, skill);
         tools++;
         break;
+      }
     }
   }
-  return { prompts, tools };
+  return { prompts, tools, skipped };
 }

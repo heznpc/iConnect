@@ -93,9 +93,17 @@ const DANGEROUS_KEYS = new Set(["__proto__", "constructor", "prototype"]);
  * single-shot responses, so every bridge path is covered.
  */
 function safeParseBridgeResponse(raw: string): BridgeResponse | null {
+  // Fast path: if the raw bytes contain any dangerous key literal, reject
+  // outright. This is defence-in-depth on top of the reviver — even though
+  // `return undefined` below drops the key, rejecting the whole payload is
+  // safer than silently stripping fields we may later need for diagnostics.
+  if (containsDangerousKey(raw)) return null;
   let poisoned = false;
   const parsed: unknown = JSON.parse(raw, (key, value) => {
-    if (DANGEROUS_KEYS.has(key)) poisoned = true;
+    if (DANGEROUS_KEYS.has(key)) {
+      poisoned = true;
+      return undefined; // Drop the key so the parent object is never mutated.
+    }
     return value;
   });
   if (poisoned) return null;
@@ -107,6 +115,15 @@ function safeParseBridgeResponse(raw: string): BridgeResponse | null {
     result: obj.result,
     error: typeof obj.error === "string" ? obj.error : undefined,
   };
+}
+
+/** Cheap string pre-check for the three dangerous keys. Catches the payload
+ *  before it ever enters `JSON.parse`, which closes the theoretical window
+ *  between "reviver runs" and "value is assigned" in engines where the
+ *  order is not strictly defined. `DANGEROUS_KEYS` is a hot-set of 3 items;
+ *  we scan for each quoted form (only object keys must be quoted). */
+function containsDangerousKey(raw: string): boolean {
+  return raw.includes('"__proto__"') || raw.includes('"constructor"') || raw.includes('"prototype"');
 }
 
 // ── Persistent process management ────────────────────────────────────
@@ -353,10 +370,18 @@ function runSwiftSingleShot<T>(command: string, input: string): Promise<T> {
         return;
       }
       try {
-        // Prototype pollution guard — use reviver (same as persistent mode)
+        // Prototype pollution guard — same layered defence as persistent mode:
+        // fast string pre-check + reviver that drops dangerous keys.
+        if (containsDangerousKey(trimmed)) {
+          reject(new Error("Swift bridge response rejected: suspicious payload"));
+          return;
+        }
         let poisoned = false;
         const parsed: unknown = JSON.parse(trimmed, (key, value) => {
-          if (DANGEROUS_KEYS.has(key)) poisoned = true;
+          if (DANGEROUS_KEYS.has(key)) {
+            poisoned = true;
+            return undefined;
+          }
           return value;
         });
         if (poisoned) {
