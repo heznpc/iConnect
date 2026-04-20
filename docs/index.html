@@ -70,6 +70,7 @@
       <a href="#" class="flex items-center gap-2 font-mono text-sm font-medium opacity-80 tracking-tight"><img src="airmcp-icon-32.png" alt="" width="24" height="24">AirMCP</a>
       <div class="flex items-center gap-6" id="navLinks">
         <a href="#modules" class="text-sm opacity-45 font-medium hover:opacity-90 transition-opacity" data-i18n="nav_modules">Modules</a>
+        <a href="#beyond-siri" class="text-sm opacity-45 font-medium hover:opacity-90 transition-opacity" data-i18n="nav_beyond">Beyond Siri</a>
         <a href="#workflows" class="text-sm opacity-45 font-medium hover:opacity-90 transition-opacity" data-i18n="nav_workflows">Workflows</a>
         <a href="#install" class="text-sm opacity-45 font-medium hover:opacity-90 transition-opacity" data-i18n="nav_install">Install</a>
         <a href="https://github.com/heznpc/AirMCP" target="_blank" rel="noopener" class="text-sm opacity-45 font-medium hover:opacity-90 transition-opacity">GitHub</a>
@@ -588,6 +589,90 @@
   </script>
 
   <!-- Workflows -->
+  <!-- Beyond Siri — five concrete things Siri / Shortcuts cannot do -->
+  <section id="beyond-siri" class="relative z-[1] py-10 pb-24">
+    <div class="max-w-[1080px] mx-auto px-5">
+      <div class="text-center mb-10">
+        <p class="section-label reveal" data-i18n="bs_label">Beyond Siri</p>
+        <h2 class="text-[clamp(2rem,5vw,3rem)] font-bold tracking-tight mt-2 reveal" data-delay="40" data-i18n="bs_title">Five things your Mac couldn't do until now.</h2>
+        <p class="mt-3 text-sm opacity-35 max-w-[52ch] mx-auto reveal" data-delay="80" data-i18n="bs_sub">Every item ships as a built-in skill or tool. Install AirMCP, say the words, done.</p>
+      </div>
+
+      <div class="grid grid-cols-2 gap-4 max-md:grid-cols-1">
+        <!-- 1 -->
+        <div class="glass-card reveal">
+          <div class="glass-fx"></div><div class="glass-tint"></div><div class="glass-shine"></div>
+          <div class="glass-content">
+            <div class="flex gap-1.5 mb-3 flex-wrap">
+              <span class="wf-tag">Mail</span>
+              <span class="wf-tag">Reminders</span>
+              <span class="wf-tag">loop</span>
+            </div>
+            <h3 class="card-title" data-i18n="bs_1_title">Turn newsletter inbox into a to-do list</h3>
+            <p class="card-desc" data-i18n="bs_1_desc">"Find every newsletter from this month and create a follow-up reminder for each." AirMCP's <code class="font-mono text-[.9em]">sender-to-tasks</code> skill loops through 10+ matches with per-item retry and HITL approval. Siri runs one command at a time.</p>
+          </div>
+        </div>
+
+        <!-- 2 -->
+        <div class="glass-card reveal" data-delay="40">
+          <div class="glass-fx"></div><div class="glass-tint"></div><div class="glass-shine"></div>
+          <div class="glass-content">
+            <div class="flex gap-1.5 mb-3 flex-wrap">
+              <span class="wf-tag">Calendar</span>
+              <span class="wf-tag">Reminders</span>
+              <span class="wf-tag">Notes</span>
+              <span class="wf-tag">trigger</span>
+            </div>
+            <h3 class="card-title" data-i18n="bs_2_title">A journal that writes itself when you walk away</h3>
+            <p class="card-desc" data-i18n="bs_2_desc">Lock your screen — the <code class="font-mono text-[.9em]">evening-winddown</code> skill triggers on <code class="font-mono text-[.9em]">screen_locked</code>, gathers today's events + open reminders in parallel, summarises them on-device, and drops a dated note. Zero Shortcuts wiring.</p>
+          </div>
+        </div>
+
+        <!-- 3 -->
+        <div class="glass-card reveal" data-delay="80">
+          <div class="glass-fx"></div><div class="glass-tint"></div><div class="glass-shine"></div>
+          <div class="glass-content">
+            <div class="flex gap-1.5 mb-3 flex-wrap">
+              <span class="wf-tag">Calendar</span>
+              <span class="wf-tag">Reminders</span>
+              <span class="wf-tag">MCP App</span>
+            </div>
+            <h3 class="card-title" data-i18n="bs_3_title">Today's events + due reminders on one timeline</h3>
+            <p class="card-desc" data-i18n="bs_3_desc">One tool call — <code class="font-mono text-[.9em]">timeline_today</code> — renders an interactive 6am→10pm axis that fuses Calendar and Reminders into a single view with an Unscheduled rail on the right. No more flipping between two apps.</p>
+          </div>
+        </div>
+
+        <!-- 4 -->
+        <div class="glass-card reveal" data-delay="120">
+          <div class="glass-fx"></div><div class="glass-tint"></div><div class="glass-shine"></div>
+          <div class="glass-content">
+            <div class="flex gap-1.5 mb-3 flex-wrap">
+              <span class="wf-tag">Safari</span>
+              <span class="wf-tag">Pasteboard</span>
+              <span class="wf-tag">trigger</span>
+            </div>
+            <h3 class="card-title" data-i18n="bs_4_title">Copy a URL, land in Reading List — automatically</h3>
+            <p class="card-desc" data-i18n="bs_4_desc">The <code class="font-mono text-[.9em]">clipboard-url-to-reading</code> skill fires on <code class="font-mono text-[.9em]">pasteboard_changed</code>, validates the value is a URL, and queues it in Safari's Reading List. Plain text on the clipboard? It silently skips. No macro recorder required.</p>
+          </div>
+        </div>
+
+        <!-- 5 — wide card -->
+        <div class="glass-card col-span-2 max-md:col-span-1 reveal" data-delay="160">
+          <div class="glass-fx"></div><div class="glass-tint"></div><div class="glass-shine"></div>
+          <div class="glass-content">
+            <div class="flex gap-1.5 mb-3 flex-wrap">
+              <span class="wf-tag">Audit</span>
+              <span class="wf-tag">Rate limit</span>
+              <span class="wf-tag">Kill switch</span>
+            </div>
+            <h3 class="card-title" data-i18n="bs_5_title">Ask your Mac what the AI did this week</h3>
+            <p class="card-desc" data-i18n="bs_5_desc">Every tool call lands in an on-device JSONL audit log with PII-scrubbed args. Run <code class="font-mono text-[.9em]">audit_summary</code> for a weekly report (total calls, error rate, top tools), or pull the raw trail via <code class="font-mono text-[.9em]">audit_log</code>. And if an agent loop goes rogue, <code class="font-mono text-[.9em]">touch ~/.config/airmcp/emergency-stop</code> blocks every destructive tool in under a second — no restart needed.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <section id="workflows" class="relative z-[1] py-10 pb-24">
     <div class="max-w-[1080px] mx-auto px-5">
       <div class="text-center mb-10">
