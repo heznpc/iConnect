@@ -74,6 +74,7 @@
     "pretest": "npm run build",
     "start": "node dist/index.js",
     "test": "node --experimental-vm-modules node_modules/.bin/jest",
+    "smoke": "node scripts/smoke-mcp.mjs",
     "qa": "node scripts/qa-test.mjs",
     "qa:crud": "node scripts/qa-crud-test.mjs",
     "qa:e2e": "node scripts/qa-e2e-test.mjs",
