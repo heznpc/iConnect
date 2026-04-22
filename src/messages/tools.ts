@@ -34,6 +34,12 @@ const chatSchema = z.object({
   updated: z.string().nullable(),
 });
 
+const chatListShape = {
+  total: z.number(),
+  returned: z.number(),
+  chats: z.array(chatSchema),
+};
+
 export function registerMessagesTools(server: McpServer, config: AirMcpConfig): void {
   const { allowSendMessages } = config;
   server.registerTool(
@@ -44,11 +50,7 @@ export function registerMessagesTools(server: McpServer, config: AirMcpConfig): 
       inputSchema: {
         limit: z.number().int().min(1).max(200).optional().default(50).describe("Max chats to return (default: 50)"),
       },
-      outputSchema: {
-        total: z.number(),
-        returned: z.number(),
-        chats: z.array(chatSchema),
-      },
+      outputSchema: chatListShape,
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
     async ({ limit }) => {
@@ -68,12 +70,7 @@ export function registerMessagesTools(server: McpServer, config: AirMcpConfig): 
       inputSchema: {
         chatId: z.string().max(500).describe("Chat ID"),
       },
-      outputSchema: {
-        id: z.string(),
-        name: z.string().nullable(),
-        participants: z.array(participantSchema),
-        updated: z.string().nullable(),
-      },
+      outputSchema: chatSchema.shape,
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
     async ({ chatId }) => {
@@ -94,11 +91,7 @@ export function registerMessagesTools(server: McpServer, config: AirMcpConfig): 
         query: z.string().max(500).describe("Search keyword (matches chat name, participant name, or handle)"),
         limit: z.number().int().min(1).max(100).optional().default(20).describe("Max results (default: 20)"),
       },
-      outputSchema: {
-        total: z.number(),
-        returned: z.number(),
-        chats: z.array(chatSchema),
-      },
+      outputSchema: chatListShape,
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
     async ({ query, limit }) => {
