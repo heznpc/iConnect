@@ -30,6 +30,47 @@ type HealthSteps = z.infer<ReturnType<typeof z.object<typeof healthStepsShape>>>
 type HealthHeartRate = z.infer<ReturnType<typeof z.object<typeof healthHeartRateShape>>>;
 type HealthSleep = z.infer<ReturnType<typeof z.object<typeof healthSleepShape>>>;
 
+// ── Swift bridge contract fixtures (hand-maintained mirror of Swift emit) ──
+//
+// These are the JSON shapes the Swift CLI (swift/Sources/AirMcpBridge/main.swift
+// cases "health-summary" / "health-steps" / "health-heart-rate" / "health-sleep"
+// backed by swift/Sources/AirMCPKit/HealthService.swift struct HealthSummary)
+// is expected to write to stdout. Until the planned `--dump-example-output`
+// Swift flag lands, drift between Swift struct edits and TS zod shapes is
+// caught in two places:
+//
+// (1) compile time — the EXAMPLE constant is typed against the zod-inferred
+//     interface, so `tsc` flags a missing/renamed field;
+// (2) runtime — tests/script-shape-contract.test.js parses each example
+//     through the tool's declared outputSchema with strict Zod.
+//
+// When you change a Swift Encodable struct, update the matching EXAMPLE here
+// in the same PR. Both sides of the bridge must move together.
+export const HEALTH_SUMMARY_EXAMPLE: HealthSummary = {
+  stepsToday: 8432,
+  heartRateAvg7d: 62.3,
+  sleepHoursLastNight: 7.25,
+  activeEnergyToday: 412.5,
+  exerciseMinutesToday: 38,
+};
+
+export const HEALTH_STEPS_EXAMPLE: HealthSteps = {
+  stepsToday: 8432,
+};
+
+// Two fixtures for heart rate because message is optional; both cases must parse.
+export const HEALTH_HEART_RATE_EXAMPLE_VALUE: HealthHeartRate = {
+  heartRateAvg7d: 62.3,
+};
+export const HEALTH_HEART_RATE_EXAMPLE_NULL: HealthHeartRate = {
+  heartRateAvg7d: null,
+  message: "No heart rate data for the last 7 days",
+};
+
+export const HEALTH_SLEEP_EXAMPLE: HealthSleep = {
+  sleepHours: 7.25,
+};
+
 export function registerHealthTools(server: McpServer, _config: AirMcpConfig): void {
   server.registerTool(
     "health_summary",

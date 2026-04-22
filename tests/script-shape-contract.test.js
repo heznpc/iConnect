@@ -29,6 +29,8 @@ setupPlatformMocks();
 
 const { registerMessagesTools } = await import('../dist/messages/tools.js');
 const { registerShortcutsTools } = await import('../dist/shortcuts/tools.js');
+const healthTools = await import('../dist/health/tools.js');
+const { registerHealthTools } = healthTools;
 const messagesScripts = await import('../dist/messages/scripts.js');
 const shortcutsScripts = await import('../dist/shortcuts/scripts.js');
 
@@ -86,5 +88,29 @@ describe('Script shape ↔ outputSchema contract — shortcuts', () => {
   });
   test('get_shortcut_detail example conforms', () => {
     assertExampleFits(server, 'get_shortcut_detail', shortcutsScripts.GET_SHORTCUT_DETAIL_EXAMPLE);
+  });
+});
+
+describe('Swift bridge shape ↔ outputSchema contract — health', () => {
+  let server;
+  beforeAll(() => {
+    server = createMockServer();
+    registerHealthTools(server, createMockConfig());
+  });
+
+  test('health_summary example conforms', () => {
+    assertExampleFits(server, 'health_summary', healthTools.HEALTH_SUMMARY_EXAMPLE);
+  });
+  test('health_today_steps example conforms', () => {
+    assertExampleFits(server, 'health_today_steps', healthTools.HEALTH_STEPS_EXAMPLE);
+  });
+  test('health_heart_rate value-case example conforms', () => {
+    assertExampleFits(server, 'health_heart_rate', healthTools.HEALTH_HEART_RATE_EXAMPLE_VALUE);
+  });
+  test('health_heart_rate null-case example conforms', () => {
+    assertExampleFits(server, 'health_heart_rate', healthTools.HEALTH_HEART_RATE_EXAMPLE_NULL);
+  });
+  test('health_sleep example conforms', () => {
+    assertExampleFits(server, 'health_sleep', healthTools.HEALTH_SLEEP_EXAMPLE);
   });
 });
