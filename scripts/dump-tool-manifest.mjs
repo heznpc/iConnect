@@ -1,0 +1,214 @@
+#!/usr/bin/env node
+// RFC 0007 Phase A.0 — MCP tool manifest dumper.
+//
+// Boots the AirMCP stdio server the same way scripts/smoke-mcp.mjs does,
+// performs the MCP 2025-06-18 handshake, asks for `tools/list`, and writes
+// the normalized manifest to docs/tool-manifest.json (or --out).
+//
+// The manifest is the input to scripts/gen-swift-intents.mjs (which codegens
+// Swift AppIntent structs in swift/Sources/AirMCPKit/Generated/MCPIntents.swift).
+//
+// Why capture via the wire protocol and not the internal ToolRegistry?
+// (1) `tools/list` is already the MCP contract we publish externally, so a
+//     drift between Node and Swift is detected against the same shape clients
+//     see. (2) ToolRegistry currently stores only {name, title, description} —
+//     inputSchema / outputSchema / annotations would need registry surgery to
+//     expose. (3) Future Apple System MCP consumes `tools/list` too.
+//
+// Env knobs:
+//   AIRMCP_MANIFEST_OUT    — output path (default: docs/tool-manifest.json)
+//   MANIFEST_TIMEOUT_MS    — handshake + list timeout (default: 30_000)
+
+import { spawn } from "node:child_process";
+import { createInterface } from "node:readline";
+import { writeFileSync, existsSync } from "node:fs";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const ROOT = fileURLToPath(new URL("..", import.meta.url));
+const OUT_PATH = process.env.AIRMCP_MANIFEST_OUT ?? join(ROOT, "docs", "tool-manifest.json");
+const TIMEOUT_MS = Number(process.env.MANIFEST_TIMEOUT_MS ?? 30_000);
+
+// --check flag: do not write; exit 1 if the on-disk file would differ.
+const CHECK_ONLY = process.argv.includes("--check");
+
+const entry = join(ROOT, "dist", "index.js");
+if (!existsSync(entry)) {
+  console.error(`[manifest] ${entry} not found — run \`npm run build\` first`);
+  process.exit(2);
+}
+
+// AIRMCP_FAKE_OS_VERSION=0 pins the manifest to the os-agnostic baseline:
+// every os-version tool gate (e.g. Safari add_bookmark skipped on macOS 26+)
+// sees osVersion=0 and registers nothing gate-specific. This is what makes
+// docs/tool-manifest.json byte-stable across macOS 15 CI runners and macOS 26
+// dev laptops. Do not set AIRMCP_TEST_MODE here — that flag disables a
+// separate set of paths (test helpers) that are unrelated.
+const server = spawn("node", [entry], {
+  stdio: ["pipe", "pipe", "inherit"],
+  env: { ...process.env, AIRMCP_FAKE_OS_VERSION: "0" },
+});
+
+const rl = createInterface({ input: server.stdout });
+const pending = new Map();
+
+rl.on("line", (line) => {
+  if (!line.trim()) return;
+  let msg;
+  try {
+    msg = JSON.parse(line);
+  } catch {
+    return;
+  }
+  if (msg.id !== undefined && pending.has(msg.id)) {
+    const { resolve } = pending.get(msg.id);
+    pending.delete(msg.id);
+    resolve(msg);
+  }
+});
+
+function request(method, params, id) {
+  const payload = { jsonrpc: "2.0", id, method, ...(params ? { params } : {}) };
+  server.stdin.write(`${JSON.stringify(payload)}\n`);
+  return new Promise((resolve, reject) => {
+    pending.set(id, { resolve });
+    setTimeout(() => {
+      if (pending.has(id)) {
+        pending.delete(id);
+        reject(new Error(`timeout id=${id} (${method})`));
+      }
+    }, TIMEOUT_MS);
+  });
+}
+
+function notify(method) {
+  server.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", method })}\n`);
+}
+
+const watchdog = setTimeout(() => {
+  console.error(`[manifest] overall timeout after ${TIMEOUT_MS}ms`);
+  server.kill("SIGKILL");
+  process.exit(2);
+}, TIMEOUT_MS);
+
+let exitCode = 0;
+try {
+  const initResp = await request(
+    "initialize",
+    {
+      protocolVersion: "2025-06-18",
+      capabilities: {},
+      clientInfo: { name: "airmcp-manifest-dump", version: "0.0.0" },
+    },
+    1,
+  );
+  if (!initResp.result) throw new Error(`initialize failed: ${JSON.stringify(initResp)}`);
+  notify("notifications/initialized");
+
+  const listResp = await request("tools/list", {}, 2);
+  const tools = listResp.result?.tools;
+  if (!Array.isArray(tools)) throw new Error(`tools/list malformed: ${JSON.stringify(listResp)}`);
+
+  // Normalize: one entry per tool with only the fields codegen needs.
+  // Sort by name for stable diff output.
+  const normalized = tools
+    .slice()
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((t) => ({
+      name: t.name,
+      title: t.title ?? t.annotations?.title ?? t.name,
+      description: t.description ?? "",
+      inputSchema: t.inputSchema ?? { type: "object", properties: {} },
+      outputSchema: t.outputSchema ?? null,
+      annotations: {
+        readOnlyHint: t.annotations?.readOnlyHint ?? false,
+        destructiveHint: t.annotations?.destructiveHint ?? false,
+        idempotentHint: t.annotations?.idempotentHint ?? false,
+        openWorldHint: t.annotations?.openWorldHint ?? true,
+      },
+      // Eligibility gate for Swift AppIntent codegen (RFC 0007 §3.3).
+      // Composite inputs (arrays of objects, records) can't map to @Parameter
+      // today; we flag them so gen-swift-intents skips without breaking.
+      appIntentEligible: isAppIntentEligible(t.inputSchema, t.annotations),
+    }));
+
+  const manifest = {
+    generatedAt: new Date().toISOString(),
+    protocolVersion: "2025-06-18",
+    toolCount: normalized.length,
+    eligibleCount: normalized.filter((t) => t.appIntentEligible).length,
+    tools: normalized,
+  };
+
+  const serialized = `${JSON.stringify(manifest, replacerStripGenerated, 2)}\n`;
+  if (CHECK_ONLY) {
+    const { readFileSync } = await import("node:fs");
+    let existing = "";
+    try {
+      existing = readFileSync(OUT_PATH, "utf8");
+    } catch {
+      console.error(`[manifest --check] ${OUT_PATH} missing — run \`npm run gen:manifest\``);
+      exitCode = 1;
+    }
+    if (existing && existing !== serialized) {
+      console.error(`[manifest --check] drift detected in ${OUT_PATH} — run \`npm run gen:manifest\``);
+      exitCode = 1;
+    } else if (existing) {
+      console.error(
+        `[manifest --check] OK — ${manifest.toolCount} tools (${manifest.eligibleCount} AppIntent-eligible)`,
+      );
+    }
+  } else {
+    writeFileSync(OUT_PATH, serialized);
+    console.error(
+      `[manifest] wrote ${OUT_PATH} — ${manifest.toolCount} tools (${manifest.eligibleCount} AppIntent-eligible)`,
+    );
+  }
+} catch (e) {
+  console.error(`[manifest] FAIL — ${e instanceof Error ? e.message : String(e)}`);
+  exitCode = 1;
+} finally {
+  clearTimeout(watchdog);
+  server.kill("SIGTERM");
+  setTimeout(() => {
+    if (!server.killed) server.kill("SIGKILL");
+    process.exit(exitCode);
+  }, 2000).unref();
+}
+
+/**
+ * Replacer that excludes `generatedAt` from the diffable payload.
+ * The timestamp is embedded for humans reading the file, but the CI --check
+ * path needs the rest to be byte-stable so a timestamp change alone doesn't
+ * trip drift detection.
+ */
+function replacerStripGenerated(key, value) {
+  if (key === "generatedAt") return "STABLE_PLACEHOLDER";
+  return value;
+}
+
+/**
+ * Return true if the tool's inputSchema is expressible as a flat list of
+ * AppIntent `@Parameter` properties. RFC 0007 §3.3 table.
+ *
+ * Ineligible cases:
+ *   - any property whose type is "array" AND whose items is "object"
+ *     (AppIntent supports [String], [Int], [Double], [Bool] but not arrays
+ *     of structs at the @Parameter layer as of iOS 17)
+ *   - any property whose type is "object" (composite)
+ *   - `additionalProperties: true` / record-like schemas
+ */
+function isAppIntentEligible(inputSchema, _annotations) {
+  if (!inputSchema || typeof inputSchema !== "object") return true;
+  if (inputSchema.additionalProperties === true) return false;
+  const props = inputSchema.properties ?? {};
+  for (const key of Object.keys(props)) {
+    const p = props[key];
+    if (!p || typeof p !== "object") continue;
+    if (p.type === "object") return false;
+    if (p.type === "array" && p.items && typeof p.items === "object" && p.items.type === "object") {
+      return false;
+    }
+  }
+  return true;
+}
