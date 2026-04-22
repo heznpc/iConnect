@@ -46,29 +46,34 @@ function resetAll() {
 
 // ── messages ──────────────────────────────────────────────────────────
 
+const aliceChat = {
+  id: 'chat-1',
+  name: 'Alice',
+  participants: [{ name: 'Alice', handle: 'alice@example.com' }],
+  updated: '2026-04-20T10:00:00Z',
+};
+const anonymousChat = {
+  id: 'chat-2',
+  name: null,
+  participants: [{ name: null, handle: '+821012345678' }],
+  updated: null,
+};
+const teamChat = {
+  id: 'chat-3',
+  name: 'Team',
+  participants: [
+    { name: 'Bob', handle: 'bob@example.com' },
+    { name: null, handle: null },
+  ],
+  updated: '2026-04-20T10:00:00Z',
+};
+
 describe('Wave 3 — messages.list_chats', () => {
   beforeEach(resetAll);
   test('structuredContent matches outputSchema', async () => {
     const server = createMockServer();
     registerMessagesTools(server, createMockConfig());
-    mockRunJxa.mockResolvedValue({
-      total: 2,
-      returned: 2,
-      chats: [
-        {
-          id: 'chat-1',
-          name: 'Alice',
-          participants: [{ name: 'Alice', handle: 'alice@example.com' }],
-          updated: '2026-04-20T10:00:00Z',
-        },
-        {
-          id: 'chat-2',
-          name: null,
-          participants: [{ name: null, handle: '+821012345678' }],
-          updated: null,
-        },
-      ],
-    });
+    mockRunJxa.mockResolvedValue({ total: 2, returned: 2, chats: [aliceChat, anonymousChat] });
     const result = await server.callTool('list_chats', {});
     assertConforms(server, 'list_chats', result.structuredContent);
   });
@@ -79,12 +84,7 @@ describe('Wave 3 — messages.read_chat', () => {
   test('structuredContent matches outputSchema', async () => {
     const server = createMockServer();
     registerMessagesTools(server, createMockConfig());
-    mockRunJxa.mockResolvedValue({
-      id: 'chat-1',
-      name: 'Alice',
-      participants: [{ name: 'Alice', handle: 'alice@example.com' }],
-      updated: '2026-04-20T10:00:00Z',
-    });
+    mockRunJxa.mockResolvedValue(aliceChat);
     const result = await server.callTool('read_chat', { chatId: 'chat-1' });
     assertConforms(server, 'read_chat', result.structuredContent);
   });
@@ -95,21 +95,7 @@ describe('Wave 3 — messages.search_chats', () => {
   test('structuredContent matches outputSchema', async () => {
     const server = createMockServer();
     registerMessagesTools(server, createMockConfig());
-    mockRunJxa.mockResolvedValue({
-      total: 5,
-      returned: 1,
-      chats: [
-        {
-          id: 'chat-3',
-          name: 'Team',
-          participants: [
-            { name: 'Bob', handle: 'bob@example.com' },
-            { name: null, handle: null },
-          ],
-          updated: '2026-04-20T10:00:00Z',
-        },
-      ],
-    });
+    mockRunJxa.mockResolvedValue({ total: 5, returned: 1, chats: [teamChat] });
     const result = await server.callTool('search_chats', { query: 'team' });
     assertConforms(server, 'search_chats', result.structuredContent);
   });
