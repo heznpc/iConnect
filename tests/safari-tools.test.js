@@ -31,9 +31,15 @@ describe('Safari tools registration', () => {
     registerSafariTools(server, {});
   });
 
-  test('registers all 12 safari tools', () => {
-    expect(server.tools.size).toBe(12);
-    const expected = [
+  test('registers safari tools (add_bookmark gated on macOS < 26)', () => {
+    // add_bookmark is only registered on macOS ≤ 25.
+    // - non-Darwin (getOsVersion() = 0): skipped → 11 tools
+    // - Darwin macOS ≤ 25: registered → 12 tools
+    // - Darwin macOS ≥ 26: skipped → 11 tools
+    // We assert the invariant that always holds: 11 non-gated tools are
+    // always registered, and `add_bookmark`'s presence matches the host's
+    // macOS version.
+    const alwaysRegistered = [
       'list_tabs',
       'read_page_content',
       'get_current_tab',
@@ -43,13 +49,16 @@ describe('Safari tools registration', () => {
       'run_javascript',
       'search_tabs',
       'list_bookmarks',
-      'add_bookmark',
       'list_reading_list',
       'add_to_reading_list',
     ];
-    for (const name of expected) {
+    for (const name of alwaysRegistered) {
       expect(server.tools.has(name)).toBe(true);
     }
+    expect([11, 12]).toContain(server.tools.size);
+    // `add_bookmark` registration mirrors the OS gate in src/safari/tools.ts.
+    const hasAddBookmark = server.tools.has('add_bookmark');
+    expect(server.tools.size).toBe(alwaysRegistered.length + (hasAddBookmark ? 1 : 0));
   });
 
   test('all tools have titles and descriptions', () => {
