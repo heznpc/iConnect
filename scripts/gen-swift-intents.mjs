@@ -38,6 +38,29 @@
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  swiftIdent,
+  toPascalCase,
+  intentStructName,
+  swiftLit,
+  humanizeKey,
+  enumCaseName as _enumCaseName,
+  enumCaseDisplayLabel,
+  enumTypeName,
+  intentActionNameFor,
+} from "./lib/codegen-helpers.mjs";
+
+// CLI wrapper: the lib throws on invalid enum value so tests can
+// assert the specific error, but the CLI wants the historic process.exit(2)
+// contract (caller expects "codegen failed, stop").
+function enumCaseName(value) {
+  try {
+    return _enumCaseName(value);
+  } catch (e) {
+    console.error(`[gen-intents] ${e.message}`);
+    process.exit(2);
+  }
+}
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const MANIFEST_PATH = process.env.AIRMCP_INTENTS_MANIFEST ?? join(ROOT, "docs", "tool-manifest.json");
@@ -147,48 +170,11 @@ for (const name of APP_SHORTCUTS_TOP) {
 // strings wrap awkwardly.
 const MAX_TITLE_LEN = 80;
 
-function toPascalCase(snake) {
-  // Skills may arrive with dashes (e.g. `skill_focus-guardian`); Swift
-  // identifiers require alphanumeric only, so split on any non-word char.
-  return snake
-    .split(/[^a-zA-Z0-9]+/)
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
-    .join("");
-}
-
-function intentStructName(toolName) {
-  // audit_log → AuditLogIntent; avoids collision with hand-written
-  // intents that live in app/Sources/AirMCPApp (different Swift module).
-  return `${toPascalCase(toolName)}Intent`;
-}
-
-/**
- * Pick a `ConfirmationActionName` literal for a destructive tool. Apple
- * only exposes `.go` and `.send` on this type as of iOS 26 (checked with
- * `swiftc -typecheck` — `.delete`/`.save` don't compile, and
- * `ConfirmationActionName` has no public initializers), so we map:
- *   send/reply/post → `.send` (renders as "Send")
- *   everything else → `.go`  (generic verb)
- *
- * The destructive semantic is carried by the dialog text ("This action
- * is destructive and cannot be undone"), not the button label. When
- * Apple widens the ConfirmationActionName case list this mapping can be
- * refined — nothing else in the codegen has to change.
- */
-function intentActionNameFor(toolName) {
-  if (/^(send|reply|post)_/.test(toolName)) return ".send";
-  return ".go";
-}
-
-/**
- * Swift-safe string literal for a LocalizedStringResource / description.
- * Escapes backslashes and double-quotes. Strips newlines to avoid breaking
- * the single-line literal form AppIntent accepts.
- */
-function swiftLit(s) {
-  return (s ?? "").replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\r?\n/g, " ").trim();
-}
+// toPascalCase, intentStructName, intentActionNameFor, swiftLit,
+// humanizeKey, enumCaseDisplayLabel, enumTypeName, swiftIdent,
+// SWIFT_RESERVED are imported from scripts/lib/codegen-helpers.mjs.
+// `enumCaseName` is the top-of-file CLI wrapper that converts the
+// library's thrown error into process.exit(2).
 
 /**
  * Pick the Swift type for a JSON-Schema property.
@@ -211,35 +197,8 @@ function swiftTypeFor(propSchema) {
   return null;
 }
 
-/**
- * Swift identifier for an enum case value. JSON-Schema enum values we
- * currently carry are all pure [A-Za-z_][A-Za-z0-9_]* (verified via the
- * manifest), so this is a passthrough — the validator below hard-exits
- * if a future manifest slips in something like "next-track". Avoiding
- * automatic kebab→camel on the fly keeps the wire contract obvious: the
- * case name equals the JSON value.
- */
-function enumCaseName(value) {
-  if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(value)) {
-    console.error(`[gen-intents] enum value "${value}" is not a safe Swift identifier`);
-    process.exit(2);
-  }
-  // Swift reserved words — unlikely but keep the same escape hatch as swiftIdent.
-  return SWIFT_RESERVED.has(value) ? `${value}_` : value;
-}
-
-/**
- * Human-readable display label for an enum case, shown in the Shortcuts
- * picker. "nextTrack" → "Next Track", "selection" → "Selection".
- */
-function enumCaseDisplayLabel(value) {
-  const spaced = value.replace(/([a-z])([A-Z])/g, "$1 $2");
-  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
-}
-
-function enumTypeName(toolName, paramName) {
-  return `${toPascalCase(toolName)}${toPascalCase(paramName)}Option`;
-}
+// enumCaseName (CLI wrapper at top), enumCaseDisplayLabel, enumTypeName
+// imported from scripts/lib/codegen-helpers.mjs.
 
 /**
  * Scan every picked tool's input schema and collect string enums. Returns
@@ -392,39 +351,7 @@ function buildArgsBlock(decls) {
   return { prelude: lines.map((l) => `        ${l}`).join("\n"), argsExpr: "args" };
 }
 
-/**
- * Swift identifiers can't use `default`, `class`, `init`, etc. Map any
- * collision to a `_`-suffixed name; the JSON-Schema property name stays
- * the wire contract, the Swift variable just dodges the keyword.
- */
-const SWIFT_RESERVED = new Set([
-  "default",
-  "class",
-  "struct",
-  "init",
-  "public",
-  "private",
-  "extension",
-  "import",
-  "static",
-  "return",
-  "self",
-  "func",
-  "case",
-  "switch",
-  "if",
-  "else",
-  "for",
-  "while",
-  "in",
-  "where",
-  "operator",
-  "protocol",
-  "typealias",
-]);
-function swiftIdent(name) {
-  return SWIFT_RESERVED.has(name) ? `${name}_` : name;
-}
+// SWIFT_RESERVED, swiftIdent imported from scripts/lib/codegen-helpers.mjs.
 
 // ── outputSchema → Swift Codable (A.2b.2) ────────────────────────────
 //
@@ -819,20 +746,7 @@ const FOLLOW_UP_MAP = {
   search_chats: { target: "read_chat", itemField: "id", targetParam: "chatId" },
 };
 
-/**
- * Humanize a camelCase / snake_case property name into a display label.
- * "stepsToday" → "Steps Today", "sleep_hours" → "Sleep Hours".
- */
-function humanizeKey(key) {
-  const spaced = key
-    .replace(/([a-z])([A-Z])/g, "$1 $2")
-    .replace(/[_-]+/g, " ")
-    .trim();
-  return spaced
-    .split(/\s+/)
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(" ");
-}
+// humanizeKey imported from scripts/lib/codegen-helpers.mjs.
 
 /**
  * Render one row of the scalar snippet view VStack. Value rendering is
