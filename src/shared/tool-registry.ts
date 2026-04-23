@@ -22,6 +22,8 @@ import { withResultSizeHint } from "./result.js";
 import { traceToolCall } from "./telemetry.js";
 import { assertTestMode } from "./errors.js";
 import { checkRateLimit } from "./rate-limit.js";
+import { getOAuthClaims } from "./request-context.js";
+import { evaluateScopeGate } from "./oauth-scope.js";
 
 /** Threshold in characters above which we auto-attach a result size hint. */
 const SIZE_HINT_THRESHOLD = 10_000;
@@ -50,6 +52,10 @@ interface RegisteredToolEntry {
    *  consulted by the rate limiter and audit summaries so we don't
    *  have to re-parse the opts each call. */
   destructive?: boolean;
+  /** Captured from `annotations.readOnlyHint` at registration time. Used
+   *  by the OAuth scope gate to map tools onto mcp:read / mcp:write /
+   *  mcp:destructive per RFC 0005 §3.4 without re-parsing opts. */
+  readOnly?: boolean;
 }
 
 export interface ToolInfo {
@@ -227,12 +233,40 @@ class ToolRegistry {
       return (async (...args: unknown[]) => {
         if (process.env.AIRMCP_USAGE_TRACKING !== "false") usageTracker.record(name);
 
+        const entry = tools.get(name);
+
+        // OAuth scope gate (RFC 0005 §3.4 — Step 2). Runs BEFORE the
+        // rate-limit bucket so a token missing `mcp:destructive` can't
+        // burn the destructive bucket's budget just to hit a 403.
+        // Absence of claims means we're on a non-OAuth path (stdio,
+        // loopback, legacy Bearer) — skip the gate entirely.
+        const claims = getOAuthClaims();
+        if (claims) {
+          const decision = evaluateScopeGate({
+            toolName: name,
+            isReadOnly: entry?.readOnly === true,
+            isDestructive: entry?.destructive === true,
+            callerScopes: claims.scopes,
+          });
+          if (!decision.allowed) {
+            const msg = `[forbidden] scope ${decision.missing} required for tool "${name}"`;
+            if (process.env.AIRMCP_AUDIT_LOG !== "false") {
+              auditLog({
+                timestamp: new Date().toISOString(),
+                tool: name,
+                args: args[0] as Record<string, unknown>,
+                status: "error",
+              });
+            }
+            throw new Error(msg);
+          }
+        }
+
         // Rate-limit + emergency-stop gate. Runs before the call reaches
         // the handler so a runaway agent burning through the bucket can
         // never touch the filesystem/APIs on the denied call. Denials
         // throw so the error is captured by audit and surfaces to the
         // caller with the same shape as any other failure.
-        const entry = tools.get(name);
         const gate = checkRateLimit(entry?.destructive === true);
         if (!gate.allowed) {
           const msg = `[rate_limited] ${gate.reason ?? "Rate limit exceeded"}${
@@ -310,7 +344,8 @@ class ToolRegistry {
       }
       const result = (origRegisterTool as AnyFn)(name, ...rest);
       // Store FULL description in registry for discover_tools / semantic search
-      const annotations = (config as { annotations?: { destructiveHint?: boolean } }).annotations;
+      const annotations = (config as { annotations?: { destructiveHint?: boolean; readOnlyHint?: boolean } })
+        .annotations;
       tools.set(name, {
         handler: wrapped,
         enabled: true,
@@ -319,6 +354,7 @@ class ToolRegistry {
         titleLower: title?.toLowerCase(),
         descriptionLower: fullDescription?.toLowerCase(),
         destructive: annotations?.destructiveHint === true,
+        readOnly: annotations?.readOnlyHint === true,
       });
       return result;
     }) as typeof server.registerTool;

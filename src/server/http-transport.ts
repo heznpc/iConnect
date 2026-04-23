@@ -12,9 +12,11 @@ import { printBanner } from "../shared/banner.js";
 import { auditLog } from "../shared/audit.js";
 import { SERVER_ICON, WEBSITE_URL } from "../shared/icons.js";
 import { toolRegistry } from "../shared/tool-registry.js";
+import { runWithRequestContext } from "../shared/request-context.js";
 import { createServer, type CreateServerOptions } from "./mcp-setup.js";
 import { registerShutdownHook } from "./shutdown.js";
 import { buildServerCard, buildOAuthProtectedResourceCard } from "./well-known-card.js";
+import { verifyBearer, type VerifyResult } from "./oauth-verifier.js";
 
 // ── Per-IP rate limiter (token bucket, no external dependency) ────────
 const RATE_WINDOW_MS = 60_000;
@@ -309,20 +311,75 @@ export async function startHttpServer(options: HttpServerOptions): Promise<void>
     next();
   });
 
-  // Bearer token auth — required when --bind-all is used, optional otherwise.
-  // Hash both inputs to a fixed length before timingSafeEqual so the length
-  // comparison itself does not become a timing oracle for the token length.
-  if (httpToken) {
+  // Auth middleware — the branch depends on the active network policy.
+  // with-oauth* → JWT verify + AsyncLocalStorage scope context.
+  // with-token* (legacy) → static Bearer token + constant-time compare.
+  // Everything else (loopback-only, unauthenticated) skips both paths.
+  const isOAuthPolicy = allowNetwork === "with-oauth" || allowNetwork === "with-oauth+origin";
+  const AUTH_SKIP_PATHS = new Set(["/health", "/.well-known/mcp.json", "/.well-known/oauth-protected-resource"]);
+
+  if (isOAuthPolicy && oauth) {
+    // RFC 0005 Step 2 — real JWT verification. issuer + audience are
+    // guaranteed present at this point by `validateNetworkPolicy`.
+    const oauthCfg = { issuer: oauth.issuer, audience: oauth.audience };
+    app.use((req, res, next) => {
+      if (AUTH_SKIP_PATHS.has(req.path)) return next();
+      verifyBearer(req.headers.authorization, oauthCfg)
+        .then((result: VerifyResult) => {
+          if (!result.ok) {
+            auditLog({
+              timestamp: new Date().toISOString(),
+              tool: "__auth_failure",
+              args: {
+                ip: req.ip ?? req.socket.remoteAddress ?? "unknown",
+                path: req.path,
+                reason: result.reason,
+              },
+              status: "error",
+            });
+            // RFC 6750 §3 — advertise resource + error on 401 so
+            // conforming clients can retry with corrected audience /
+            // scope before giving up.
+            const resource = oauth.audience;
+            if (result.reason === "jwks_unreachable") {
+              // AS-side problem — retry-safe, not a bad-token signal.
+              res.set("Retry-After", "10");
+              res.status(503).json({ error: "authorization server unavailable" });
+              return;
+            }
+            const errCode =
+              result.reason === "expired" || result.reason === "not_yet_valid" || result.reason === "invalid_signature"
+                ? "invalid_token"
+                : result.reason === "wrong_audience" || result.reason === "wrong_issuer"
+                  ? "invalid_token"
+                  : "invalid_request";
+            res.set(
+              "WWW-Authenticate",
+              `Bearer resource="${resource}", error="${errCode}", error_description="${result.reason}"`,
+            );
+            res.status(401).json({ error: "Unauthorized", code: errCode });
+            return;
+          }
+          // Happy path — claims available to the tool handler via
+          // AsyncLocalStorage. The MCP SDK's dispatcher awaits inside
+          // the request chain, so async context propagates end-to-end.
+          runWithRequestContext({ oauth: result.claims }, () => next());
+        })
+        .catch((e: unknown) => {
+          // Defensive — verifyBearer's contract says it doesn't throw,
+          // but a malformed jose dependency update shouldn't take down
+          // the server silently.
+          console.error("[AirMCP] OAuth verify internal error:", e);
+          res.status(500).json({ error: "Authorization internal error" });
+        });
+    });
+  } else if (httpToken) {
+    // Legacy Bearer token. Hash both inputs to a fixed length before
+    // timingSafeEqual so the length comparison itself does not become a
+    // timing oracle for the token length.
     const expectedHash = createHash("sha256").update(`Bearer ${httpToken}`).digest();
     app.use((req, res, next) => {
-      // Skip auth for health/discovery endpoints
-      if (
-        req.path === "/health" ||
-        req.path === "/.well-known/mcp.json" ||
-        req.path === "/.well-known/oauth-protected-resource"
-      ) {
-        return next();
-      }
+      if (AUTH_SKIP_PATHS.has(req.path)) return next();
       const auth = req.headers.authorization ?? "";
       const authHash = createHash("sha256").update(auth).digest();
       if (!timingSafeEqual(authHash, expectedHash)) {
