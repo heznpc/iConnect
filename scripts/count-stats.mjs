@@ -64,7 +64,52 @@ const modules = moduleBlock
   ? (moduleBlock[1].match(/"/g) || []).length / 2
   : 0;
 
-const stats = { tools, prompts, resources, modules };
+// RFC 0007 — AppIntent coverage, derived from the dumped manifest.
+// Opportunistic: if the manifest file is absent (e.g. fresh checkout
+// before `npm run gen:manifest` ran) we leave these as null instead of
+// failing, so `count-stats --check` stays stable. CI runs gen:manifest
+// before count-stats anyway.
+let appIntentEligible = null;
+let appIntentIneligible = null;
+let appIntentGenerated = null;
+let appIntentIneligibleByReason = null;
+let manifestToolCount = null;
+
+const manifestPath = join(ROOT, "docs", "tool-manifest.json");
+if (existsSync(manifestPath)) {
+  try {
+    const m = JSON.parse(readFileSync(manifestPath, "utf-8"));
+    manifestToolCount = m.toolCount ?? m.tools.length;
+    appIntentEligible = m.eligibleCount ?? m.tools.filter((t) => t.appIntentEligible).length;
+    appIntentIneligible = m.ineligibleCount ?? m.tools.filter((t) => !t.appIntentEligible).length;
+    appIntentIneligibleByReason = m.ineligibleByReason ?? null;
+  } catch {
+    /* leave as null */
+  }
+}
+
+const generatedPath = join(ROOT, "swift", "Sources", "AirMCPKit", "Generated", "MCPIntents.swift");
+if (existsSync(generatedPath)) {
+  try {
+    const gen = readFileSync(generatedPath, "utf-8");
+    // Count top-level `public struct FooIntent: AppIntent` declarations.
+    // Excludes output structs (Codable, Sendable) and AppEnum / AppShortcutsProvider.
+    appIntentGenerated = (gen.match(/^public struct \w+Intent: AppIntent\b/gm) || []).length;
+  } catch {
+    /* leave as null */
+  }
+}
+
+const stats = {
+  tools,
+  prompts,
+  resources,
+  modules,
+  appIntentEligible,
+  appIntentIneligible,
+  appIntentGenerated,
+  appIntentIneligibleByReason,
+};
 
 // ── Print mode ─────────────────────────────────────────────────────
 
@@ -119,6 +164,24 @@ function syncFile(relPath, replacements) {
 console.log(
   `\nStats ${mode}: ${tools} tools, ${prompts} prompts, ${resources} resources, ${modules} modules\n`,
 );
+if (appIntentEligible !== null) {
+  const reasonSummary = appIntentIneligibleByReason
+    ? Object.entries(appIntentIneligibleByReason)
+        .map(([r, n]) => `${r}=${n}`)
+        .join(", ")
+    : "";
+  // Use manifestToolCount as the denominator since it reflects the
+  // runtime-registered set (dynamic registrations via skills / apps
+  // providers that the regex-based `tools` count above misses). The
+  // two numbers won't match when skills/apps modules register tools
+  // that aren't literal `server.registerTool(` call sites in src.
+  console.log(
+    `AppIntent coverage: ${appIntentEligible}/${manifestToolCount} eligible` +
+      (appIntentGenerated !== null ? `, ${appIntentGenerated} emitted (destructive opt-in off by default)` : "") +
+      (appIntentIneligible > 0 ? `, ${appIntentIneligible} ineligible (${reasonSummary})` : "") +
+      "\n",
+  );
+}
 
 // README.md
 syncFile("README.md", [
