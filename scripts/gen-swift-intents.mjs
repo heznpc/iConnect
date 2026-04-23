@@ -60,6 +60,8 @@ import {
   systemImageFor,
   collectEnums,
   renderAppEnum as _renderAppEnum,
+  swiftParamDecl,
+  buildArgsBlock,
 } from "./lib/codegen-helpers.mjs";
 
 // CLI wrappers: the lib throws on invalid enum value so tests can
@@ -185,11 +187,6 @@ for (const name of APP_SHORTCUTS_TOP) {
 
 // ── Swift codegen helpers ────────────────────────────────────────────
 
-// Keep @Parameter titles short enough to render well in Shortcuts picker
-// UIs. 80 is conservative; Apple doesn't publish a hard limit but longer
-// strings wrap awkwardly.
-const MAX_TITLE_LEN = 80;
-
 // toPascalCase, intentStructName, intentActionNameFor, swiftLit,
 // humanizeKey, enumCaseDisplayLabel, enumTypeName, swiftIdent,
 // SWIFT_RESERVED are imported from scripts/lib/codegen-helpers.mjs.
@@ -211,81 +208,9 @@ const MAX_TITLE_LEN = 80;
 
 // swiftDefaultLiteral imported from scripts/lib/codegen-helpers.mjs.
 
-/**
- * Map a JSON-Schema property to a Swift `@Parameter` declaration.
- * Optional properties (not in inputSchema.required) become Optional<T>
- * unless the schema carries an explicit default.
- * Non-primitive or composite shapes return null; callers must filter
- * the property out of the generated intent entirely.
- */
-function swiftParamDecl(propName, propSchema, isRequired, enumTypeOverride) {
-  const baseType = enumTypeOverride ?? swiftTypeFor(propSchema);
-  if (baseType === null) return null;
-
-  const descParts = [];
-  if (propSchema.description) descParts.push(propSchema.description);
-  // Skip the "Allowed: a, b, c" tail when the param is a real AppEnum —
-  // Shortcuts picker already shows the cases via caseDisplayRepresentations.
-  if (!enumTypeOverride && Array.isArray(propSchema.enum) && propSchema.enum.length > 0) {
-    descParts.push(`Allowed: ${propSchema.enum.join(", ")}`);
-  }
-  const title = descParts.join(" · ") || propName;
-  const safeTitle = swiftLit(title.slice(0, MAX_TITLE_LEN));
-
-  const optsParts = [`title: "${safeTitle}"`];
-  const defaultLiteral = enumTypeOverride
-    ? enumDefaultLiteral(propSchema.default, propSchema.enum)
-    : swiftDefaultLiteral(propSchema.default, baseType);
-  if (defaultLiteral !== null) optsParts.push(`default: ${defaultLiteral}`);
-
-  if (
-    (baseType === "Int" || baseType === "Double") &&
-    typeof propSchema.minimum === "number" &&
-    typeof propSchema.maximum === "number"
-  ) {
-    optsParts.push(`inclusiveRange: (${propSchema.minimum}, ${propSchema.maximum})`);
-  }
-
-  // Optional fields without an explicit default become `T?` so AppIntent
-  // treats them as optional. Fields with a default stay non-optional.
-  const hasDefault = defaultLiteral !== null;
-  const typeName = isRequired || hasDefault ? baseType : `${baseType}?`;
-
-  return `    @Parameter(${optsParts.join(", ")})\n    public var ${propName}: ${typeName}`;
-}
-
-// enumDefaultLiteral, wireExpr imported from scripts/lib/codegen-helpers.mjs.
-
-/**
- * Emit the Swift statements that build the `args` dict for a router call.
- * Returns `{ prelude, argsExpr }` — callers drop `prelude` into the
- * `perform()` body before the call, then pass `argsExpr` to `args:`.
- *
- * Optional properties use `if let ... { args[...] = ... }` so nil fields
- * don't cross the wire as JSON `null` — Node's JSON-Schema validator
- * treats absent-vs-null differently for optionals.
- */
-function buildArgsBlock(decls) {
-  if (decls.length === 0) {
-    return { prelude: "", argsExpr: "[String: any Sendable]()" };
-  }
-
-  const allRequired = decls.every((d) => !d.optional);
-  if (allRequired) {
-    const pairs = decls.map((d) => `"${d.wireName}": ${wireExpr(d.type, d.name, d.isEnum)}`).join(", ");
-    return { prelude: "", argsExpr: `[${pairs}]` };
-  }
-
-  const lines = [`var args: [String: any Sendable] = [:]`];
-  for (const d of decls) {
-    if (!d.optional) {
-      lines.push(`args["${d.wireName}"] = ${wireExpr(d.type, d.name, d.isEnum)}`);
-    } else {
-      lines.push(`if let v = ${d.name} { args["${d.wireName}"] = ${wireExpr(d.type, "v", d.isEnum)} }`);
-    }
-  }
-  return { prelude: lines.map((l) => `        ${l}`).join("\n"), argsExpr: "args" };
-}
+// swiftParamDecl, buildArgsBlock imported from scripts/lib/codegen-helpers.mjs
+// (incl. MAX_TITLE_LEN which swiftParamDecl encapsulates).
+// enumDefaultLiteral, wireExpr also imported from there.
 
 // SWIFT_RESERVED, swiftIdent imported from scripts/lib/codegen-helpers.mjs.
 
