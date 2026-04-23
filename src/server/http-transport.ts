@@ -14,7 +14,7 @@ import { SERVER_ICON, WEBSITE_URL } from "../shared/icons.js";
 import { toolRegistry } from "../shared/tool-registry.js";
 import { createServer, type CreateServerOptions } from "./mcp-setup.js";
 import { registerShutdownHook } from "./shutdown.js";
-import { buildServerCard } from "./well-known-card.js";
+import { buildServerCard, buildOAuthProtectedResourceCard } from "./well-known-card.js";
 
 // ── Per-IP rate limiter (token bucket, no external dependency) ────────
 const RATE_WINDOW_MS = 60_000;
@@ -78,12 +78,20 @@ const LOCALHOST_ORIGIN_RE = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?
  *                         `security: insecure`. Not a default anyone stumbles
  *                         into.
  */
-export type AllowNetwork = "loopback-only" | "with-token" | "with-token+origin" | "unauthenticated";
+export type AllowNetwork =
+  | "loopback-only"
+  | "with-token"
+  | "with-token+origin"
+  | "with-oauth"
+  | "with-oauth+origin"
+  | "unauthenticated";
 
 const ALLOW_NETWORK_VALUES: readonly AllowNetwork[] = [
   "loopback-only",
   "with-token",
   "with-token+origin",
+  "with-oauth",
+  "with-oauth+origin",
   "unauthenticated",
 ];
 
@@ -98,6 +106,26 @@ export interface HttpServerOptions extends CreateServerOptions {
   /** Opt-in to the `unauthenticated` policy via CLI flag. Ignored when
    *  `allowNetwork` is set explicitly. */
   unsafeNoAuth?: boolean;
+}
+
+/** RFC 0005 Step 1 — OAuth issuer + audience. Read once at startup so
+ *  subsequent handlers can reference them without re-probing env. Both
+ *  are required when `allowNetwork` lands on `with-oauth*` (enforced by
+ *  `validateNetworkPolicy`); Step 1 doesn't verify JWTs yet, but the
+ *  discovery card emits them so MCP clients (including Managed Agents /
+ *  Cowork) can bootstrap against the right authorization server. */
+export interface OAuthContext {
+  issuer: string;
+  /** Resource Indicators target per RFC 8707 — the `aud` claim a valid
+   *  token must carry. Typically the server's public MCP endpoint URL. */
+  audience: string;
+}
+
+export function readOAuthContext(): OAuthContext | null {
+  const issuer = (process.env.AIRMCP_OAUTH_ISSUER ?? "").trim();
+  const audience = (process.env.AIRMCP_OAUTH_AUDIENCE ?? "").trim();
+  if (!issuer && !audience) return null;
+  return { issuer, audience };
 }
 
 /** Derive the effective policy from explicit overrides + CLI/env signals.
@@ -131,6 +159,8 @@ export function validateNetworkPolicy(ctx: {
   bindAll: boolean;
   httpToken: string;
   allowedOriginsCount: number;
+  oauthIssuer?: string;
+  oauthAudience?: string;
 }): void {
   switch (ctx.policy) {
     case "loopback-only":
@@ -160,6 +190,44 @@ export function validateNetworkPolicy(ctx: {
             'Example: AIRMCP_ALLOWED_ORIGINS="https://claude.ai,https://cursor.sh"',
         );
       }
+      return;
+    case "with-oauth":
+    case "with-oauth+origin":
+      // RFC 0005 Step 1 — discovery-only. Startup still refuses when
+      // AIRMCP_OAUTH_ISSUER or AIRMCP_OAUTH_AUDIENCE is missing so the
+      // .well-known/oauth-protected-resource card never goes live with
+      // empty fields (clients that fetch it must see a pointer to a real
+      // authorization server).
+      if (!ctx.oauthIssuer) {
+        throw new Error(
+          `allowNetwork=${ctx.policy} requires AIRMCP_OAUTH_ISSUER ` +
+            '(the authorization server base URL, e.g. "https://auth.example.com/realms/airmcp").',
+        );
+      }
+      if (!/^https:\/\//.test(ctx.oauthIssuer)) {
+        throw new Error(
+          `AIRMCP_OAUTH_ISSUER must be an https:// URL (got "${ctx.oauthIssuer}"). ` +
+            "Plain http issuers are a security hole — reject at startup.",
+        );
+      }
+      if (!ctx.oauthAudience) {
+        throw new Error(
+          `allowNetwork=${ctx.policy} requires AIRMCP_OAUTH_AUDIENCE ` +
+            "(RFC 8707 Resource Indicator — the URL your MCP endpoint is reachable at).",
+        );
+      }
+      if (ctx.policy === "with-oauth+origin" && ctx.allowedOriginsCount === 0) {
+        throw new Error("allowNetwork=with-oauth+origin requires AIRMCP_ALLOWED_ORIGINS.");
+      }
+      // No token validation happens in Step 1 — middleware is a follow-up.
+      // The server will refuse tool calls until Step 2 lands; for now, the
+      // .well-known card advertises OAuth support so Managed Agents /
+      // discovery clients can see the auth model before they try.
+      console.error(
+        `[AirMCP] allowNetwork=${ctx.policy} — Step 1 (discovery-only). ` +
+          "Token validation middleware arrives in a follow-up; " +
+          "do NOT bind this to a public interface until the middleware lands.",
+      );
       return;
     case "unauthenticated":
       // No invariant — but loudly warn so the choice is visible.
@@ -194,12 +262,15 @@ export async function startHttpServer(options: HttpServerOptions): Promise<void>
     allowedOriginsCount: allowedOrigins.size,
     unsafeNoAuth,
   });
+  const oauth = readOAuthContext();
   try {
     validateNetworkPolicy({
       policy: allowNetwork,
       bindAll,
       httpToken,
       allowedOriginsCount: allowedOrigins.size,
+      oauthIssuer: oauth?.issuer,
+      oauthAudience: oauth?.audience,
     });
   } catch (e) {
     console.error(`[AirMCP] FATAL: ${e instanceof Error ? e.message : String(e)}`);
@@ -245,7 +316,13 @@ export async function startHttpServer(options: HttpServerOptions): Promise<void>
     const expectedHash = createHash("sha256").update(`Bearer ${httpToken}`).digest();
     app.use((req, res, next) => {
       // Skip auth for health/discovery endpoints
-      if (req.path === "/health" || req.path === "/.well-known/mcp.json") return next();
+      if (
+        req.path === "/health" ||
+        req.path === "/.well-known/mcp.json" ||
+        req.path === "/.well-known/oauth-protected-resource"
+      ) {
+        return next();
+      }
       const auth = req.headers.authorization ?? "";
       const authHash = createHash("sha256").update(auth).digest();
       if (!timingSafeEqual(authHash, expectedHash)) {
@@ -341,8 +418,22 @@ export async function startHttpServer(options: HttpServerOptions): Promise<void>
           names: toolRegistry.getToolNames(),
         },
         modules: enabledModuleNames,
+        oauth: oauth ?? undefined,
       }),
     );
+  });
+
+  // RFC 9728 — OAuth protected resource metadata. Emitted only when
+  // the active policy is an OAuth policy AND issuer + audience are
+  // both configured (otherwise returning the card with empty fields
+  // would mislead Managed Agents into bootstrapping against nothing).
+  app.get("/.well-known/oauth-protected-resource", (_req, res) => {
+    const isOAuth = allowNetwork === "with-oauth" || allowNetwork === "with-oauth+origin";
+    if (!isOAuth || !oauth?.issuer || !oauth.audience) {
+      res.status(404).json({ error: "Not Found — server is not in an OAuth policy" });
+      return;
+    }
+    res.json(buildOAuthProtectedResourceCard(oauth.audience, oauth.issuer));
   });
 
   // Request ID middleware for tracing

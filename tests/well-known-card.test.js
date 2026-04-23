@@ -5,7 +5,12 @@
 // shape regression breaks crawler parsing upstream — pin the contract.
 
 import { describe, test, expect } from "@jest/globals";
-import { buildServerCard, SCHEMA_VERSION } from "../dist/server/well-known-card.js";
+import {
+  buildServerCard,
+  buildOAuthProtectedResourceCard,
+  SCHEMA_VERSION,
+  SCOPES_SUPPORTED,
+} from "../dist/server/well-known-card.js";
 
 const baseInput = () => ({
   name: "airmcp",
@@ -166,5 +171,76 @@ describe("buildServerCard — JSON round-trip", () => {
     const parsed = JSON.parse(serialized);
     expect(parsed.name).toBe("airmcp");
     expect(parsed.tools.count).toBe(270);
+  });
+});
+
+describe("buildServerCard — OAuth authorization block (RFC 0005 Step 1)", () => {
+  const oauthInput = () => ({
+    ...baseInput(),
+    allowNetwork: "with-oauth",
+    oauth: {
+      issuer: "https://auth.example.com/realms/airmcp",
+      audience: "https://airmcp.local/mcp",
+    },
+  });
+
+  test("with-oauth policy + full oauth context → OAuth authorization block", () => {
+    const card = buildServerCard(oauthInput());
+    expect(card.authorization).toEqual({
+      type: "oauth2",
+      resource: "https://airmcp.local/mcp",
+      authorization_servers: ["https://auth.example.com/realms/airmcp"],
+      scopes_supported: [...SCOPES_SUPPORTED],
+    });
+  });
+
+  test("with-oauth+origin policy also emits OAuth block", () => {
+    const card = buildServerCard({
+      ...oauthInput(),
+      allowNetwork: "with-oauth+origin",
+      allowedOrigins: ["https://claude.ai"],
+    });
+    expect(card.authorization).toMatchObject({ type: "oauth2" });
+    expect(card.allowed_origins).toEqual(["https://claude.ai"]);
+  });
+
+  test("OAuth policy WITHOUT oauth context → no authorization block (discovery-only state)", () => {
+    const card = buildServerCard({ ...oauthInput(), oauth: undefined });
+    expect("authorization" in card).toBe(false);
+  });
+
+  test("OAuth takes precedence over bearer token when both are present", () => {
+    const card = buildServerCard({ ...oauthInput(), httpToken: "legacy-token" });
+    expect(card.authorization).toMatchObject({ type: "oauth2" });
+    expect(card.authorization).not.toMatchObject({ type: "bearer" });
+  });
+
+  test("SCOPES_SUPPORTED declares the 4 scope tiers from RFC 0005 §3.4", () => {
+    expect(SCOPES_SUPPORTED).toEqual(["mcp:read", "mcp:write", "mcp:destructive", "mcp:admin"]);
+  });
+});
+
+describe("buildOAuthProtectedResourceCard (RFC 9728)", () => {
+  test("emits resource + authorization_servers + supported signing algs + scopes", () => {
+    const card = buildOAuthProtectedResourceCard(
+      "https://airmcp.local/mcp",
+      "https://auth.example.com/realms/airmcp",
+    );
+    expect(card).toEqual({
+      resource: "https://airmcp.local/mcp",
+      authorization_servers: ["https://auth.example.com/realms/airmcp"],
+      bearer_methods_supported: ["header"],
+      resource_signing_alg_values_supported: ["RS256", "ES256"],
+      scopes_supported: [...SCOPES_SUPPORTED],
+    });
+  });
+
+  test("signing alg list excludes symmetric (HS*) algorithms", () => {
+    // Key-confusion attacks (using the AS public key as HMAC secret)
+    // are blocked at the discovery layer by not advertising HS* — any
+    // future change here needs to be deliberate.
+    const card = buildOAuthProtectedResourceCard("https://a/mcp", "https://b");
+    expect(card.resource_signing_alg_values_supported).not.toContain("HS256");
+    expect(card.resource_signing_alg_values_supported).not.toContain("none");
   });
 });
