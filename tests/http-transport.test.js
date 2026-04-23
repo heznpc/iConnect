@@ -1,4 +1,4 @@
-import { describe, test, expect, jest, beforeAll } from '@jest/globals';
+import { describe, test, expect, jest, beforeAll, afterEach } from '@jest/globals';
 
 // Mock all heavy dependencies that would fail in test environment
 jest.unstable_mockModule('@modelcontextprotocol/sdk/server/streamableHttp.js', () => ({
@@ -210,5 +210,105 @@ describe('resolveAllowNetwork integration with doctor', () => {
       ).not.toThrow();
     }
     err.mockRestore();
+  });
+});
+
+describe('validateNetworkPolicy — OAuth branches (RFC 0005 Step 1)', () => {
+  let validateNetworkPolicy;
+  beforeAll(async () => {
+    ({ validateNetworkPolicy } = await import('../dist/server/http-transport.js'));
+  });
+
+  const base = { policy: 'with-oauth', bindAll: true, httpToken: '', allowedOriginsCount: 0 };
+
+  test('with-oauth requires AIRMCP_OAUTH_ISSUER', () => {
+    expect(() =>
+      validateNetworkPolicy({ ...base, oauthIssuer: '', oauthAudience: 'https://a/mcp' }),
+    ).toThrow(/requires AIRMCP_OAUTH_ISSUER/);
+  });
+
+  test('with-oauth requires AIRMCP_OAUTH_AUDIENCE', () => {
+    expect(() =>
+      validateNetworkPolicy({
+        ...base,
+        oauthIssuer: 'https://auth.example.com',
+        oauthAudience: '',
+      }),
+    ).toThrow(/requires AIRMCP_OAUTH_AUDIENCE/);
+  });
+
+  test('with-oauth rejects http:// issuer (requires https)', () => {
+    expect(() =>
+      validateNetworkPolicy({
+        ...base,
+        oauthIssuer: 'http://auth.example.com',
+        oauthAudience: 'https://a/mcp',
+      }),
+    ).toThrow(/must be an https:\/\//);
+  });
+
+  test('with-oauth+origin requires allowed origins on top of OAuth env', () => {
+    expect(() =>
+      validateNetworkPolicy({
+        ...base,
+        policy: 'with-oauth+origin',
+        oauthIssuer: 'https://auth.example.com',
+        oauthAudience: 'https://a/mcp',
+        allowedOriginsCount: 0,
+      }),
+    ).toThrow(/AIRMCP_ALLOWED_ORIGINS/);
+  });
+
+  test('with-oauth passes when issuer + audience are both set correctly', () => {
+    const err = jest.spyOn(console, 'error').mockImplementation(() => {});
+    expect(() =>
+      validateNetworkPolicy({
+        ...base,
+        oauthIssuer: 'https://auth.example.com/realms/airmcp',
+        oauthAudience: 'https://airmcp.local/mcp',
+      }),
+    ).not.toThrow();
+    err.mockRestore();
+  });
+
+  test('with-oauth prints Step-1 advisory (discovery-only) on startup', () => {
+    const err = jest.spyOn(console, 'error').mockImplementation(() => {});
+    validateNetworkPolicy({
+      ...base,
+      oauthIssuer: 'https://auth.example.com',
+      oauthAudience: 'https://a/mcp',
+    });
+    expect(err).toHaveBeenCalledWith(expect.stringContaining('Step 1'));
+    err.mockRestore();
+  });
+});
+
+describe('readOAuthContext', () => {
+  let readOAuthContext;
+  beforeAll(async () => {
+    ({ readOAuthContext } = await import('../dist/server/http-transport.js'));
+  });
+
+  afterEach(() => {
+    delete process.env.AIRMCP_OAUTH_ISSUER;
+    delete process.env.AIRMCP_OAUTH_AUDIENCE;
+  });
+
+  test('returns null when both env vars are unset', () => {
+    expect(readOAuthContext()).toBeNull();
+  });
+
+  test('returns the trimmed pair when both are set', () => {
+    process.env.AIRMCP_OAUTH_ISSUER = '  https://auth.example.com  ';
+    process.env.AIRMCP_OAUTH_AUDIENCE = 'https://a/mcp';
+    expect(readOAuthContext()).toEqual({
+      issuer: 'https://auth.example.com',
+      audience: 'https://a/mcp',
+    });
+  });
+
+  test('returns partial object when only one is set (caller surfaces the validation error)', () => {
+    process.env.AIRMCP_OAUTH_ISSUER = 'https://auth.example.com';
+    expect(readOAuthContext()).toEqual({ issuer: 'https://auth.example.com', audience: '' });
   });
 });
