@@ -32,6 +32,9 @@ import {
   systemImageFor,
   collectEnums,
   renderAppEnum,
+  MAX_TITLE_LEN,
+  swiftParamDecl,
+  buildArgsBlock,
 } from "../scripts/lib/codegen-helpers.mjs";
 
 describe("toPascalCase", () => {
@@ -614,5 +617,196 @@ describe("renderAppEnum", () => {
     const swift = renderAppEnum({ typeName: "OneOption", values: ["only"], title: "One" });
     expect(swift).toContain("case only");
     expect(swift).toContain('.only: "Only"');
+  });
+});
+
+describe("swiftParamDecl", () => {
+  test("required string param with description", () => {
+    const decl = swiftParamDecl("query", { type: "string", description: "Search text" }, true);
+    expect(decl).toBe(
+      `    @Parameter(title: "Search text")\n    public var query: String`,
+    );
+  });
+
+  test("optional string param becomes String? without default", () => {
+    const decl = swiftParamDecl("query", { type: "string" }, false);
+    expect(decl).toContain("public var query: String?");
+  });
+
+  test("integer with min/max gets inclusiveRange", () => {
+    const decl = swiftParamDecl(
+      "limit",
+      { type: "integer", minimum: 1, maximum: 200, description: "Max results" },
+      false,
+    );
+    expect(decl).toContain("title: \"Max results\"");
+    expect(decl).toContain("inclusiveRange: (1, 200)");
+    // Optional without default → Int?
+    expect(decl).toContain("public var limit: Int?");
+  });
+
+  test("default literal makes the field non-optional even if unrequired", () => {
+    const decl = swiftParamDecl(
+      "limit",
+      { type: "integer", default: 50, minimum: 1, maximum: 200 },
+      false,
+    );
+    expect(decl).toContain("default: 50");
+    expect(decl).toContain("public var limit: Int");
+    expect(decl).not.toContain("public var limit: Int?");
+  });
+
+  test("date-time string → Date", () => {
+    const decl = swiftParamDecl(
+      "startDate",
+      { type: "string", format: "date-time", description: "Start" },
+      true,
+    );
+    expect(decl).toContain("public var startDate: Date");
+  });
+
+  test("string-array → [String]", () => {
+    const decl = swiftParamDecl(
+      "tags",
+      { type: "array", items: { type: "string" }, description: "Tags" },
+      true,
+    );
+    expect(decl).toContain("public var tags: [String]");
+  });
+
+  test("Boolean with explicit true default", () => {
+    const decl = swiftParamDecl(
+      "flagged",
+      { type: "boolean", default: true, description: "Flag?" },
+      false,
+    );
+    expect(decl).toContain("default: true");
+    expect(decl).toContain("public var flagged: Bool");
+  });
+
+  test("composite shape → null (caller drops the property)", () => {
+    expect(swiftParamDecl("x", { type: "object" }, true)).toBeNull();
+    expect(
+      swiftParamDecl("x", { type: "array", items: { type: "object" } }, true),
+    ).toBeNull();
+  });
+
+  test("enum without override appends Allowed tail to title", () => {
+    const decl = swiftParamDecl(
+      "action",
+      { type: "string", enum: ["play", "pause"], description: "What to do" },
+      true,
+    );
+    expect(decl).toContain('title: "What to do · Allowed: play, pause"');
+    expect(decl).toContain("public var action: String");
+  });
+
+  test("enum WITH override uses AppEnum type + skips Allowed tail", () => {
+    const decl = swiftParamDecl(
+      "action",
+      { type: "string", enum: ["play", "pause"], description: "What to do" },
+      true,
+      "PlaybackControlActionOption",
+    );
+    expect(decl).toContain('title: "What to do"');
+    expect(decl).not.toContain("Allowed:");
+    expect(decl).toContain("public var action: PlaybackControlActionOption");
+  });
+
+  test("enum override + matching default → .case literal", () => {
+    const decl = swiftParamDecl(
+      "action",
+      { type: "string", enum: ["play", "pause"], default: "play" },
+      false,
+      "ActionOption",
+    );
+    expect(decl).toContain("default: .play");
+    expect(decl).toContain("public var action: ActionOption");
+    expect(decl).not.toContain("ActionOption?");
+  });
+
+  test("title exceeding MAX_TITLE_LEN is sliced", () => {
+    const longDesc = "x".repeat(200);
+    const decl = swiftParamDecl("field", { type: "string", description: longDesc }, true);
+    expect(decl).toContain(`title: "${"x".repeat(MAX_TITLE_LEN)}"`);
+    expect(decl).not.toContain("x".repeat(MAX_TITLE_LEN + 1));
+  });
+
+  test("no description and no enum → param name is the title", () => {
+    const decl = swiftParamDecl("id", { type: "string" }, true);
+    expect(decl).toContain('title: "id"');
+  });
+});
+
+describe("buildArgsBlock", () => {
+  test("no decls → inline empty dict, no prelude", () => {
+    const out = buildArgsBlock([]);
+    expect(out.prelude).toBe("");
+    expect(out.argsExpr).toBe("[String: any Sendable]()");
+  });
+
+  test("single required string → inline literal dict", () => {
+    const out = buildArgsBlock([
+      { name: "query", wireName: "query", type: "String", isEnum: false, optional: false },
+    ]);
+    expect(out.prelude).toBe("");
+    expect(out.argsExpr).toBe(`["query": query]`);
+  });
+
+  test("multiple required mixed types → inline literal with correct wireExpr", () => {
+    const out = buildArgsBlock([
+      { name: "startDate", wireName: "startDate", type: "Date", isEnum: false, optional: false },
+      { name: "limit", wireName: "limit", type: "Int", isEnum: false, optional: false },
+      { name: "action", wireName: "action", type: "ActionOption", isEnum: true, optional: false },
+    ]);
+    expect(out.prelude).toBe("");
+    expect(out.argsExpr).toBe(
+      `["startDate": ISO8601DateFormatter().string(from: startDate), "limit": limit, "action": action.rawValue]`,
+    );
+  });
+
+  test("any optional triggers prelude + args dict", () => {
+    const out = buildArgsBlock([
+      { name: "query", wireName: "query", type: "String", isEnum: false, optional: false },
+      { name: "limit", wireName: "limit", type: "Int", isEnum: false, optional: true },
+    ]);
+    expect(out.argsExpr).toBe("args");
+    expect(out.prelude).toContain(`var args: [String: any Sendable] = [:]`);
+    expect(out.prelude).toContain(`args["query"] = query`);
+    expect(out.prelude).toContain(`if let v = limit { args["limit"] = v }`);
+  });
+
+  test("optional Date uses ISO8601 formatter via `v`", () => {
+    const out = buildArgsBlock([
+      { name: "startDate", wireName: "startDate", type: "Date", isEnum: false, optional: true },
+    ]);
+    expect(out.prelude).toContain(
+      `if let v = startDate { args["startDate"] = ISO8601DateFormatter().string(from: v) }`,
+    );
+  });
+
+  test("optional enum uses .rawValue on unwrapped `v`", () => {
+    const out = buildArgsBlock([
+      { name: "action", wireName: "action", type: "ActionOption", isEnum: true, optional: true },
+    ]);
+    expect(out.prelude).toContain(`if let v = action { args["action"] = v.rawValue }`);
+  });
+
+  test("wireName differs from Swift name (reserved-keyword escape)", () => {
+    // Simulates a JSON-Schema property named "default" → Swift ident "default_"
+    const out = buildArgsBlock([
+      { name: "default_", wireName: "default", type: "String", isEnum: false, optional: false },
+    ]);
+    expect(out.argsExpr).toBe(`["default": default_]`);
+  });
+
+  test("prelude lines are indented 8 spaces (matches perform body formatting)", () => {
+    const out = buildArgsBlock([
+      { name: "a", wireName: "a", type: "String", isEnum: false, optional: true },
+    ]);
+    // Every non-empty prelude line starts with exactly 8 spaces
+    for (const line of out.prelude.split("\n")) {
+      expect(line.startsWith("        ")).toBe(true);
+    }
   });
 });

@@ -257,6 +257,87 @@ export function systemImageFor(toolName) {
   return "app.connected.to.app.below.fill";
 }
 
+// ── @Parameter declaration + args dict synthesis ───────────────────────
+
+// Keep @Parameter titles short enough to render well in Shortcuts
+// picker UIs. 80 is conservative; Apple doesn't publish a hard limit
+// but longer strings wrap awkwardly.
+export const MAX_TITLE_LEN = 80;
+
+// Render a Swift `@Parameter(...) public var foo: T` declaration from a
+// JSON-Schema property. Optional properties (not in `inputSchema.required`)
+// become `Optional<T>` unless the schema carries an explicit default.
+// Non-primitive or composite shapes return null; callers filter the
+// property out of the generated intent entirely.
+//
+// `enumTypeOverride` — when the caller has pre-resolved an AppEnum
+// type for this param (via `collectEnums`), the declaration uses that
+// type and skips the redundant "Allowed: a, b, c" description tail.
+export function swiftParamDecl(propName, propSchema, isRequired, enumTypeOverride) {
+  const baseType = enumTypeOverride ?? swiftTypeFor(propSchema);
+  if (baseType === null) return null;
+
+  const descParts = [];
+  if (propSchema.description) descParts.push(propSchema.description);
+  if (!enumTypeOverride && Array.isArray(propSchema.enum) && propSchema.enum.length > 0) {
+    descParts.push(`Allowed: ${propSchema.enum.join(", ")}`);
+  }
+  const title = descParts.join(" · ") || propName;
+  const safeTitle = swiftLit(title.slice(0, MAX_TITLE_LEN));
+
+  const optsParts = [`title: "${safeTitle}"`];
+  const defaultLiteral = enumTypeOverride
+    ? enumDefaultLiteral(propSchema.default, propSchema.enum)
+    : swiftDefaultLiteral(propSchema.default, baseType);
+  if (defaultLiteral !== null) optsParts.push(`default: ${defaultLiteral}`);
+
+  if (
+    (baseType === "Int" || baseType === "Double") &&
+    typeof propSchema.minimum === "number" &&
+    typeof propSchema.maximum === "number"
+  ) {
+    optsParts.push(`inclusiveRange: (${propSchema.minimum}, ${propSchema.maximum})`);
+  }
+
+  const hasDefault = defaultLiteral !== null;
+  const typeName = isRequired || hasDefault ? baseType : `${baseType}?`;
+
+  return `    @Parameter(${optsParts.join(", ")})\n    public var ${propName}: ${typeName}`;
+}
+
+// Emit the Swift statements that build the `args` dict passed to
+// `MCPIntentRouter.shared.call(tool:, args:)`. Returns `{ prelude,
+// argsExpr }` — the caller drops `prelude` into the `perform()` body
+// before the call, then passes `argsExpr` to `args:`.
+//
+// Optional properties render as `if let ... { args[...] = ... }` so
+// nil fields don't cross the wire as JSON `null` — the Node-side
+// JSON-Schema validator treats absent-vs-null differently for optionals.
+//
+// decls is an array of `{ name, wireName, type, isEnum, optional, ... }`
+// objects produced by the generator when iterating `inputSchema.properties`.
+export function buildArgsBlock(decls) {
+  if (decls.length === 0) {
+    return { prelude: "", argsExpr: "[String: any Sendable]()" };
+  }
+
+  const allRequired = decls.every((d) => !d.optional);
+  if (allRequired) {
+    const pairs = decls.map((d) => `"${d.wireName}": ${wireExpr(d.type, d.name, d.isEnum)}`).join(", ");
+    return { prelude: "", argsExpr: `[${pairs}]` };
+  }
+
+  const lines = [`var args: [String: any Sendable] = [:]`];
+  for (const d of decls) {
+    if (!d.optional) {
+      lines.push(`args["${d.wireName}"] = ${wireExpr(d.type, d.name, d.isEnum)}`);
+    } else {
+      lines.push(`if let v = ${d.name} { args["${d.wireName}"] = ${wireExpr(d.type, "v", d.isEnum)} }`);
+    }
+  }
+  return { prelude: lines.map((l) => `        ${l}`).join("\n"), argsExpr: "args" };
+}
+
 // ── AppEnum collection + rendering ─────────────────────────────────────
 
 // Scan every tool's input schema and collect string enums. Returns
