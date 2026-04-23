@@ -1,0 +1,31 @@
+# Dev-only Keycloak for RFC 0005 OAuth 2.1 + Resource Indicators.
+# Kicked off via `npm run dev:oauth`. NOT for any deployment outside a
+# developer's laptop — the admin password, realm config, and scope issuer
+# are all public knowledge in this file.
+
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0
+    container_name: airmcp-dev-keycloak
+    command:
+      - start-dev
+      - --import-realm
+      - --http-port=8081
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_HEALTH_ENABLED: "true"
+    ports:
+      - "8081:8081"
+    volumes:
+      # The realm JSON provisions:
+      #   - realm:        airmcp
+      #   - client:       airmcp-dev (public, password + client-credentials grants)
+      #   - user:         dev / dev
+      #   - client scope: mcp-scopes (exposes mcp:read/write/destructive/admin)
+      - ./keycloak-realm.json:/opt/keycloak/data/import/airmcp-realm.json:ro
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/9000 && echo -e 'GET /health/ready HTTP/1.0\\n' >&3 && cat <&3 | grep -q 'UP'"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
