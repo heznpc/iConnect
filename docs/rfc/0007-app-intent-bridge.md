@@ -1,9 +1,11 @@
 # RFC 0007 — MCP Tool ↔ App Intent Auto-Bridge (2-phase)
 
-- **Status**: Draft
+- **Status**: Draft (amended 2026-04-23 · iOS 26.4.2 research pass)
 - **Author**: heznpc + Claude
 - **Created**: 2026-04-23
 - **Target**: v2.13.0 (Phase A) · Apple-API-dependent (Phase B)
+- **Amendment history**:
+  - 2026-04-23 — §R2 updated with confirmed `requestConfirmation(actionName:snippetIntent:)` API; §3.7 Interactive Snippets renderer added; rollout split into A.2a/A.2b/A.3 to match landed PRs #101-#103 and Interactive Snippets availability.
 - **Related**: [docs/ios-architecture.md §15.1](../ios-architecture.md), `app/Sources/AirMCPApp/AppIntents.swift`, `swift/Sources/AirMCPKit/`, `ios/Sources/AirMCPServer/`, RFC 0001 (error categories), RFC 0006 (Swift schema dump)
 
 ---
@@ -141,6 +143,23 @@ Apple caps `AppShortcutsProvider` at **10 entries** per app historically. We pic
 
 The 4 intents in [app/Sources/AirMCPApp/AppIntents.swift](../../app/Sources/AirMCPApp/AppIntents.swift) (macOS menubar app) are kept as **golden samples** — they serve as the adapter's reference output. Codegen compares its output against them in CI to catch regressions.
 
+### 3.7 Interactive Snippets renderer (confirmed iOS 26 API)
+
+`structuredContent` + `outputSchema` from a tool call becomes an **Interactive Snippet** on iOS — a SwiftUI view Siri / Shortcuts / Spotlight render inline, with tap-able affordances that re-enter AppIntents without the user leaving the host surface. API confirmed 2026-04-23 research:
+
+- A tool's `perform()` returns `.result(value: payload, view: SnippetView(payload: payload))` — the View is a normal SwiftUI view whose interactive elements must use the `Button(intent:label:)` initializer ([Apple Docs](https://developer.apple.com/documentation/AppIntents/displaying-static-and-interactive-snippets)); any other `Button` initializer renders as a passive label.
+- Follow-up intents declared inline: tapping a list item dispatches a second AppIntent so chains like `list_events` → tap one → `read_event` work without opening the app.
+
+**Codegen mapping**:
+
+| outputSchema shape             | Snippet View template                                                         |
+| ------------------------------ | ----------------------------------------------------------------------------- |
+| `{ items: [...] }` (list-like) | `ForEach` + `Button(intent: ReadFooIntent(id: item.id))` per row              |
+| scalar object                  | `VStack` of key-value rows; primary CTA button for the natural follow-up tool |
+| unit (no typed output)         | no snippet; text-only result (A.1 default)                                    |
+
+Lands in **axis 4** after A.2b (which gives us `ReturnsValue<T>` + Codable structs to render against). Gated on `canImport(AppIntents) && #available(iOS 26, *)`.
+
 ## 4. Proposed Design — Phase B (Apple-API-dependent)
 
 Once Apple publishes the actual MCP-exposure key (whether `NSAppIntentsMCPExposure` or something else) in a shipping iOS release note:
@@ -161,7 +180,8 @@ Phase B is a line of Xcode config, not a refactor.
 ### R2. HITL / elicitation in AppIntents
 
 - **Risk**: AirMCP's HITL layer (RFC 0001, v2.7) assumes a socket-based consent UI. `AppIntent.perform()` can show `IntentDialog` but not arbitrary consent UIs.
-- **Mitigation**: Phase A scope is **read-only or idempotent tools only**. Tools with `destructiveHint: true` are marked `appIntentEligible: false` until Phase A.2 (dedicated HITL-via-IntentDialog design).
+- **Mitigation**: Phase A.1/A.2 scope is **read-only or idempotent tools only**. Tools with `destructiveHint: true` are marked `appIntentEligible: false` until Phase A.3.
+- **Phase A.3 concrete API (confirmed 2026-04-23)**: iOS 26 ships [`requestConfirmation(actionName:snippetIntent:)`](https://developer.apple.com/documentation/AppIntents/displaying-static-and-interactive-snippets) on `AppIntent` — an async call inside `perform()` that blocks until the user completes a confirmation action rendered as an Interactive Snippet. This replaces the bespoke IntentDialog design we'd have had to invent: codegen for destructive tools emits a `requestConfirmation` call that echoes the tool's intent + summarized args via a confirmation snippet; approval resumes the call into `MCPIntentRouter`. Socket-HITL remains the source of truth for CLI / non-AppIntent paths.
 
 ### R3. Router fragility on macOS
 
@@ -190,15 +210,16 @@ Phase B is a line of Xcode config, not a refactor.
 
 ## 6. Rollout
 
-| Phase   | Content                                                                                                                                                         | Target              |
-| ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------- |
-| A.0     | `scripts/dump-tool-manifest.mjs` + `scripts/gen-swift-intents.mjs` + `tool-manifest.json` codegen + CI drift check. **No Swift build change yet.**              | v2.13.0             |
-| A.1     | `MCPIntentRouter` + macOS route (execFile). **10 hand-picked read-only tools** (notes/calendar/reminders/contacts list+read). App builds + `swift test` passes. | v2.13.0             |
-| A.2     | iOS in-process route via `AirMCPServer`. **All read-only eligible tools** (~150 of 240). AppShortcutsProvider top-10.                                           | v2.14.0             |
-| A.3     | HITL-via-IntentDialog design. **Write tools with `destructiveHint: false`** (~60).                                                                              | v2.14.0             |
-| A.4     | **Write tools with `destructiveHint: true`** gated behind explicit config opt-in.                                                                               | v2.15.0             |
-| **B.1** | Inject `NSAppIntentsMCPExposure` (or whatever Apple ships) via `AIRMCP_EXPOSE_AS_MCP` build flag. **Triggered by Apple release note.**                          | Apple-API-dependent |
-| **B.2** | If Apple publishes a compile-time attribute (e.g. `@MCPExposedIntent`), codegen picks it up.                                                                    | Apple-API-dependent |
+| Phase   | Content                                                                                                                                                                                                                                                                             | Target              |
+| ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------- |
+| A.0     | `scripts/dump-tool-manifest.mjs` + `scripts/gen-swift-intents.mjs` + `tool-manifest.json` codegen + CI drift check. **No Swift build change yet.**                                                                                                                                  | v2.13.0             |
+| A.1     | `MCPIntentRouter` + macOS route (execFile). **10 hand-picked read-only tools** (notes/calendar/reminders/contacts list+read). App builds + `swift test` passes.                                                                                                                     | v2.13.0             |
+| A.2a    | `MCPIntentRouter` handler-injection + macOS execFile handler + iOS in-process `MCPServer.callToolText` handler. Same 10 tools as A.1.                                                                                                                                               | v2.13.0             |
+| A.2b    | Broaden to all read-only eligible tools (~150 of 282). Typed `ReturnsValue<T>` from outputSchema codegen. AppShortcutsProvider top-10 (usage-based).                                                                                                                                | v2.14.0             |
+| A.3     | Destructive-tool support via iOS 26 `requestConfirmation(actionName:snippetIntent:)`. Codegen emits a confirmation-snippet branch for `destructiveHint: true` tools. **Write tools with `destructiveHint: false`** (~60) land in the same phase since they don't need confirmation. | v2.14.0             |
+| A.4     | **Write tools with `destructiveHint: true`** gated behind explicit config opt-in.                                                                                                                                                                                                   | v2.15.0             |
+| **B.1** | Inject `NSAppIntentsMCPExposure` (or whatever Apple ships) via `AIRMCP_EXPOSE_AS_MCP` build flag. **Triggered by Apple release note.**                                                                                                                                              | Apple-API-dependent |
+| **B.2** | If Apple publishes a compile-time attribute (e.g. `@MCPExposedIntent`), codegen picks it up.                                                                                                                                                                                        | Apple-API-dependent |
 
 ## 7. Success Metrics
 
@@ -222,6 +243,10 @@ Phase B is a line of Xcode config, not a refactor.
 - [fatbobman's Swift Weekly #104 — system-level MCP](https://fatbobman.com/en/weekly/issue-104/)
 - [xugj520 — iOS 26 MCP Developer Guide](https://www.xugj520.cn/en/archives/apple-mcp-ios-26-developer-guide.html) (sole source for `NSAppIntentsMCPExposure`; treat as unverified until Apple confirms)
 - [Apple App Intents framework](https://developer.apple.com/documentation/appintents)
+- [Apple Developer — Displaying static and interactive snippets](https://developer.apple.com/documentation/AppIntents/displaying-static-and-interactive-snippets) — source for §3.7 renderer + §R2 `requestConfirmation` mitigation
+- [Nutrient blog — WWDC25 interactive snippet intents](https://www.nutrient.io/blog/wwdc25-snippet-intents/)
 - [supermemoryai/apple-mcp (archived 2026-01-01)](https://github.com/supermemoryai/apple-mcp)
+- [MacRumors — iOS 26.4.2 (2026-04-22)](https://www.macrumors.com/2026/04/22/apple-releases-ios-26-4-2/) — confirmed no Apple-side MCP / AppIntents public API change through 26.4.2
 - AirMCP PR #99 — [docs/ios-architecture.md](../ios-architecture.md) §15 2026-Q2 positioning
 - AirMCP PR #98 — script ↔ outputSchema contract tests (template for codegen drift guard)
+- AirMCP PR #101–#103 — A.0 manifest, A.1 codegen, A.2a router runtime (merged)
