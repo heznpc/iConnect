@@ -86,6 +86,7 @@ const picked = manifest.tools
       t.appIntentEligible && t.annotations.readOnlyHint && !t.annotations.destructiveHint && !SKIP_NAMES.has(t.name),
   )
   .sort((a, b) => a.name.localeCompare(b.name));
+const pickedSet = new Set(picked);
 
 // Validate the AppShortcutsProvider top list — all names must be in the
 // picked set, else Swift compilation fails with "cannot find type".
@@ -96,7 +97,7 @@ for (const name of APP_SHORTCUTS_TOP) {
     console.error(`[gen-intents] APP_SHORTCUTS_TOP references missing tool: ${name}`);
     process.exit(2);
   }
-  if (!picked.includes(tool)) {
+  if (!pickedSet.has(tool)) {
     console.error(
       `[gen-intents] APP_SHORTCUTS_TOP references ineligible tool: ${name}` +
         ` (readOnly=${tool.annotations.readOnlyHint}, destructive=${tool.annotations.destructiveHint}, eligible=${tool.appIntentEligible})`,
@@ -107,6 +108,11 @@ for (const name of APP_SHORTCUTS_TOP) {
 }
 
 // ── Swift codegen helpers ────────────────────────────────────────────
+
+// Keep @Parameter titles short enough to render well in Shortcuts picker
+// UIs. 80 is conservative; Apple doesn't publish a hard limit but longer
+// strings wrap awkwardly.
+const MAX_TITLE_LEN = 80;
 
 function toPascalCase(snake) {
   // Skills may arrive with dashes (e.g. `skill_focus-guardian`); Swift
@@ -153,8 +159,22 @@ function swiftTypeFor(propSchema) {
 }
 
 /**
+ * Format a JSON-Schema `default` value as a Swift literal suitable for
+ * `@Parameter(default: ...)`. Returns null when the default is absent or
+ * doesn't match the target type — caller drops the `default:` clause.
+ */
+function swiftDefaultLiteral(value, baseType) {
+  if (value === undefined) return null;
+  if ((baseType === "Int" || baseType === "Double") && typeof value === "number") return String(value);
+  if (baseType === "Bool" && typeof value === "boolean") return String(value);
+  if (baseType === "String" && typeof value === "string") return `"${swiftLit(value)}"`;
+  return null;
+}
+
+/**
  * Map a JSON-Schema property to a Swift `@Parameter` declaration.
- * Optional properties (not in inputSchema.required) become Optional<T>.
+ * Optional properties (not in inputSchema.required) become Optional<T>
+ * unless the schema carries an explicit default.
  * Non-primitive or composite shapes return null; callers must filter
  * the property out of the generated intent entirely.
  */
@@ -168,23 +188,11 @@ function swiftParamDecl(propName, propSchema, isRequired) {
     descParts.push(`Allowed: ${propSchema.enum.join(", ")}`);
   }
   const title = descParts.join(" · ") || propName;
-  const safeTitle = swiftLit(title.slice(0, 80));
+  const safeTitle = swiftLit(title.slice(0, MAX_TITLE_LEN));
 
   const optsParts = [`title: "${safeTitle}"`];
-
-  // Default values: only applied when the schema advertises one and the
-  // field is present in required OR is a plain non-optional value.
-  if (
-    propSchema.default !== undefined &&
-    (baseType === "Int" || baseType === "Double") &&
-    typeof propSchema.default === "number"
-  ) {
-    optsParts.push(`default: ${propSchema.default}`);
-  } else if (propSchema.default !== undefined && baseType === "Bool" && typeof propSchema.default === "boolean") {
-    optsParts.push(`default: ${propSchema.default}`);
-  } else if (propSchema.default !== undefined && baseType === "String" && typeof propSchema.default === "string") {
-    optsParts.push(`default: "${swiftLit(propSchema.default)}"`);
-  }
+  const defaultLiteral = swiftDefaultLiteral(propSchema.default, baseType);
+  if (defaultLiteral !== null) optsParts.push(`default: ${defaultLiteral}`);
 
   if (
     (baseType === "Int" || baseType === "Double") &&
@@ -196,17 +204,26 @@ function swiftParamDecl(propName, propSchema, isRequired) {
 
   // Optional fields without an explicit default become `T?` so AppIntent
   // treats them as optional. Fields with a default stay non-optional.
-  const hasDefault = optsParts.some((p) => p.startsWith("default:"));
+  const hasDefault = defaultLiteral !== null;
   const typeName = isRequired || hasDefault ? baseType : `${baseType}?`;
 
   return `    @Parameter(${optsParts.join(", ")})\n    public var ${propName}: ${typeName}`;
 }
 
 /**
+ * Render `varName` as the Swift expression the wire accepts for this
+ * param's type (Date → ISO-8601 string, else identity). Keeps the
+ * required-path and optional-path of `buildArgsBlock` from duplicating
+ * the Date special-case.
+ */
+function wireExpr(type, varName) {
+  return type === "Date" ? `ISO8601DateFormatter().string(from: ${varName})` : varName;
+}
+
+/**
  * Emit the Swift statements that build the `args` dict for a router call.
- * Returns an object with:
- *   `prelude`: zero or more Swift statements to place before the call
- *   `argsExpr`: the expression to pass as `args:` to `MCPIntentRouter.call`
+ * Returns `{ prelude, argsExpr }` — callers drop `prelude` into the
+ * `perform()` body before the call, then pass `argsExpr` to `args:`.
  *
  * Optional properties use `if let ... { args[...] = ... }` so nil fields
  * don't cross the wire as JSON `null` — Node's JSON-Schema validator
@@ -219,26 +236,16 @@ function buildArgsBlock(decls) {
 
   const allRequired = decls.every((d) => !d.optional);
   if (allRequired) {
-    const pairs = decls
-      .map((d) => {
-        const rhs = d.type === "Date" ? `ISO8601DateFormatter().string(from: ${d.name})` : d.name;
-        return `"${d.wireName}": ${rhs}`;
-      })
-      .join(", ");
+    const pairs = decls.map((d) => `"${d.wireName}": ${wireExpr(d.type, d.name)}`).join(", ");
     return { prelude: "", argsExpr: `[${pairs}]` };
   }
 
   const lines = [`var args: [String: any Sendable] = [:]`];
   for (const d of decls) {
     if (!d.optional) {
-      lines.push(
-        d.type === "Date"
-          ? `args["${d.wireName}"] = ISO8601DateFormatter().string(from: ${d.name})`
-          : `args["${d.wireName}"] = ${d.name}`,
-      );
+      lines.push(`args["${d.wireName}"] = ${wireExpr(d.type, d.name)}`);
     } else {
-      const rhs = d.type === "Date" ? `ISO8601DateFormatter().string(from: v)` : `v`;
-      lines.push(`if let v = ${d.name} { args["${d.wireName}"] = ${rhs} }`);
+      lines.push(`if let v = ${d.name} { args["${d.wireName}"] = ${wireExpr(d.type, "v")} }`);
     }
   }
   return { prelude: lines.map((l) => `        ${l}`).join("\n"), argsExpr: "args" };
@@ -292,17 +299,18 @@ function generateIntent(tool) {
     const prop = props[wireName];
     const baseType = swiftTypeFor(prop);
     if (baseType === null) continue; // silently dropped — codegen will still compile
-    const swiftName = swiftIdent(wireName);
+    const isRequired = required.has(wireName);
     decls.push({
-      name: swiftName,
+      name: swiftIdent(wireName),
       wireName,
       type: baseType,
-      optional: !required.has(wireName) && prop.default === undefined,
+      isRequired,
+      optional: !isRequired && prop.default === undefined,
     });
   }
 
   const paramDecls = decls
-    .map((d) => swiftParamDecl(d.name, props[d.wireName], required.has(d.wireName)))
+    .map((d) => swiftParamDecl(d.name, props[d.wireName], d.isRequired))
     .filter(Boolean)
     .join("\n\n");
   const { prelude, argsExpr } = buildArgsBlock(decls);
