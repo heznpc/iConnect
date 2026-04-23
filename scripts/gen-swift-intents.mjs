@@ -45,25 +45,33 @@ const OUT_PATH =
   process.env.AIRMCP_INTENTS_OUT ?? join(ROOT, "swift", "Sources", "AirMCPKit", "Generated", "MCPIntents.swift");
 const CHECK_ONLY = process.argv.includes("--check");
 
-// ── A.2b.1 + A.3 selection ───────────────────────────────────────────
+// ── A.2b.1 + A.3 + A.4 selection ─────────────────────────────────────
 // Automatic filter: every AppIntent-eligible tool.
 //   • readOnly → direct call, no confirmation
 //   • write (non-destructive) → direct call, no confirmation
-//   • destructive (A.3) → `requestConfirmation(actionName:dialog:)` before
-//     the router call (iOS 16+ / macOS 13+ API, inside the AppIntents
-//     gate so older SDKs stay excluded). The confirmation dialog text is
-//     generic ("Run <title> with AirMCP? This action is destructive and
-//     cannot be undone."); Shortcuts surfaces the typed @Parameter values
-//     separately, so users still see exactly what they're about to run.
+//   • destructive → gated behind AIRMCP_APPINTENTS_DESTRUCTIVE=true (A.4).
+//     Default OFF per RFC 0007 §6 — destructive tools don't appear in
+//     Shortcuts / Siri unless explicitly opted in, which yields a safer
+//     default surface for users who haven't reviewed the tool inventory.
+//     When enabled the A.3 code path runs: `requestConfirmation(
+//     actionName:dialog:)` before the router call, `@available(iOS 18,
+//     macOS 15, *)` on the struct.
 //
-// A.4 (config-gated opt-out for destructive tools) is a follow-up — once
-// real-device verification of the confirmation UI is available we can add
-// an opt-in escape hatch without changing the per-tool code paths.
+// The checked-in Generated/MCPIntents.swift reflects the default
+// (destructive OFF). Developers enabling the flag must regenerate
+// locally and are expected NOT to commit the expanded file unless
+// they also flip the CI step to match.
 //
 // An explicit SKIP list remains for specific tools that would otherwise
 // generate but have known runtime issues we haven't addressed yet. Empty
 // at the moment — listed here so future skips are discoverable in one place.
 const SKIP_NAMES = new Set([]);
+
+// A.4: opt-in for destructive tools. Accept common truthy strings so
+// `AIRMCP_APPINTENTS_DESTRUCTIVE=1` / `=true` / `=yes` / `=on` all
+// enable. Anything else (including unset, empty, "false", "0") leaves
+// destructive tools filtered out of codegen entirely.
+const INCLUDE_DESTRUCTIVE = /^(1|true|yes|on)$/i.test(process.env.AIRMCP_APPINTENTS_DESTRUCTIVE ?? "");
 
 // Top-N selection for AppShortcutsProvider (Apple caps the provider at
 // 10 entries per app). A.2b.1 uses a hand-picked subset instead of
@@ -100,11 +108,16 @@ try {
 }
 
 const byName = new Map(manifest.tools.map((t) => [t.name, t]));
-// A.3: accept every eligible tool. Destructive ones get a confirmation
-// dialog injected by `generateIntent`; writes with `destructiveHint:
-// false` run without prompt, same as read-only tools.
+// A.3 + A.4: accept every eligible tool unless it's destructive and
+// the opt-in flag is off. Destructive tools, when included, still go
+// through `generateIntent`'s confirmation dialog path.
 const picked = manifest.tools
-  .filter((t) => t.appIntentEligible && !SKIP_NAMES.has(t.name))
+  .filter((t) => {
+    if (!t.appIntentEligible) return false;
+    if (SKIP_NAMES.has(t.name)) return false;
+    if (t.annotations.destructiveHint && !INCLUDE_DESTRUCTIVE) return false;
+    return true;
+  })
   .sort((a, b) => a.name.localeCompare(b.name));
 const pickedSet = new Set(picked);
 
